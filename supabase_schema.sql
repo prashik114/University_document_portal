@@ -170,3 +170,4 @@ VALUES
 ('USR-011', 'Aarav Patel', 'aarav.p@student.university.edu', 'Faculty', 'Student Representative (B.Tech)', 'Student Representative (B.Tech)', 'Computer Science & Engineering', 'School of Computing & Information Technology', 'STU-CSE-8842', 'S', 'badge-doc', 'Student contributor for hackathon awards and co-curricular certifications', 'Active'),
 ('USR-012', 'Priya Nair', 'priya.n@student.university.edu', 'Faculty', 'Research Scholar (Ph.D)', 'Research Scholar', 'Computer Science & Engineering', 'School of Computing & Information Technology', 'STU-CSE-8910', 'P', 'badge-doc', 'Ph.D Scholar, journal publication proofs and conference attendance', 'Active')
 ON CONFLICT (id) DO NOTHING;
+
