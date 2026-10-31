@@ -1,0 +1,21 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Builds
+dist/
+build/
+target/
+*.jar
+
+# Logs & temp
+*.log
+.vscode/
+.idea/
+.DS_Store
+
