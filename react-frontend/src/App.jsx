@@ -36,6 +36,7 @@ export default function App() {
   const [showForgotView, setShowForgotView] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("rajesh.sharma@university.edu");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Application Data State
   const [documents, setDocuments] = useState([]);
@@ -299,21 +300,38 @@ export default function App() {
 
       {/* MAIN APPLICATION LAYOUT (When authenticated) */}
       {isAuthenticated && (
-        <div className="app-layout">
-          {/* SIDEBAR */}
-          <aside className="sidebar">
-            <div className="sidebar-top">
-              <div className="sidebar-brand">
-                <div className="brand-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z"/>
-                  </svg>
+        <>
+          {/* Mobile Sidebar Backdrop */}
+          <div
+            className={`sidebar-backdrop ${mobileSidebarOpen ? 'active' : ''}`}
+            onClick={() => setMobileSidebarOpen(false)}
+          ></div>
+
+          <div className="app-layout">
+            {/* SIDEBAR */}
+            <aside className={`sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+              <div className="sidebar-top">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #f1f5f9' }}>
+                  <div className="sidebar-brand" style={{ marginBottom: 0, paddingBottom: 0, borderBottom: 'none' }}>
+                    <div className="brand-icon">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z"/>
+                      </svg>
+                    </div>
+                    <div className="brand-text">
+                      <span className="brand-title">University</span>
+                      <span className="brand-subtitle">Repository</span>
+                    </div>
+                  </div>
+                  <button
+                    className="sidebar-close-btn"
+                    onClick={() => setMobileSidebarOpen(false)}
+                    aria-label="Close navigation sidebar"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
                 </div>
-                <div className="brand-text">
-                  <span className="brand-title">University</span>
-                  <span className="brand-subtitle">Repository</span>
-                </div>
-              </div>
 
               <nav className="sidebar-nav">
                 <a className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
@@ -372,6 +390,19 @@ export default function App() {
             {/* TOP NAVBAR */}
             <header className="top-navbar">
               <div className="top-navbar-left">
+                {/* Mobile Hamburger Drawer Toggle */}
+                <button
+                  className="mobile-nav-toggle"
+                  onClick={() => setMobileSidebarOpen(true)}
+                  aria-label="Open navigation menu"
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                  </svg>
+                </button>
+
                 <div className="search-box-container">
                   <svg className="search-icon-nav" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input
@@ -427,9 +458,9 @@ export default function App() {
             </header>
 
             {/* MAIN CONTENT AREA */}
-            <main className="main-content" style={{ padding: '24px 32px' }}>
+            <main className="main-content">
               {/* Personalized Header Banner */}
-              <div className="dashboard-header" style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="dashboard-header">
                 <div>
                   <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Welcome, {currentUser.name}</h1>
                   <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
@@ -441,15 +472,14 @@ export default function App() {
                   <button
                     className="primary-btn"
                     onClick={() => setShowUploadModal(true)}
-                    style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                   >
                     <span>+ Upload Document</span>
                   </button>
                 )}
               </div>
 
-              {/* 4 Standard KPI Cards */}
-              <div className="kpi-cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              {/* 4 Standard Responsive KPI Cards */}
+              <div className="kpi-cards-grid">
                 <div className="kpi-card kpi-card-blue">
                   <div className="kpi-value">{kpis.total}</div>
                   <div className="kpi-label">Total Documents</div>
@@ -470,11 +500,11 @@ export default function App() {
 
               {/* Primary Accreditation Evidence Records Table */}
               <div className="table-card" style={{ marginTop: 24 }}>
-                <div className="table-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
-                  <div className="table-card-title" style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                <div className="table-card-header">
+                  <div className="table-card-title">
                     Accreditation Evidence Records
                   </div>
-                  <div className="table-filters-group" style={{ display: 'flex', gap: 12 }}>
+                  <div className="table-filters-group">
                     <select
                       className="select-filter"
                       value={selectedCategory}
@@ -552,6 +582,7 @@ export default function App() {
             </main>
           </div>
         </div>
+      </>
       )}
 
       {/* UPLOAD DOCUMENT MODAL */}

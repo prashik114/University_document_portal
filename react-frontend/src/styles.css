@@ -1543,9 +1543,29 @@ textarea.form-control {
 }
 
 .dropdown-roles {
+    right: 140px;
+    top: 60px;
+    width: 360px;
+    max-height: 560px;
+    overflow-y: auto;
+    border-radius: var(--radius-md);
+}
+
+.dropdown-users {
     right: 20px;
     top: 60px;
-    width: 290px;
+    width: 340px;
+    max-height: 540px;
+    overflow-y: auto;
+    border-radius: var(--radius-md);
+}
+
+.active-user-item {
+    background-color: #eff6ff !important;
+}
+
+.active-user-item:hover {
+    background-color: #dbeafe !important;
 }
 
 .sub-tabs-scroller {
@@ -2409,30 +2429,30 @@ textarea.form-control {
     bottom: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-    z-index: 9999;
-    display: flex;
+    background: radial-gradient(circle at 50% 25%, #1e293b 0%, #0f172a 100%);
+    z-index: 99999;
+    display: none;
     align-items: center;
     justify-content: center;
     padding: 20px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s ease;
 }
 
-.login-screen-overlay.active {
-    opacity: 1;
-    pointer-events: auto;
+.login-screen-overlay.active,
+html.auth-logged-out #login-screen {
+    display: flex !important;
+}
+
+html.auth-logged-out .app-layout {
+    display: none !important;
 }
 
 .login-container-card {
-    background: #ffffff;
-    border-radius: var(--radius-lg);
+    background: #ffffff !important;
+    border-radius: 14px;
     width: 100%;
-    max-width: 500px;
+    max-width: 440px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
     overflow: hidden;
-    animation: loginCardPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes loginCardPop {
@@ -2864,4 +2884,147 @@ textarea.form-control {
 /* Badge colors for roles */
 .badge-admin { background: #6366f1 !important; color: white !important; }
 .badge-inspector { background: #0284c7 !important; color: white !important; }
+
+/* ==========================================================================
+   UNIVERSAL MOBILE & DEVICE RESPONSIVENESS (320px - 1024px)
+   ========================================================================== */
+
+/* Universal Touch & Scrolling optimizations */
+html, body {
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 1024px) {
+    .app-layout {
+        display: block;
+        width: 100%;
+        min-height: 100vh;
+    }
+    .main-wrapper {
+        margin-left: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .top-navbar {
+        height: 56px;
+        min-height: 56px;
+        padding: 0 12px;
+        position: sticky;
+        top: 0;
+        z-index: 99;
+    }
+    .main-content {
+        padding: 16px 12px !important;
+    }
+    .dashboard-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+    .dashboard-header h1 {
+        font-size: 20px !important;
+    }
+    .dashboard-header p {
+        font-size: 12.5px !important;
+    }
+    .primary-btn {
+        width: 100% !important;
+        justify-content: center !important;
+        height: 42px !important;
+        font-size: 13.5px !important;
+    }
+    .kpi-cards-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+    }
+    .kpi-card {
+        padding: 14px 12px !important;
+    }
+    .kpi-value {
+        font-size: 22px !important;
+    }
+    .kpi-label {
+        font-size: 11.5px !important;
+    }
+    .table-card-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 14px !important;
+    }
+    .table-filters-group {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    .select-filter {
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 40px !important;
+    }
+    .table-responsive {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    .data-table {
+        min-width: 580px !important;
+    }
+    .modal-dialog {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        max-height: 90vh !important;
+        margin: 10px auto !important;
+    }
+    .modal-body {
+        padding: 14px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-navbar-left {
+        gap: 8px !important;
+    }
+    .user-profile-badge {
+        padding: 2px !important;
+        border: none !important;
+        background: transparent !important;
+    }
+    .user-profile-badge .user-role-label,
+    .user-profile-badge .chevron-icon {
+        display: none !important;
+    }
+    .kpi-cards-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .login-container-card {
+        width: 92vw !important;
+        max-width: 92vw !important;
+        margin: auto !important;
+    }
+    .login-header-banner {
+        padding: 20px 16px !important;
+    }
+    .login-title {
+        font-size: 18px !important;
+    }
+    .login-body-form {
+        padding: 16px !important;
+        gap: 12px !important;
+    }
+    .login-input {
+        font-size: 14px !important;
+        height: 42px !important;
+    }
+    .login-btn-submit {
+        height: 44px !important;
+    }
+}
+
 
