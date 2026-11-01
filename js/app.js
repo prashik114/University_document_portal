@@ -792,6 +792,27 @@ const App = {
         this.setupLoginScreen();
     },
 
+    showLoginError(message) {
+        const errorAlert = document.getElementById("login-error-alert");
+        if (errorAlert) {
+            errorAlert.innerHTML = `
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div>${message}</div>
+            `;
+            errorAlert.style.display = "flex";
+        }
+    },
+
+    clearLoginError() {
+        const errorAlert = document.getElementById("login-error-alert");
+        if (errorAlert) {
+            errorAlert.style.display = "none";
+            errorAlert.innerHTML = "";
+        }
+    },
+
     logout() {
         localStorage.removeItem("portal_auth_user");
         sessionStorage.removeItem("portal_auth_user");
@@ -802,6 +823,7 @@ const App = {
     },
 
     showLoginScreen() {
+        this.clearLoginError();
         document.documentElement.classList.add("auth-logged-out");
         const loginEl = document.getElementById("login-screen");
         if (loginEl) {
@@ -813,6 +835,7 @@ const App = {
     },
 
     hideLoginScreen() {
+        this.clearLoginError();
         document.documentElement.classList.remove("auth-logged-out");
         const loginEl = document.getElementById("login-screen");
         if (loginEl) {
@@ -870,30 +893,77 @@ const App = {
             });
         }
 
-        // Handle Sign In submission
+        // Clear error when user edits email or password
+        const emailInputEl = document.getElementById("login-email");
+        const pwdInputEl = document.getElementById("login-password");
+        if (emailInputEl) {
+            emailInputEl.addEventListener("input", () => this.clearLoginError());
+        }
+        if (pwdInputEl) {
+            pwdInputEl.addEventListener("input", () => this.clearLoginError());
+        }
+
+        // Handle Sign In submission with strict institutional authentication & validation
         if (loginForm) {
             loginForm.addEventListener("submit", (e) => {
                 e.preventDefault();
+                this.clearLoginError();
+
                 const emailInput = document.getElementById("login-email");
+                const pwdInput = document.getElementById("login-password");
                 const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
+                const password = pwdInput ? pwdInput.value.trim() : "";
 
-                // Find matching user by email in state
-                let matchedUser = (this.state.users || []).find(u => u.email && u.email.toLowerCase() === email);
+                // 1. Strict Email Format Validation
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!email || !emailRegex.test(email)) {
+                    const msg = "Please enter a valid institutional email address.";
+                    this.showLoginError(msg);
+                    this.showToast(msg, "warning");
+                    if (emailInput) emailInput.focus();
+                    return;
+                }
+
+                // 2. Strict Institutional Directory Lookup (No auto-fallback to Dr. Rajesh Sharma)
+                const matchedUser = (this.state.users || []).find(u => u.email && u.email.toLowerCase() === email);
 
                 if (!matchedUser) {
-                    // Check if email contains any user name or role
-                    matchedUser = (this.state.users || []).find(u => email.includes(u.role.toLowerCase()) || (u.id && email.includes(u.id.toLowerCase())));
+                    const msg = `Access Denied: No institutional account found for "${email}". Please enter your registered university email.`;
+                    this.showLoginError(msg);
+                    this.showToast("Access Denied: Unregistered email address.", "error");
+                    if (emailInput) {
+                        emailInput.focus();
+                        emailInput.select();
+                    }
+                    return;
                 }
 
-                if (!matchedUser) {
-                    // Default to primary faculty user if custom email entered
-                    matchedUser = (this.state.users || []).find(u => u.id === "USR-001") || (this.state.users || [])[0];
+                // 3. Password / OTP Verification
+                const btnOtpToggle = document.getElementById("btn-otp-toggle");
+                const isOtpMode = btnOtpToggle && btnOtpToggle.textContent.includes("Password");
+                if (isOtpMode) {
+                    if (password !== "1234") {
+                        const msg = "Invalid Security OTP. Please enter the 4-digit verification code sent to your email (Demo OTP: 1234).";
+                        this.showLoginError(msg);
+                        this.showToast("Invalid OTP code. Please enter 1234.", "error");
+                        if (pwdInput) {
+                            pwdInput.focus();
+                            pwdInput.select();
+                        }
+                        return;
+                    }
+                } else {
+                    if (!password || password.length < 4) {
+                        const msg = "Please enter your password (minimum 4 characters).";
+                        this.showLoginError(msg);
+                        this.showToast(msg, "warning");
+                        if (pwdInput) pwdInput.focus();
+                        return;
+                    }
                 }
 
-                if (matchedUser) {
-                    this.switchUser(matchedUser.id);
-                }
-
+                // 4. Authenticated successfully
+                this.switchUser(matchedUser.id);
                 localStorage.setItem("portal_auth_user", "true");
                 sessionStorage.setItem("portal_auth_user", "true");
                 this.hideLoginScreen();

@@ -42,6 +42,7 @@ export default function App() {
   });
   const [loginEmail, setLoginEmail] = useState("rajesh.sharma@university.edu");
   const [loginPassword, setLoginPassword] = useState("Password@123");
+  const [loginError, setLoginError] = useState("");
   const [isOtpMode, setIsOtpMode] = useState(false);
   const [showForgotView, setShowForgotView] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("rajesh.sharma@university.edu");
@@ -96,16 +97,48 @@ export default function App() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const matched = USERS_DIRECTORY.find(u => u.email.toLowerCase() === loginEmail.trim().toLowerCase());
-    const userToSet = matched || USERS_DIRECTORY[0];
-    setCurrentUser(userToSet);
+    setLoginError("");
+
+    const emailTrimmed = loginEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+      setLoginError("Please enter a valid institutional email address.");
+      showToast("Please enter a valid institutional email address.", "warning");
+      return;
+    }
+
+    // Strict Institutional Directory Lookup (No auto-fallback to Dr. Rajesh Sharma)
+    const matched = USERS_DIRECTORY.find(u => u.email.toLowerCase() === emailTrimmed);
+    if (!matched) {
+      setLoginError(`Access Denied: No institutional account found for "${emailTrimmed}". Please enter your registered university email.`);
+      showToast("Access Denied: Unregistered email address.", "error");
+      return;
+    }
+
+    // Password / OTP Verification
+    if (isOtpMode) {
+      if (loginPassword.trim() !== "1234") {
+        setLoginError("Invalid Security OTP. Please enter the 4-digit code sent to your email (Demo OTP: 1234).");
+        showToast("Invalid OTP code. Please enter 1234.", "error");
+        return;
+      }
+    } else {
+      if (!loginPassword || loginPassword.length < 4) {
+        setLoginError("Please enter your password (minimum 4 characters).");
+        showToast("Please enter your password.", "warning");
+        return;
+      }
+    }
+
+    setCurrentUser(matched);
     setIsAuthenticated(true);
     localStorage.setItem("portal_auth_user", "true");
-    localStorage.setItem("portal_user_profile", JSON.stringify(userToSet));
-    showToast(`Signed in successfully as ${userToSet.name} (${userToSet.role})`, "success");
+    localStorage.setItem("portal_user_profile", JSON.stringify(matched));
+    showToast(`Signed in successfully as ${matched.name} (${matched.role})`, "success");
   };
 
   const handleLogout = () => {
+    setLoginError("");
     setIsAuthenticated(false);
     setUserMenuOpen(false);
     localStorage.removeItem("portal_auth_user");
@@ -303,6 +336,26 @@ export default function App() {
 
             {!showForgotView ? (
               <form className="login-body-form" onSubmit={handleLogin}>
+                {loginError && (
+                  <div style={{
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#991b1b',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    marginBottom: '14px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    lineHeight: '1.4'
+                  }}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: '2px' }}>
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <div>{loginError}</div>
+                  </div>
+                )}
                 <div className="login-input-group">
                   <label className="login-label">Official Institutional Email</label>
                   <div className="login-input-wrap">
@@ -312,7 +365,7 @@ export default function App() {
                       className="login-input"
                       required
                       value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
+                      onChange={(e) => { setLoginEmail(e.target.value); setLoginError(""); }}
                       placeholder="e.g. rajesh.sharma@university.edu"
                     />
                   </div>
@@ -345,7 +398,7 @@ export default function App() {
                       className="login-input"
                       required
                       value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
+                      onChange={(e) => { setLoginPassword(e.target.value); setLoginError(""); }}
                       placeholder={isOtpMode ? "Enter OTP (Default: 1234)" : "Enter password"}
                     />
                   </div>
