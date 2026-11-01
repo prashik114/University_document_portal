@@ -30,10 +30,10 @@ const App = {
         const isAuth = localStorage.getItem("portal_auth_user") || sessionStorage.getItem("portal_auth_user");
         if (isAuth !== "true") {
             this.showLoginScreen();
-        } else {
-            this.hideLoginScreen();
+            return; // Halt: never render sensitive dashboards for unauthenticated visitors
         }
 
+        this.hideLoginScreen();
         this.renderAll();
 
         // Connect and sync with Spring Boot + PostgreSQL backend
@@ -779,17 +779,26 @@ const App = {
             this.switchView("dashboard");
         });
 
-        // Logout simulation
-        document.getElementById("btn-logout").addEventListener("click", (e) => {
-            e.preventDefault();
-            localStorage.removeItem("portal_auth_user");
-            sessionStorage.removeItem("portal_auth_user");
-            this.showToast("Logged out successfully.", "info");
-            this.showLoginScreen();
-        });
+        // Logout handling
+        const btnLogout = document.getElementById("btn-logout");
+        if (btnLogout) {
+            btnLogout.addEventListener("click", (e) => {
+                e.preventDefault();
+                this.logout();
+            });
+        }
 
         // Login screen handling
         this.setupLoginScreen();
+    },
+
+    logout() {
+        localStorage.removeItem("portal_auth_user");
+        sessionStorage.removeItem("portal_auth_user");
+        localStorage.removeItem("portal_user_profile");
+        this.closeAllPopups();
+        this.showLoginScreen();
+        this.showToast("Signed out securely.", "info");
     },
 
     showLoginScreen() {
@@ -888,6 +897,8 @@ const App = {
                 localStorage.setItem("portal_auth_user", "true");
                 sessionStorage.setItem("portal_auth_user", "true");
                 this.hideLoginScreen();
+                this.renderAll();
+                this.syncFromBackend();
                 const userName = matchedUser ? matchedUser.name : "User";
                 const userRole = matchedUser ? (matchedUser.roleTitle || matchedUser.role) : "Repository";
                 this.showToast(`Signed in successfully as ${userName} (${userRole})`, "success");
@@ -1086,7 +1097,7 @@ const App = {
 
             <div style="padding: 10px 16px; border-top: 1px solid var(--border-color); background: #f8fafc; display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 10px 10px;">
                 <span style="font-size: 11.5px; color: #64748b;">Session Status: <strong style="color: #16a34a;">Active</strong></span>
-                <a href="javascript:void(0)" onclick="App.showLoginScreen();" style="font-size: 12px; color: #dc2626; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                <a href="javascript:void(0)" onclick="App.logout();" style="font-size: 12px; color: #dc2626; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     Sign Out
                 </a>

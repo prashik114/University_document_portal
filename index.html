@@ -17,7 +17,31 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Critical Cache-Proof Login & Persona Box Styles */
+        /* Critical Cache-Proof & Glitch-Proof Authentication Barrier */
+        html.auth-logged-out body {
+            overflow: hidden !important;
+            background: #0f172a !important;
+        }
+        html.auth-logged-out .app-layout {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        html.auth-logged-out #login-screen {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: radial-gradient(circle at 50% 25%, #1e293b 0%, #0f172a 100%) !important;
+            z-index: 999999 !important;
+        }
         .login-screen-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -29,20 +53,19 @@
             justify-content: center;
             padding: 16px;
         }
-        .login-screen-overlay.active,
-        html.auth-logged-out #login-screen {
+        .login-screen-overlay.active {
             display: flex !important;
         }
-        html.auth-logged-out .app-layout {
-            display: none !important;
-        }
         .login-container-card {
-            background: #ffffff;
+            background: #ffffff !important;
+            opacity: 1 !important;
             border-radius: 14px;
             width: 100%;
             max-width: 440px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45) !important;
             overflow: hidden;
+            position: relative;
+            z-index: 1000000;
             animation: loginCardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes loginCardPop {

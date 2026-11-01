@@ -791,6 +791,44 @@ export default function App() {
                           <div className="kpi-label">SSR Window Compliance</div>
                         </div>
                       </>
+                    ) : currentUser.role === 'Admin' ? (
+                      <>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">{documents.length}</div>
+                          <div className="kpi-label">Total Institutional Records</div>
+                        </div>
+                        <div className="kpi-card kpi-card-green">
+                          <div className="kpi-value">{USERS_DIRECTORY.length}</div>
+                          <div className="kpi-label">Active University Users</div>
+                        </div>
+                        <div className="kpi-card kpi-card-amber">
+                          <div className="kpi-value">{auditLogs.length || 24}</div>
+                          <div className="kpi-label">Audit Trail Entries</div>
+                        </div>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">100%</div>
+                          <div className="kpi-label">System Security Health</div>
+                        </div>
+                      </>
+                    ) : currentUser.role === 'Faculty' ? (
+                      <>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">{kpis.total}</div>
+                          <div className="kpi-label">My Faculty Submissions</div>
+                        </div>
+                        <div className="kpi-card kpi-card-amber">
+                          <div className="kpi-value">{kpis.underVerification}</div>
+                          <div className="kpi-label">Under HOD / Dean Review</div>
+                        </div>
+                        <div className="kpi-card kpi-card-red">
+                          <div className="kpi-value">{kpis.returned}</div>
+                          <div className="kpi-label">Returned for Clarification</div>
+                        </div>
+                        <div className="kpi-card kpi-card-green">
+                          <div className="kpi-value">{kpis.approved}</div>
+                          <div className="kpi-label">Approved & Locked in SSR</div>
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div className="kpi-card kpi-card-blue">
@@ -821,7 +859,8 @@ export default function App() {
                          currentUser.role === 'Inspector' ? 'NAAC Accreditation Evidence Dossier (Read-Only Inspection)' :
                          currentUser.role === 'DeanHOD' ? 'Departmental Accreditation Records' :
                          currentUser.role === 'IQAC' ? 'Central Accreditation Evidence Register' :
-                         'My Submissions & Accreditation Records'}
+                         currentUser.role === 'Admin' ? 'Institutional Master Records & User Governance' :
+                         'My Faculty Accreditation Submissions'}
                       </div>
                       <div className="table-filters-group">
                         <select
