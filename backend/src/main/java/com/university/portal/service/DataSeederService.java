@@ -68,7 +68,7 @@ public class DataSeederService implements CommandLineRunner {
     }
 
     public void seedUsers() {
-        if (userRepository.count() == 0) {
+        if (userRepository.count() < 12) {
             List<UserEntity> users = Arrays.asList(
                 new UserEntity("USR-001", "Dr. Rajesh Sharma", "rajesh.sharma@university.edu", "Faculty", "Associate Professor (CSE)",
                     "Associate Professor", "Computer Science & Engineering", "School of Computing & Information Technology",
@@ -99,7 +99,13 @@ public class DataSeederService implements CommandLineRunner {
                     "HOD-MECH-1008", "V", "badge-xls", "HOD Mechanical Engineering, Department Verifier", "Active"),
                 new UserEntity("USR-010", "Dr. Kavita Deshmukh", "kavita.d@university.edu", "Faculty", "Assistant Professor (BIOTECH)",
                     "Assistant Professor", "Biotechnology & Bioinformatics", "School of Applied Sciences",
-                    "FAC-BIO-1120", "K", "badge-doc", "Faculty member Biotechnology, upload patents & lab trials", "Active")
+                    "FAC-BIO-1120", "K", "badge-doc", "Faculty member Biotechnology, upload patents & lab trials", "Active"),
+                new UserEntity("USR-011", "Aarav Patel", "aarav.p@student.university.edu", "Student", "Student Representative (B.Tech)",
+                    "Student Representative", "Computer Science & Engineering", "School of Computing & IT",
+                    "STU-CSE-8842", "S", "badge-doc", "Student submitter: hackathons, co-curricular awards, and internships", "Active"),
+                new UserEntity("USR-012", "Priya Nair", "priya.n@student.university.edu", "Student", "Research Scholar (Ph.D)",
+                    "Research Scholar", "Computer Science & Engineering", "School of Computing & IT",
+                    "STU-CSE-8910", "P", "badge-doc", "Student / Scholar: journal papers, seminar attendance, and scholar grants", "Active")
             );
             userRepository.saveAll(users);
         }
