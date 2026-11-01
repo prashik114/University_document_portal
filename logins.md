@@ -53,10 +53,10 @@
 
 ## 6. Students
 
-| Student Name | Student ID | Programme | Student Email |
-| :--- | :--- | :--- | :--- |
-| **Aarav Patel** | `STU-CSE-8842` | B.Tech Computer Science & Engineering | `aarav.p@student.university.edu` |
-| **Priya Nair** | `STU-CSE-8910` | Ph.D Research Scholar | `priya.n@student.university.edu` |
+| Student Name | Student ID | Programme | Student Email | OTP | Password |
+| :--- | :--- | :--- | :--- | :---: | :--- |
+| **Aarav Patel** | `STU-CSE-8842` | B.Tech Computer Science & Engineering | `aarav.p@student.university.edu` | `1234` | `Password@123` |
+| **Priya Nair** | `STU-CSE-8910` | Ph.D Research Scholar | `priya.n@student.university.edu` | `1234` | `Password@123` |
 
 ---
 

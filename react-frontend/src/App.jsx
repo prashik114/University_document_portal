@@ -14,8 +14,8 @@ const USERS_DIRECTORY = [
   { id: "USR-008", name: "Dr. Shalini Verma", email: "shalini.verma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Management Studies", employeeId: "FAC-MGMT-1402", avatar: "S" },
   { id: "USR-009", name: "Prof. Vivek Chawla", email: "v.chawla@university.edu", role: "DeanHOD", designation: "Head of Department", department: "Mechanical Engineering", employeeId: "HOD-MECH-1008", avatar: "V" },
   { id: "USR-010", name: "Dr. Kavita Deshmukh", email: "kavita.d@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Biotechnology & Bioinformatics", employeeId: "FAC-BIO-1120", avatar: "K" },
-  { id: "USR-011", name: "Aarav Patel", email: "aarav.p@student.university.edu", role: "Faculty", designation: "Student Representative (B.Tech)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8842", avatar: "S" },
-  { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Faculty", designation: "Research Scholar (Ph.D)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910", avatar: "P" }
+  { id: "USR-011", name: "Aarav Patel", email: "aarav.p@student.university.edu", role: "Student", designation: "Student Representative (B.Tech)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8842", avatar: "S" },
+  { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Student", designation: "Research Scholar (Ph.D)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910", avatar: "P" }
 ];
 
 const NAAC_CRITERIA_METRICS = [
@@ -119,14 +119,6 @@ export default function App() {
     setShowForgotView(false);
   };
 
-  const handleSwitchUserRole = (targetRole) => {
-    const user = USERS_DIRECTORY.find(u => u.role === targetRole) || USERS_DIRECTORY[0];
-    setCurrentUser(user);
-    localStorage.setItem("portal_user_profile", JSON.stringify(user));
-    setUserMenuOpen(false);
-    showToast(`Switched active session to: ${user.name} (${user.role})`, "success");
-  };
-
   const handleUploadSubmit = (isDraft = false) => {
     if (!uploadTitle.trim()) {
       showToast("Please enter a document title.", "warning");
@@ -136,9 +128,9 @@ export default function App() {
       id: `DOC-2026-${String(documents.length + 1).padStart(3, '0')}`,
       displayNum: documents.length + 1,
       title: uploadTitle.trim(),
-      category: uploadCategory,
-      subCategory: uploadSubCategory,
-      ownerType: "Faculty Member",
+      category: currentUser.role === 'Student' ? 'Student' : uploadCategory,
+      subCategory: currentUser.role === 'Student' ? 'Student Achievement' : uploadSubCategory,
+      ownerType: currentUser.role === 'Student' ? 'Student' : 'Faculty Member',
       ownerName: currentUser.name,
       ownerId: currentUser.employeeId,
       recordedByFaculty: currentUser.name,
@@ -147,11 +139,11 @@ export default function App() {
       academicYear: "2026-2027",
       submittedOn: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       status: isDraft ? "Draft" : "Under Verification",
-      currentStage: isDraft ? "Draft" : "Dean/HOD",
+      currentStage: isDraft ? "Draft" : (currentUser.role === 'Student' ? "Faculty / HoD Review" : "Dean/HOD"),
       naacCriterion: uploadCriterion,
       fileType: "pdf",
       fileSize: "2.4 MB",
-      evidenceFile: uploadFileName || "evidence_document.pdf",
+      evidenceFile: uploadFileName || "certificate_evidence.pdf",
       evidenceVerified: !isDraft,
       isLocked: false
     };
@@ -177,7 +169,7 @@ export default function App() {
   };
 
   const handleReturnRecord = (docId) => {
-    const reason = prompt("Enter required correction reason for faculty submitter:", "Please provide signed HoD recommendation page.");
+    const reason = prompt("Enter required correction reason for submitter:", "Please provide signed HoD recommendation / attendance slip.");
     if (!reason) return;
     setDocuments(prev => prev.map(d => {
       if (d.id === docId) {
@@ -241,6 +233,10 @@ export default function App() {
 
   // Filtered documents for main table
   const filteredDocs = documents.filter(doc => {
+    if (currentUser.role === 'Student') {
+      const isOwner = doc.ownerId === currentUser.employeeId || doc.ownerName === currentUser.name || doc.category === 'Student';
+      if (!isOwner) return false;
+    }
     if (selectedCategory !== 'ALL' && doc.category !== selectedCategory) return false;
     if (selectedStatus !== 'ALL' && doc.status !== selectedStatus) return false;
     if (searchQuery) {
@@ -251,11 +247,31 @@ export default function App() {
   });
 
   const kpis = {
-    total: documents.length,
-    underVerification: documents.filter(d => d.status === 'Under Verification').length,
-    returned: documents.filter(d => d.status === 'Returned').length,
-    approved: documents.filter(d => d.status === 'Approved').length
+    total: filteredDocs.length,
+    underVerification: filteredDocs.filter(d => d.status === 'Under Verification').length,
+    returned: filteredDocs.filter(d => d.status === 'Returned').length,
+    approved: filteredDocs.filter(d => d.status === 'Approved').length
   };
+
+  const roleColors = {
+    "Faculty": "#2563eb",
+    "Student": "#0284c7",
+    "DeanHOD": "#059669",
+    "IQAC": "#7c3aed",
+    "Admin": "#4f46e5",
+    "Inspector": "#d97706"
+  };
+  const roleColor = roleColors[currentUser.role] || "#2563eb";
+
+  const clearanceMap = {
+    "Faculty": "Authorized for Self & Student Submissions",
+    "Student": "Authorized for Personal Co-Curricular & Student Achievements",
+    "DeanHOD": "Authorized for Departmental Verification & Routing",
+    "IQAC": "Authorized for Central NAAC SSR Certification & Locking",
+    "Admin": "Institutional Master Governance & Security Administration",
+    "Inspector": "Official External Peer Review Clearance (Read-Only)"
+  };
+  const clearanceDesc = clearanceMap[currentUser.role] || "Institutional Verified Access";
 
   return (
     <div>
@@ -312,7 +328,7 @@ export default function App() {
                         setIsOtpMode(!isOtpMode);
                         if (!isOtpMode) {
                           setLoginPassword("1234");
-                          showToast("OTP sent to your email (Default OTP: 1234)", "info");
+                          showToast("OTP sent to your official email (Default: 1234)", "info");
                         } else {
                           setLoginPassword("Password@123");
                         }
@@ -398,7 +414,7 @@ export default function App() {
           />
 
           <div className="app-layout">
-            {/* SIDEBAR NAVIGATION */}
+            {/* SIDEBAR NAVIGATION - Strictly role-restricted */}
             <aside className={`main-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
               <div>
                 <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -424,46 +440,61 @@ export default function App() {
                 </div>
 
                 <nav className="sidebar-nav">
+                  {/* Dashboard link for all */}
                   <a className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setMobileSidebarOpen(false); }}>
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                    <span>Dashboard</span>
+                    <span>{currentUser.role === 'Student' ? 'Student Portal' : (currentUser.role === 'Inspector' ? 'Inspection Dashboard' : (currentUser.role === 'Admin' ? 'Admin Console' : 'Dashboard'))}</span>
                   </a>
 
-                  {['Faculty', 'DeanHOD', 'Admin'].includes(currentUser.role) && (
+                  {/* Upload Document: Faculty, Student, Dean, Admin (NOT Inspector) */}
+                  {['Faculty', 'Student', 'DeanHOD', 'Admin'].includes(currentUser.role) && (
                     <a className="nav-item" onClick={() => { setShowUploadModal(true); setMobileSidebarOpen(false); }}>
                       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/></svg>
-                      <span>Upload Document</span>
+                      <span>{currentUser.role === 'Student' ? 'Submit Achievement' : 'Upload Document'}</span>
                     </a>
                   )}
 
-                  <a className={`nav-item ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => { setActiveTab('documents'); setMobileSidebarOpen(false); }}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    <span>My Documents</span>
-                    <span className="nav-badge">{documents.length}</span>
-                  </a>
+                  {/* My Documents: Faculty, Student, Dean */}
+                  {['Faculty', 'Student', 'DeanHOD'].includes(currentUser.role) && (
+                    <a className={`nav-item ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => { setActiveTab('documents'); setMobileSidebarOpen(false); }}>
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      <span>{currentUser.role === 'Student' ? 'My Certificates' : 'My Documents'}</span>
+                      <span className="nav-badge">{filteredDocs.length}</span>
+                    </a>
+                  )}
 
+                  {/* Verification Queue: Dean, IQAC, Admin */}
                   {['DeanHOD', 'IQAC', 'Admin'].includes(currentUser.role) && (
                     <a className={`nav-item ${activeTab === 'queue' ? 'active' : ''}`} onClick={() => { setActiveTab('queue'); setMobileSidebarOpen(false); }}>
                       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 12 15 16 10"/></svg>
                       <span>Verification Queue</span>
-                      <span className="nav-badge danger">{kpis.underVerification}</span>
+                      <span className="nav-badge danger">{documents.filter(d => d.status === 'Under Verification').length}</span>
                     </a>
                   )}
 
-                  <a className={`nav-item ${activeTab === 'repository' ? 'active' : ''}`} onClick={() => { setActiveTab('repository'); setMobileSidebarOpen(false); }}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                    <span>Document Repository</span>
-                  </a>
+                  {/* Document Repository: Faculty, Dean, IQAC, Inspector, Admin (NOT Student) */}
+                  {['Faculty', 'DeanHOD', 'IQAC', 'Inspector', 'Admin'].includes(currentUser.role) && (
+                    <a className={`nav-item ${activeTab === 'repository' ? 'active' : ''}`} onClick={() => { setActiveTab('repository'); setMobileSidebarOpen(false); }}>
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                      <span>Document Repository</span>
+                    </a>
+                  )}
 
-                  <a className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => { setActiveTab('reports'); setMobileSidebarOpen(false); }}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                    <span>Reports</span>
-                  </a>
+                  {/* Reports: Dean, IQAC, Inspector, Admin */}
+                  {['DeanHOD', 'IQAC', 'Inspector', 'Admin'].includes(currentUser.role) && (
+                    <a className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => { setActiveTab('reports'); setMobileSidebarOpen(false); }}>
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                      <span>Reports</span>
+                    </a>
+                  )}
 
-                  <a className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => { setActiveTab('audit'); setMobileSidebarOpen(false); }}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
-                    <span>Audit Trail</span>
-                  </a>
+                  {/* Audit Trail: IQAC, Inspector, Admin */}
+                  {['IQAC', 'Inspector', 'Admin'].includes(currentUser.role) && (
+                    <a className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => { setActiveTab('audit'); setMobileSidebarOpen(false); }}>
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
+                      <span>Audit Trail</span>
+                    </a>
+                  )}
                 </nav>
               </div>
 
@@ -556,124 +587,241 @@ export default function App() {
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <div className="user-avatar-circle">{currentUser.avatar || currentUser.name.charAt(0)}</div>
+                  <div className="user-avatar-circle" style={{ background: roleColor, color: '#fff' }}>
+                    {currentUser.avatar || currentUser.name.charAt(0)}
+                  </div>
                   <span className="user-role-label">{currentUser.name}</span>
                   <svg className="chevron-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
 
-                {/* User Profile Dropdown Menu */}
+                {/* User Profile Dropdown Menu - Strictly confidential */}
                 {userMenuOpen && (
-                  <div className="context-menu-popup active" style={{ display: 'block', right: 0, top: 50, width: 280, zIndex: 9999 }}>
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                      <div style={{ fontWeight: 700, fontSize: '13.5px', color: '#0f172a' }}>{currentUser.name}</div>
-                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>{currentUser.designation}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#dbeafe', color: '#1d4ed8' }}>
-                          {currentUser.role}
-                        </span>
-                        <span style={{ fontSize: 11, color: '#475569' }}>{currentUser.employeeId}</span>
+                  <div className="context-menu-popup active" style={{ display: 'block', right: 0, top: 50, width: 310, zIndex: 9999 }}>
+                    <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', borderRadius: '10px 10px 0 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 10, background: roleColor, color: '#fff', fontWeight: 700, fontSize: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {currentUser.avatar || currentUser.name.charAt(0)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentUser.name}</div>
+                          <div style={{ fontSize: 11.5, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{currentUser.designation}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: roleColor, background: '#fff', border: '1px solid #e2e8f0', padding: '1px 7px', borderRadius: 9999 }}>
+                              {currentUser.role.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: 11, color: '#475569', fontWeight: 600 }}>ID: {currentUser.employeeId}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div style={{ padding: '8px 12px', borderBottom: '1px solid #f1f5f9' }}>
-                      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>SWITCH ACTIVE DEMO ROLE:</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {['Faculty', 'DeanHOD', 'IQAC', 'Admin', 'Inspector'].map(role => (
-                          <button
-                            key={role}
-                            onClick={() => handleSwitchUserRole(role)}
-                            style={{
-                              fontSize: 10.5,
-                              padding: '3px 7px',
-                              borderRadius: 4,
-                              border: currentUser.role === role ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                              background: currentUser.role === role ? '#eff6ff' : '#fff',
-                              color: currentUser.role === role ? '#1d4ed8' : '#334155',
-                              cursor: 'pointer',
-                              fontWeight: currentUser.role === role ? 700 : 500
-                            }}
-                          >
-                            {role === 'DeanHOD' ? 'Dean' : role}
-                          </button>
-                        ))}
+                    <div style={{ padding: '14px 16px', borderBottom: '1px solid #f1f5f9', background: '#ffffff' }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#475569', letterSpacing: 0.5, marginBottom: 6 }}>OFFICIAL CREDENTIALS</div>
+                      <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.5, marginBottom: 8 }}>
+                        <strong>Department:</strong> {currentUser.department}<br/>
+                        <strong>Official Email:</strong> <span style={{ color: '#2563eb' }}>{currentUser.email}</span><br/>
+                        <strong>Clearance Scope:</strong> {clearanceDesc}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        256-Bit SSL Encrypted &bull; Central SSO Verified
                       </div>
                     </div>
 
-                    <div style={{ padding: '6px 0' }}>
-                      <div className="context-menu-item" onClick={() => { setActiveTab('dashboard'); setUserMenuOpen(false); }}>
-                        <span>Dashboard Home</span>
-                      </div>
-                      <div className="context-menu-item" onClick={() => { setActiveTab('documents'); setUserMenuOpen(false); }}>
-                        <span>My Submissions</span>
-                      </div>
-                      <div className="context-menu-item" onClick={handleLogout} style={{ color: '#dc2626', fontWeight: 600 }}>
-                        <span>Sign Out</span>
-                      </div>
+                    <div style={{ padding: '8px 16px', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '0 0 10px 10px' }}>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>Session: <strong style={{ color: '#16a34a' }}>Active</strong></span>
+                      <button
+                        onClick={handleLogout}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Sign Out
+                      </button>
                     </div>
                   </div>
                 )}
               </div>
             </header>
 
-            {/* MAIN CONTENT AREA */}
+            {/* MAIN CONTENT AREA - DISTINCT FOR EACH ROLE */}
             <main className="main-content">
               {/* ========================================================
                   VIEW: DASHBOARD
                   ======================================================== */}
               {activeTab === 'dashboard' && (
                 <div>
+                  {/* ROLE-SPECIFIC BANNER */}
                   <div className="dashboard-header">
                     <div>
-                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Welcome, {currentUser.name}</h1>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                        {currentUser.role === 'Student' ? `Student Portal: Welcome, ${currentUser.name}` :
+                         currentUser.role === 'Inspector' ? `NAAC Peer Team Assessment: ${currentUser.name}` :
+                         currentUser.role === 'DeanHOD' ? `Department Governance: ${currentUser.name}` :
+                         currentUser.role === 'IQAC' ? `Central IQAC Review: ${currentUser.name}` :
+                         currentUser.role === 'Admin' ? `Admin Console: ${currentUser.name}` :
+                         `Welcome, ${currentUser.name}`}
+                      </h1>
                       <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
-                        {currentUser.designation} &bull; {currentUser.department} &bull; Cycle 2026-2027
+                        {currentUser.role === 'Student' ? `${currentUser.designation} • ${currentUser.department} • Roll ID: ${currentUser.employeeId}` :
+                         currentUser.role === 'Inspector' ? `External Peer Review Committee • Read-Only Accreditation Dossier` :
+                         `${currentUser.designation} • ${currentUser.department} • Cycle 2026-2027`}
                       </p>
                     </div>
 
                     <div style={{ display: 'flex', gap: 10 }}>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => handleExportCSV(documents, "Accreditation_Master_Export.csv")}
-                        style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-                      >
-                        Export CSV
-                      </button>
-                      {['Faculty', 'DeanHOD', 'Admin'].includes(currentUser.role) && (
+                      {/* Inspectors get Export / Print; others get Upload */}
+                      {currentUser.role === 'Inspector' ? (
+                        <>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => window.print()}
+                            style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                          >
+                            Print Inspection Register
+                          </button>
+                          <button
+                            className="primary-btn"
+                            onClick={() => handleExportCSV(documents.filter(d => d.status === 'Approved'), "NAAC_Inspection_Dossier.csv")}
+                          >
+                            <span>Download Full NAAC Dossier (.CSV)</span>
+                          </button>
+                        </>
+                      ) : currentUser.role === 'Student' ? (
                         <button
                           className="primary-btn"
                           onClick={() => setShowUploadModal(true)}
                         >
-                          <span>+ Upload Document</span>
+                          <span>+ Submit Student Certificate</span>
                         </button>
+                      ) : (
+                        <>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => handleExportCSV(documents, "Accreditation_Master_Export.csv")}
+                            style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                          >
+                            Export CSV
+                          </button>
+                          <button
+                            className="primary-btn"
+                            onClick={() => setShowUploadModal(true)}
+                          >
+                            <span>+ Upload Document</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
 
-                  {/* 4 Standard Responsive KPI Cards */}
+                  {/* ROLE-SPECIFIC 4 KPI CARDS */}
                   <div className="kpi-cards-grid">
-                    <div className="kpi-card kpi-card-blue" onClick={() => setSelectedStatus('ALL')} style={{ cursor: 'pointer' }}>
-                      <div className="kpi-value">{kpis.total}</div>
-                      <div className="kpi-label">Total Documents</div>
-                    </div>
-                    <div className="kpi-card kpi-card-amber" onClick={() => setSelectedStatus('Under Verification')} style={{ cursor: 'pointer' }}>
-                      <div className="kpi-value">{kpis.underVerification}</div>
-                      <div className="kpi-label">Under Verification</div>
-                    </div>
-                    <div className="kpi-card kpi-card-red" onClick={() => setSelectedStatus('Returned')} style={{ cursor: 'pointer' }}>
-                      <div className="kpi-value">{kpis.returned}</div>
-                      <div className="kpi-label">Returned</div>
-                    </div>
-                    <div className="kpi-card kpi-card-green" onClick={() => setSelectedStatus('Approved')} style={{ cursor: 'pointer' }}>
-                      <div className="kpi-value">{kpis.approved}</div>
-                      <div className="kpi-label">Approved & Locked in SSR</div>
-                    </div>
+                    {currentUser.role === 'Student' ? (
+                      <>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">{kpis.total}</div>
+                          <div className="kpi-label">Total Achievements Submitted</div>
+                        </div>
+                        <div className="kpi-card kpi-card-amber">
+                          <div className="kpi-value">{kpis.underVerification}</div>
+                          <div className="kpi-label">Under Faculty Review</div>
+                        </div>
+                        <div className="kpi-card kpi-card-red">
+                          <div className="kpi-value">{kpis.returned}</div>
+                          <div className="kpi-label">Needs Clarification</div>
+                        </div>
+                        <div className="kpi-card kpi-card-green">
+                          <div className="kpi-value">{kpis.approved}</div>
+                          <div className="kpi-label">Approved & Verified</div>
+                        </div>
+                      </>
+                    ) : currentUser.role === 'Inspector' ? (
+                      <>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">{documents.filter(d => d.status === 'Approved').length}</div>
+                          <div className="kpi-label">Verified SSR Evidences</div>
+                        </div>
+                        <div className="kpi-card kpi-card-green">
+                          <div className="kpi-value">7 / 7</div>
+                          <div className="kpi-label">NAAC Criteria Met</div>
+                        </div>
+                        <div className="kpi-card kpi-card-amber">
+                          <div className="kpi-value">2.4 Days</div>
+                          <div className="kpi-label">Average Verification SLA</div>
+                        </div>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">100%</div>
+                          <div className="kpi-label">Tamper-Evident Ledger Integrity</div>
+                        </div>
+                      </>
+                    ) : currentUser.role === 'DeanHOD' ? (
+                      <>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">{documents.length}</div>
+                          <div className="kpi-label">Department Total Records</div>
+                        </div>
+                        <div className="kpi-card kpi-card-amber">
+                          <div className="kpi-value">{documents.filter(d => d.status === 'Under Verification').length}</div>
+                          <div className="kpi-label">Action Required in Queue</div>
+                        </div>
+                        <div className="kpi-card kpi-card-red">
+                          <div className="kpi-value">{documents.filter(d => d.status === 'Returned').length}</div>
+                          <div className="kpi-label">Returned for Correction</div>
+                        </div>
+                        <div className="kpi-card kpi-card-green">
+                          <div className="kpi-value">{documents.filter(d => d.status === 'Approved').length}</div>
+                          <div className="kpi-label">Forwarded & Approved</div>
+                        </div>
+                      </>
+                    ) : currentUser.role === 'IQAC' ? (
+                      <>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">{documents.length}</div>
+                          <div className="kpi-label">Institutional SSR Records</div>
+                        </div>
+                        <div className="kpi-card kpi-card-amber">
+                          <div className="kpi-value">{documents.filter(d => d.status === 'Under Verification').length}</div>
+                          <div className="kpi-label">Pending Quality Audit</div>
+                        </div>
+                        <div className="kpi-card kpi-card-green">
+                          <div className="kpi-value">{documents.filter(d => d.status === 'Approved').length}</div>
+                          <div className="kpi-label">SSR Locked & Certified</div>
+                        </div>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">100%</div>
+                          <div className="kpi-label">SSR Window Compliance</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="kpi-card kpi-card-blue">
+                          <div className="kpi-value">{kpis.total}</div>
+                          <div className="kpi-label">Total Submissions</div>
+                        </div>
+                        <div className="kpi-card kpi-card-amber">
+                          <div className="kpi-value">{kpis.underVerification}</div>
+                          <div className="kpi-label">Under Verification</div>
+                        </div>
+                        <div className="kpi-card kpi-card-red">
+                          <div className="kpi-value">{kpis.returned}</div>
+                          <div className="kpi-label">Needs Revision</div>
+                        </div>
+                        <div className="kpi-card kpi-card-green">
+                          <div className="kpi-value">{kpis.approved}</div>
+                          <div className="kpi-label">Approved & Locked in SSR</div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {/* Primary Accreditation Evidence Records Table */}
+                  {/* Primary Table tailored to role */}
                   <div className="table-card" style={{ marginTop: 24 }}>
                     <div className="table-card-header">
                       <div className="table-card-title">
-                        Accreditation Evidence Records
+                        {currentUser.role === 'Student' ? 'My Submitted Student Achievements' :
+                         currentUser.role === 'Inspector' ? 'NAAC Accreditation Evidence Dossier (Read-Only Inspection)' :
+                         currentUser.role === 'DeanHOD' ? 'Departmental Accreditation Records' :
+                         currentUser.role === 'IQAC' ? 'Central Accreditation Evidence Register' :
+                         'My Submissions & Accreditation Records'}
                       </div>
                       <div className="table-filters-group">
                         <select
@@ -723,7 +871,9 @@ export default function App() {
                             <tr>
                               <td colSpan="8" style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
                                 <div style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>No records found</div>
-                                <div style={{ fontSize: 12, marginTop: 4 }}>Submit new accreditation records using the "+ Upload Document" button.</div>
+                                <div style={{ fontSize: 12, marginTop: 4 }}>
+                                  {currentUser.role === 'Student' ? 'Upload your certificate using "+ Submit Student Certificate".' : 'Submit new accreditation records using the "+ Upload Document" button.'}
+                                </div>
                               </td>
                             </tr>
                           ) : (
@@ -750,7 +900,7 @@ export default function App() {
                                     className="btn-action-view"
                                     style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                                   >
-                                    View
+                                    {currentUser.role === 'Inspector' ? 'Inspect Evidence' : 'View'}
                                   </button>
                                 </td>
                               </tr>
@@ -770,13 +920,15 @@ export default function App() {
                 <div>
                   <div className="dashboard-header">
                     <div>
-                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>My Document Repository</h1>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                        {currentUser.role === 'Student' ? 'My Certificates & Achievements' : 'My Document Repository'}
+                      </h1>
                       <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
-                        Manage personal submissions, draft entries, returned corrections, and approved records
+                        {currentUser.role === 'Student' ? 'Track personal hackathons, internships, and co-curricular submissions' : 'Manage personal submissions, draft entries, returned corrections, and approved records'}
                       </p>
                     </div>
                     <button className="primary-btn" onClick={() => setShowUploadModal(true)}>
-                      <span>+ Create New Record</span>
+                      <span>{currentUser.role === 'Student' ? '+ Submit Certificate' : '+ Create New Record'}</span>
                     </button>
                   </div>
 
@@ -803,7 +955,7 @@ export default function App() {
                         ))}
                       </div>
                       <button
-                        onClick={() => handleExportCSV(documents, "My_Submissions_Export.csv")}
+                        onClick={() => handleExportCSV(filteredDocs, "My_Submissions_Export.csv")}
                         style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                       >
                         Export CSV
@@ -816,7 +968,7 @@ export default function App() {
                           <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
                             <th style={{ padding: '12px 16px' }}>#</th>
                             <th style={{ padding: '12px 16px' }}>Title</th>
-                            <th style={{ padding: '12px 16px' }}>Criterion</th>
+                            <th style={{ padding: '12px 16px' }}>Category</th>
                             <th style={{ padding: '12px 16px' }}>Submitted On</th>
                             <th style={{ padding: '12px 16px' }}>Status</th>
                             <th style={{ padding: '12px 16px' }}>Current Stage</th>
@@ -824,13 +976,13 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {documents
+                          {filteredDocs
                             .filter(d => myDocsSubTab === 'ALL' || d.status === myDocsSubTab)
                             .map((doc, idx) => (
                               <tr key={doc.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
                                 <td style={{ padding: '12px 16px', color: '#64748b' }}>{idx + 1}</td>
                                 <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{doc.title}</td>
-                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.naacCriterion || 'Criteria 1'}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.category}</td>
                                 <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.submittedOn || 'Today'}</td>
                                 <td style={{ padding: '12px 16px' }}>
                                   <span style={{
@@ -1315,7 +1467,9 @@ export default function App() {
         <div className="modal-overlay active" style={{ display: 'flex', zIndex: 99999 }}>
           <div className="modal-dialog" style={{ maxWidth: '640px', width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}>
             <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #e2e8f0' }}>
-              <div className="modal-title" style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Upload Accreditation Document</div>
+              <div className="modal-title" style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>
+                {currentUser.role === 'Student' ? 'Submit Student Achievement Certificate' : 'Upload Accreditation Document'}
+              </div>
               <button
                 className="modal-close-btn"
                 onClick={() => setShowUploadModal(false)}
@@ -1328,13 +1482,13 @@ export default function App() {
             <form onSubmit={(e) => { e.preventDefault(); handleUploadSubmit(false); }} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                  Document Title <span style={{ color: '#ef4444' }}>*</span>
+                  {currentUser.role === 'Student' ? 'Achievement Title / Event Name' : 'Document Title'} <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input
                   type="text"
                   required
                   className="login-input"
-                  placeholder="e.g. Workshop on Cloud Architecture & AI (2026)"
+                  placeholder={currentUser.role === 'Student' ? 'e.g. 1st Prize in National Smart India Hackathon 2026' : 'e.g. Workshop on Cloud Architecture & AI (2026)'}
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
                 />
@@ -1349,12 +1503,24 @@ export default function App() {
                     onChange={(e) => setUploadCategory(e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
                   >
-                    <option value="Academic">Academic</option>
-                    <option value="Research">Research</option>
-                    <option value="Co-curricular">Co-curricular</option>
-                    <option value="NAAC">NAAC</option>
-                    <option value="Faculty">Faculty Publication</option>
-                    <option value="Student">Student Achievement</option>
+                    {currentUser.role === 'Student' ? (
+                      <>
+                        <option value="Student">Student Co-Curricular</option>
+                        <option value="Student">Technical Hackathon</option>
+                        <option value="Student">Industry Internship</option>
+                        <option value="Student">Research Publication</option>
+                        <option value="Student">Sports & Cultural Award</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Academic">Academic</option>
+                        <option value="Research">Research</option>
+                        <option value="Co-curricular">Co-curricular</option>
+                        <option value="NAAC">NAAC</option>
+                        <option value="Faculty">Faculty Publication</option>
+                        <option value="Student">Student Achievement</option>
+                      </>
+                    )}
                   </select>
                 </div>
 

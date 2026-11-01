@@ -106,6 +106,12 @@ const App = {
             }
         });
 
+        // Ensure header upload button is hidden for Inspector
+        const headerUploadBtn = document.getElementById("btn-header-upload");
+        if (headerUploadBtn) {
+            headerUploadBtn.style.display = (curRole === "Inspector") ? "none" : "inline-flex";
+        }
+
         // If current active view is now hidden, reset to dashboard
         const currentNav = document.querySelector(`.sidebar-nav .nav-item[data-view="${this.activeView}"]`);
         if (currentNav && currentNav.style.display === "none") {
@@ -126,7 +132,9 @@ const App = {
             targetContainer.style.display = "block";
         }
 
-        if (curRole === "Faculty") {
+        if (curRole === "Student") {
+            this.renderStudentDashboard();
+        } else if (curRole === "Faculty") {
             this.renderFacultyDashboard();
         } else if (curRole === "DeanHOD") {
             this.renderDeanDashboard();
@@ -146,6 +154,59 @@ const App = {
         this.renderRecentActivity();
     },
 
+    renderStudentDashboard() {
+        const u = this.state.currentUser;
+        const studentDocs = (this.state.documents || []).filter(d => 
+            d.ownerId === u.employeeId || d.ownerName === u.name || d.category === "Student"
+        );
+        const total = studentDocs.length;
+        const inVerif = studentDocs.filter(d => d.status === "Under Verification").length;
+        const returned = studentDocs.filter(d => d.status === "Returned").length;
+        const approved = studentDocs.filter(d => d.status === "Approved").length;
+
+        const kTotal = document.getElementById("kpi-student-total");
+        const kVerif = document.getElementById("kpi-student-verification");
+        const kRet = document.getElementById("kpi-student-returned");
+        const kApp = document.getElementById("kpi-student-approved");
+        if (kTotal) kTotal.textContent = total;
+        if (kVerif) kVerif.textContent = inVerif;
+        if (kRet) kRet.textContent = returned;
+        if (kApp) kApp.textContent = approved;
+
+        const tbody = document.getElementById("student-table-body");
+        if (tbody) {
+            if (studentDocs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                            <div style="font-weight: 600; font-size: 14px; color: #334155;">No student achievements submitted yet</div>
+                            <div style="font-size: 12px; margin-top: 4px;">Click "+ Submit Student Certificate" above to upload your internships, hackathons, or project certificates.</div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = studentDocs.map((doc, idx) => `
+                    <tr>
+                        <td style="color: #64748b;">${idx + 1}</td>
+                        <td style="font-weight: 600; color: #0f172a;">${doc.title}</td>
+                        <td><span class="file-type-badge badge-doc">${doc.subCategory || doc.category || 'Achievement'}</span></td>
+                        <td style="color: #64748b;">${doc.department || u.department}</td>
+                        <td style="color: #64748b;">${doc.submittedOn || 'Today'}</td>
+                        <td>
+                            <span class="status-pill status-${doc.status === 'Approved' ? 'approved' : (doc.status === 'Returned' ? 'returned' : 'draft')}">
+                                ${doc.status}
+                            </span>
+                        </td>
+                        <td style="color: #64748b;">${doc.currentStage || 'Faculty / HoD Review'}</td>
+                        <td style="text-align: right;">
+                            <button class="btn-action-view" onclick="App.openDetailModal('${doc.id}')">View</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+    },
+
     updateHeaderAndRoleUI() {
         const u = this.state.currentUser;
         const roleDisplay = document.getElementById("active-role-display");
@@ -159,9 +220,11 @@ const App = {
         if (userDisplayName) userDisplayName.textContent = u.name || displayRole;
         if (userAvatar) userAvatar.textContent = u.avatar || (u.name ? u.name.charAt(0) : u.role.charAt(0));
 
-        if (welcomeHeading) {
+                if (welcomeHeading) {
             welcomeHeading.textContent = `Welcome, ${u.name || displayRole}`;
-            if (u.role === "Faculty") {
+            if (u.role === "Student") {
+                welcomeSubheading.textContent = `${u.designation || 'Student'} • ${u.department || 'Computer Science & Engineering'} • Student Achievement & Credit Portal`;
+            } else if (u.role === "Faculty") {
                 welcomeSubheading.textContent = `${u.designation || 'Faculty & Submitter'} • ${u.department || 'Computer Science & Engineering'}`;
             } else if (u.role === "DeanHOD") {
                 welcomeSubheading.textContent = `${u.designation || 'Dean / HOD Verifier'} • ${u.department || 'Department'}`;
@@ -969,238 +1032,70 @@ const App = {
         const popup = document.getElementById("user-profile-popup");
         if (!popup) return;
 
-        // Filter all users belonging to this portal's role
-        const roleUsers = (this.state.users || []).filter(usr => {
-            if (curRole === "DeanHOD" || curRole === "Dean" || curRole === "HOD") {
-                return usr.role === "DeanHOD" || usr.role === "Dean" || usr.role === "HOD";
-            }
-            return usr.role === curRole;
-        });
-
-        const roleLabel = curRole === "DeanHOD" ? "Dean / HOD" : curRole;
+        const roleLabel = curRole === "DeanHOD" ? "Dean / HOD Verifier" : (curRole === "Inspector" ? "External NAAC Inspector" : (curRole === "Student" ? "Student Submitter" : (curRole === "IQAC" ? "Central IQAC Coordinator" : (curRole === "Admin" ? "System Administrator" : "Faculty Submitter"))));
 
         const roleColors = {
             "Faculty": "#2563eb",
+            "Student": "#0284c7",
             "DeanHOD": "#059669",
             "IQAC": "#7c3aed",
             "Admin": "#4f46e5",
-            "Inspector": "#0284c7"
+            "Inspector": "#d97706"
         };
         const bg = roleColors[curRole] || "#2563eb";
+
+        const clearanceMap = {
+            "Faculty": "Authorized for Self-Submissions & Academic Evidence",
+            "Student": "Authorized for Personal Co-Curricular & Student Achievements",
+            "DeanHOD": "Authorized for Departmental Verification & Routing",
+            "IQAC": "Authorized for Central NAAC SSR Certification & Locking",
+            "Admin": "Institutional Master Governance & Security Administration",
+            "Inspector": "Official External Peer Review Clearance (Read-Only)"
+        };
+        const clearanceDesc = clearanceMap[curRole] || "Institutional Verified Access";
 
         popup.innerHTML = `
             <div style="padding: 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc; border-radius: 10px 10px 0 0;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 44px; height: 44px; border-radius: 10px; background: ${bg}; color: #ffffff; font-weight: 700; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
+                    <div style="width: 48px; height: 48px; border-radius: 10px; background: ${bg}; color: #ffffff; font-weight: 700; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15);">
                         ${u.avatar || (u.name ? u.name.charAt(0) : u.role.charAt(0))}
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 700; font-size: 14px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</div>
-                        <div style="font-size: 11.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">${u.designation || u.role}</div>
-                        <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
-                            <span style="font-size: 10.5px; font-weight: 700; color: ${bg}; background: #ffffff; border: 1px solid #e2e8f0; padding: 1px 7px; border-radius: 9999px;">${roleLabel}</span>
-                            <span style="font-size: 11px; color: #475569; font-weight: 600;">${u.employeeId || u.email}</span>
+                        <div style="font-weight: 700; font-size: 14.5px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</div>
+                        <div style="font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">${u.designation || u.role}</div>
+                        <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                            <span style="font-size: 10px; font-weight: 700; color: ${bg}; background: #ffffff; border: 1px solid #e2e8f0; padding: 1px 7px; border-radius: 9999px;">${roleLabel.toUpperCase()}</span>
+                            <span style="font-size: 11px; color: #475569; font-weight: 600;">ID: ${u.employeeId || u.id}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div style="padding: 10px 16px 6px 16px; font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;">
-                <span>${roleLabel.toUpperCase()} PORTAL USERS (${roleUsers.length})</span>
-                <span style="font-size: 10px; font-weight: 600; color: #2563eb;">Click user to switch</span>
-            </div>
-
-            <div style="max-height: 280px; overflow-y: auto;">
-                ${roleUsers.length === 0 ? `
-                    <div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 12px;">No other users registered in this portal</div>
-                ` : roleUsers.map(usr => {
-                    const isActive = (usr.id && u.id && usr.id === u.id) || (usr.email && u.email && usr.email === u.email) || (usr.name === u.name);
-                    const initials = usr.name ? usr.name.split(' ').map(n => n[0]).join('').slice(0, 2) : usr.role[0];
-                    return `
-                        <div class="user-item-row" data-switch-user="${usr.id}" 
-                             style="display: flex; align-items: center; gap: 11px; padding: 10px 16px; cursor: pointer; border-left: 3px solid ${isActive ? bg : 'transparent'}; background: ${isActive ? '#eff6ff' : 'transparent'}; transition: background 0.15s ease;">
-                            <div style="width: 32px; height: 32px; border-radius: 8px; background: ${isActive ? bg : '#f1f5f9'}; color: ${isActive ? '#ffffff' : '#334155'}; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${isActive ? 'transparent' : '#cbd5e1'};">
-                                ${initials}
-                            </div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                                    <span style="font-weight: 700; font-size: 12.5px; color: ${isActive ? '#1d4ed8' : '#0f172a'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${usr.name}</span>
-                                    ${isActive ? '<span style="font-size: 9.5px; font-weight: 700; color: #16a34a; background: #dcfce7; padding: 1px 6px; border-radius: 9999px; flex-shrink: 0;">Active</span>' : ''}
-                                </div>
-                                <div style="font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">
-                                    ${usr.designation || usr.role} &bull; ${usr.department || usr.employeeId}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
+            <div style="padding: 14px 16px; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+                <div style="font-size: 11px; font-weight: 700; color: #475569; letter-spacing: 0.5px; margin-bottom: 8px;">SECURITY & ACCESS CREDENTIALS</div>
+                <div style="font-size: 12px; color: #334155; line-height: 1.5; margin-bottom: 8px;">
+                    <strong>Department:</strong> ${u.department || 'University Repository'}<br>
+                    <strong>Institutional Email:</strong> <span style="color: #2563eb;">${u.email}</span><br>
+                    <strong>Clearance Scope:</strong> ${clearanceDesc}
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #16a34a; font-weight: 600;">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    256-Bit SSL Encrypted &bull; Central SSO Verified
+                </div>
             </div>
 
             <div style="padding: 10px 16px; border-top: 1px solid var(--border-color); background: #f8fafc; display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 10px 10px;">
-                <span style="font-size: 11px; color: #64748b;">Department: <strong>${u.department ? u.department.split(' ')[0] : 'University'}</strong></span>
-                <a href="javascript:void(0)" onclick="App.showLoginScreen();" style="font-size: 11px; color: #dc2626; font-weight: 600; text-decoration: none;">Switch Portal / Sign Out</a>
+                <span style="font-size: 11.5px; color: #64748b;">Session Status: <strong style="color: #16a34a;">Active</strong></span>
+                <a href="javascript:void(0)" onclick="App.showLoginScreen();" style="font-size: 12px; color: #dc2626; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Sign Out
+                </a>
             </div>
         `;
-
-        popup.querySelectorAll("[data-switch-user]").forEach(el => {
-            el.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const uid = el.getAttribute("data-switch-user");
-                this.switchUser(uid);
-            });
-            el.addEventListener("mouseenter", () => {
-                if (!el.style.backgroundColor.includes('eff6ff')) el.style.backgroundColor = '#f8fafc';
-            });
-            el.addEventListener("mouseleave", () => {
-                if (!el.style.backgroundColor.includes('eff6ff')) el.style.backgroundColor = 'transparent';
-            });
-        });
     },
 
     renderRolePopup() {
-        const popup = document.getElementById("role-popup");
-        if (!popup) return;
-
-        const u = this.state.currentUser || {};
-        const curUserId = u.id;
-        const curRole = u.role;
-
-        const rolesMeta = [
-            {
-                role: "Faculty",
-                title: "Faculty Portal",
-                badge: "F",
-                badgeClass: "badge-doc",
-                color: "#2563eb",
-                desc: "Owner & Submitter (Personal & Student records)"
-            },
-            {
-                role: "DeanHOD",
-                title: "Dean / HOD Verifier",
-                badge: "D",
-                badgeClass: "badge-xls",
-                color: "#059669",
-                desc: "Department Verification Queue & Decisions"
-            },
-            {
-                role: "IQAC",
-                title: "IQAC Reviewer",
-                badge: "I",
-                badgeClass: "badge-pdf",
-                color: "#7c3aed",
-                desc: "Accreditation Audit, Criteria Mapping & SSR Lock"
-            },
-            {
-                role: "Admin",
-                title: "Repository Administrator",
-                badge: "A",
-                badgeClass: "badge-admin",
-                color: "#4f46e5",
-                desc: "System Masters & Post-Approval Governance"
-            },
-            {
-                role: "Inspector",
-                title: "NAAC Inspection User",
-                badge: "E",
-                badgeClass: "badge-inspector",
-                color: "#0284c7",
-                desc: "Read-only Access to Accredited SSR Dossiers"
-            }
-        ];
-
-        const allUsers = this.state.users || [];
-
-        let html = `
-            <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc; display: flex; justify-content: space-between; align-items: center; border-radius: 10px 10px 0 0;">
-                <div>
-                    <div style="font-size: 11.5px; font-weight: 700; color: #0f172a; letter-spacing: 0.5px;">SELECT PORTAL &amp; USER PERSONA</div>
-                    <div style="font-size: 10.5px; color: #64748b;">Click any user to act as that persona</div>
-                </div>
-                <span style="font-size: 10px; font-weight: 700; color: #16a34a; background: #dcfce7; padding: 2px 7px; border-radius: 9999px;">Live Switcher</span>
-            </div>
-            <div style="max-height: 480px; overflow-y: auto; padding: 4px 0;">
-        `;
-
-        rolesMeta.forEach(rm => {
-            const roleUsers = allUsers.filter(usr => {
-                if (rm.role === "DeanHOD") return usr.role === "DeanHOD" || usr.role === "Dean" || usr.role === "HOD";
-                return usr.role === rm.role;
-            });
-
-            const isCurrentRole = curRole === rm.role || (rm.role === "DeanHOD" && (curRole === "Dean" || curRole === "HOD"));
-
-            html += `
-                <div class="role-group-section" style="margin-bottom: 2px; border-bottom: 1px solid #f1f5f9;">
-                    <div class="role-group-header" data-switch-role="${rm.role}" 
-                         style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: ${isCurrentRole ? '#f0f7ff' : '#ffffff'}; cursor: pointer; border-left: 3px solid ${isCurrentRole ? rm.color : 'transparent'};">
-                        <div style="display: flex; align-items: center; gap: 9px;">
-                            <span class="file-type-badge ${rm.badgeClass}" style="width: 24px; height: 24px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center;">${rm.badge}</span>
-                            <div>
-                                <div style="font-weight: 700; font-size: 12px; color: ${isCurrentRole ? rm.color : '#0f172a'};">${rm.title}</div>
-                                <div style="font-size: 10.5px; color: #64748b;">${rm.desc}</div>
-                            </div>
-                        </div>
-                        <span style="font-size: 10px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 9999px;">${roleUsers.length} Users</span>
-                    </div>
-
-                    <div class="role-group-users" style="background: #fafafa; padding: 2px 0 4px 0;">
-                        ${roleUsers.map(usr => {
-                            const isUserActive = (usr.id && curUserId && usr.id === curUserId) || (usr.email && u.email && usr.email === u.email) || (usr.name === u.name);
-                            return `
-                                <div class="role-user-item" data-switch-user-id="${usr.id}" 
-                                     style="display: flex; align-items: center; gap: 10px; padding: 7px 16px 7px 32px; cursor: pointer; background: ${isUserActive ? '#eff6ff' : 'transparent'}; border-left: 3px solid ${isUserActive ? '#2563eb' : 'transparent'}; transition: background 0.15s ease;">
-                                    <div style="width: 24px; height: 24px; border-radius: 6px; background: ${isUserActive ? rm.color : '#e2e8f0'}; color: ${isUserActive ? '#ffffff' : '#334155'}; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                        ${usr.avatar || (usr.name ? usr.name.charAt(0) : usr.role.charAt(0))}
-                                    </div>
-                                    <div style="flex: 1; min-width: 0;">
-                                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                                            <span style="font-size: 12px; font-weight: 600; color: ${isUserActive ? '#1d4ed8' : '#0f172a'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${usr.name}</span>
-                                            ${isUserActive ? '<span style="font-size: 9px; font-weight: 700; color: #16a34a; background: #dcfce7; padding: 1px 5px; border-radius: 9999px;">Active</span>' : ''}
-                                        </div>
-                                        <div style="font-size: 10.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                            ${usr.designation || usr.role} &bull; ${usr.department ? usr.department.split(' ')[0] : usr.employeeId}
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
-            </div>
-            <div style="padding: 10px 16px; border-top: 1px solid var(--border-color); background: #f8fafc; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 10px 10px;">
-                <span>Active: <strong>${u.name || 'User'}</strong> (${u.role || 'Portal'})</span>
-                <a href="javascript:void(0)" onclick="App.showLoginScreen();" style="color: #2563eb; font-weight: 600; text-decoration: none;">Full Login Screen</a>
-            </div>
-        `;
-
-        popup.innerHTML = html;
-
-        // Attach event handlers
-        popup.querySelectorAll("[data-switch-user-id]").forEach(el => {
-            el.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const uid = el.getAttribute("data-switch-user-id");
-                this.switchUser(uid);
-            });
-            el.addEventListener("mouseenter", () => {
-                if (!el.style.backgroundColor.includes('eff6ff')) el.style.backgroundColor = '#f1f5f9';
-            });
-            el.addEventListener("mouseleave", () => {
-                if (!el.style.backgroundColor.includes('eff6ff')) el.style.backgroundColor = 'transparent';
-            });
-        });
-
-        popup.querySelectorAll("[data-switch-role]").forEach(el => {
-            el.addEventListener("click", (e) => {
-                if (e.target.closest("[data-switch-user-id]")) return;
-                const r = el.getAttribute("data-switch-role");
-                this.switchRole(r);
-            });
-        });
+        // Obsolete demo popup removed for confidentiality
     },
 
     // =========================================================================
@@ -1603,7 +1498,7 @@ const App = {
                 <td>${u.designation}</td>
                 <td><span class="status-pill status-approved">${u.status || 'Active'}</span></td>
                 <td>
-                    <button class="btn-action-view" onclick="App.switchUser('${u.id}')">Switch to User</button>
+                    <span class="status-pill status-approved" style="font-size: 11px;">Active Account</span>
                 </td>
             </tr>
         `).join("");

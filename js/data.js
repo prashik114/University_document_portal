@@ -73,6 +73,20 @@ const PERSONAS = {
         avatar: "E",
         badgeClass: "badge-inspector",
         description: "Read-only access to accredited evidence registers, verified certificates, and institutional SSR reports"
+    },
+    Student: {
+        id: "USR-011",
+        name: "Aarav Patel",
+        email: "aarav.p@student.university.edu",
+        role: "Student",
+        roleTitle: "Student Submitter",
+        designation: "Student Representative (B.Tech)",
+        department: "Computer Science & Engineering",
+        school: "School of Computing & Information Technology",
+        employeeId: "STU-CSE-8842",
+        avatar: "S",
+        badgeClass: "badge-doc",
+        description: "Submit personal academic, co-curricular, and internship certificates for departmental verification"
     }
 };
 
@@ -80,9 +94,10 @@ const SEED_DATA = {
     currentUser: PERSONAS.Faculty,
 
     roles: [
-        { id: "Faculty", label: "Faculty (Dr. Rajesh Sharma)", badge: "F", desc: "Upload, edit drafts/returned, submit records" },
-        { id: "DeanHOD", label: "Dean / HOD (Prof. A. K. Verma)", badge: "D", desc: "Department Verification Queue, Return / Forward to IQAC" },
-        { id: "IQAC", label: "IQAC Reviewer (Dr. Sunita Rao)", badge: "I", desc: "Criteria check, accreditation registers, Final Approval & Lock" },
+        { id: "Faculty", label: "Faculty", badge: "F", desc: "Upload, edit drafts/returned, submit research & academic records" },
+        { id: "Student", label: "Student", badge: "S", desc: "Submit student achievements, internships, and hackathons" },
+        { id: "DeanHOD", label: "Dean / HOD", badge: "D", desc: "Department Verification Queue, Return / Forward to IQAC" },
+        { id: "IQAC", label: "IQAC Reviewer", badge: "I", desc: "Criteria check, accreditation registers, Final Approval & Lock" },
         { id: "Admin", label: "Repository Administrator", badge: "A", desc: "Masters, system config, post-approval revision requests" },
         { id: "Inspector", label: "Inspection / External Auditor", badge: "E", desc: "Read-only access to approved accreditation evidence" }
     ],
@@ -134,8 +149,8 @@ const SEED_DATA = {
         { id: "USR-008", name: "Dr. Shalini Verma", email: "shalini.verma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Management Studies", employeeId: "FAC-MGMT-1402", status: "Active" },
         { id: "USR-009", name: "Prof. Vivek Chawla", email: "v.chawla@university.edu", role: "DeanHOD", designation: "Head of Department", department: "Mechanical Engineering", employeeId: "HOD-MECH-1008", status: "Active" },
         { id: "USR-010", name: "Dr. Kavita Deshmukh", email: "kavita.d@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Biotechnology & Bioinformatics", employeeId: "FAC-BIO-1120", status: "Active" },
-        { id: "USR-011", name: "Aarav Patel", email: "aarav.p@student.university.edu", role: "Faculty", designation: "Student Representative (B.Tech)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8842", status: "Active" },
-        { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Faculty", designation: "Research Scholar", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910", status: "Active" }
+        { id: "USR-011", name: "Aarav Patel", email: "aarav.p@student.university.edu", role: "Student", designation: "Student Representative (B.Tech)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8842", status: "Active" },
+        { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Student", designation: "Research Scholar (Ph.D)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910", status: "Active" }
     ],
 
     documents: [],
@@ -146,7 +161,7 @@ const SEED_DATA = {
 
 // Storage helper
 const DB = {
-    KEY: "UNIVERSITY_REPOSITORY_STORAGE_V2",
+    KEY: "UNIVERSITY_REPOSITORY_STORAGE_V3",
     get() {
         try {
             const raw = localStorage.getItem(this.KEY);
