@@ -10,7 +10,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/documents")
-@CrossOrigin(origins = "*")
 public class DocumentController {
 
     private final DocumentService documentService;

@@ -20,7 +20,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/files")
-@CrossOrigin(origins = "*")
 public class FileController {
 
     private final Path fileStorageLocation;

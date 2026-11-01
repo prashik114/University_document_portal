@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/settings")
-@CrossOrigin(origins = "*")
 public class SettingsController {
 
     private final SystemSettingsRepository settingsRepository;

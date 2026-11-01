@@ -482,7 +482,7 @@ export default function App() {
 
           <div className="app-layout">
             {/* SIDEBAR NAVIGATION - Strictly role-restricted */}
-            <aside className={`main-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+            <aside className={`sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
               <div>
                 <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -500,7 +500,7 @@ export default function App() {
                   <button
                     className="sidebar-close-btn"
                     onClick={() => setMobileSidebarOpen(false)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}
                   >
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
@@ -573,21 +573,24 @@ export default function App() {
               </div>
             </aside>
 
-            {/* HEADER NAVBAR */}
+            {/* MAIN CONTENT WRAPPER */}
+            <div className="main-wrapper">
+              {/* HEADER NAVBAR */}
             <header className="top-navbar">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button
                   className="mobile-nav-toggle"
                   onClick={() => setMobileSidebarOpen(true)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}
                 >
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
 
-                <div className="nav-search-bar">
+                <div className="search-box-container">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input
                     type="text"
+                    className="global-search-input"
                     placeholder="Search documents, criteria..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -699,7 +702,7 @@ export default function App() {
                       <span style={{ fontSize: 11, color: '#64748b' }}>Session: <strong style={{ color: '#16a34a' }}>Active</strong></span>
                       <button
                         onClick={handleLogout}
-                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: 600, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontWeight: 600, fontSize: 12, cursor: 'pointer', alignItems: 'center', gap: 4 }}
                       >
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                         Sign Out
@@ -1466,6 +1469,7 @@ export default function App() {
                 </div>
               )}
             </main>
+            </div>
           </div>
         </>
       )}

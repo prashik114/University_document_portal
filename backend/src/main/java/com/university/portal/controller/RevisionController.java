@@ -14,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/revisions")
-@CrossOrigin(origins = "*")
 public class RevisionController {
 
     private final RevisionRequestRepository revisionRepository;

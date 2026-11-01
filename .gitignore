@@ -19,3 +19,7 @@ target/
 .idea/
 .DS_Store
 
+
+# Data and upload directories
+data/
+uploads/

@@ -13,7 +13,6 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/state")
-@CrossOrigin(origins = "*")
 public class StateController {
 
     private final DocumentRepository documentRepository;
