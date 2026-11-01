@@ -18,6 +18,16 @@ const USERS_DIRECTORY = [
   { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Faculty", designation: "Research Scholar (Ph.D)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910", avatar: "P" }
 ];
 
+const NAAC_CRITERIA_METRICS = [
+  { code: "CR-1", name: "Criteria 1: Curricular Aspects", focus: "Syllabus enrichment, BOS minutes, academic flexibility", count: 12, approved: 10, target: "Metric 1.1 - 1.4" },
+  { code: "CR-2", name: "Criteria 2: Teaching-Learning & Evaluation", focus: "Faculty awards, mentor-mentee records, pass percentage", count: 18, approved: 15, target: "Metric 2.1 - 2.6" },
+  { code: "CR-3", name: "Criteria 3: Research, Innovations & Extension", focus: "Sponsored grants, scopus publications, patent filings", count: 15, approved: 12, target: "Metric 3.1 - 3.7" },
+  { code: "CR-4", name: "Criteria 4: Infrastructure & Learning Resources", focus: "Lab stock audit, library automated accession, ICT logs", count: 9, approved: 8, target: "Metric 4.1 - 4.4" },
+  { code: "CR-5", name: "Criteria 5: Student Support & Progression", focus: "Placements, scholarships, competitive exam clearing", count: 14, approved: 11, target: "Metric 5.1 - 5.4" },
+  { code: "CR-6", name: "Criteria 6: Governance, Leadership & Management", focus: "IQAC review minutes, e-governance ERP, FDP support", count: 11, approved: 9, target: "Metric 6.1 - 6.5" },
+  { code: "CR-7", name: "Criteria 7: Institutional Values & Best Practices", focus: "Green audit, energy certs, gender equity events", count: 8, approved: 7, target: "Metric 7.1 - 7.3" }
+];
+
 export default function App() {
   // Authentication State
   const [currentUser, setCurrentUser] = useState(() => {
@@ -37,6 +47,8 @@ export default function App() {
   const [forgotEmail, setForgotEmail] = useState("rajesh.sharma@university.edu");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false);
+  const [hasUnreadNotifs, setHasUnreadNotifs] = useState(true);
 
   // Application Data State
   const [documents, setDocuments] = useState([]);
@@ -44,11 +56,15 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [myDocsSubTab, setMyDocsSubTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState(null);
 
-  // Upload Document Modal State
+  // Modal States
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedDocForModal, setSelectedDocForModal] = useState(null);
+
+  // Form Fields
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadCategory, setUploadCategory] = useState('Academic');
   const [uploadSubCategory, setUploadSubCategory] = useState('Curriculum Workshop');
@@ -103,8 +119,15 @@ export default function App() {
     setShowForgotView(false);
   };
 
-  const handleUploadSubmit = (e) => {
-    e.preventDefault();
+  const handleSwitchUserRole = (targetRole) => {
+    const user = USERS_DIRECTORY.find(u => u.role === targetRole) || USERS_DIRECTORY[0];
+    setCurrentUser(user);
+    localStorage.setItem("portal_user_profile", JSON.stringify(user));
+    setUserMenuOpen(false);
+    showToast(`Switched active session to: ${user.name} (${user.role})`, "success");
+  };
+
+  const handleUploadSubmit = (isDraft = false) => {
     if (!uploadTitle.trim()) {
       showToast("Please enter a document title.", "warning");
       return;
@@ -123,13 +146,13 @@ export default function App() {
       school: "School of Computing & IT",
       academicYear: "2026-2027",
       submittedOn: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      status: "Under Verification",
-      currentStage: "Dean/HOD",
+      status: isDraft ? "Draft" : "Under Verification",
+      currentStage: isDraft ? "Draft" : "Dean/HOD",
       naacCriterion: uploadCriterion,
       fileType: "pdf",
       fileSize: "2.4 MB",
       evidenceFile: uploadFileName || "evidence_document.pdf",
-      evidenceVerified: false,
+      evidenceVerified: !isDraft,
       isLocked: false
     };
 
@@ -137,9 +160,86 @@ export default function App() {
     setShowUploadModal(false);
     setUploadTitle('');
     setUploadFileName('');
-    showToast(`Document "${newDoc.title}" submitted successfully for verification!`, "success");
+    showToast(isDraft ? `Draft record "${newDoc.title}" saved.` : `Document "${newDoc.title}" submitted successfully for verification!`, "success");
   };
 
+  const handleApproveRecord = (docId) => {
+    setDocuments(prev => prev.map(d => {
+      if (d.id === docId) {
+        return { ...d, status: "Approved", currentStage: "IQAC Certified & Locked", isLocked: true };
+      }
+      return d;
+    }));
+    if (selectedDocForModal && selectedDocForModal.id === docId) {
+      setSelectedDocForModal(prev => ({ ...prev, status: "Approved", currentStage: "IQAC Certified & Locked", isLocked: true }));
+    }
+    showToast(`Record ${docId} approved and certified for NAAC SSR!`, "success");
+  };
+
+  const handleReturnRecord = (docId) => {
+    const reason = prompt("Enter required correction reason for faculty submitter:", "Please provide signed HoD recommendation page.");
+    if (!reason) return;
+    setDocuments(prev => prev.map(d => {
+      if (d.id === docId) {
+        return { ...d, status: "Returned", currentStage: "Returned to Submitter", remarks: reason };
+      }
+      return d;
+    }));
+    if (selectedDocForModal && selectedDocForModal.id === docId) {
+      setSelectedDocForModal(prev => ({ ...prev, status: "Returned", currentStage: "Returned to Submitter" }));
+    }
+    showToast(`Record ${docId} returned to submitter for corrections.`, "warning");
+  };
+
+  const handleBatchApproveQueue = () => {
+    const pendingCount = documents.filter(d => d.status === 'Under Verification').length;
+    if (pendingCount === 0) {
+      showToast("No pending records in verification queue.", "info");
+      return;
+    }
+    setDocuments(prev => prev.map(d => {
+      if (d.status === 'Under Verification') {
+        return { ...d, status: "Approved", currentStage: "IQAC Certified & Locked", isLocked: true };
+      }
+      return d;
+    }));
+    showToast(`Batch approved & forward completed for ${pendingCount} records!`, "success");
+  };
+
+  const handleExportCSV = (recordsList, filename = "Records_Export.csv") => {
+    if (!recordsList || recordsList.length === 0) {
+      showToast("No records available to export.", "warning");
+      return;
+    }
+    const headers = ["ID", "Title", "Category", "SubCategory", "NAAC Criterion", "Owner", "Department", "Status", "Stage", "File"];
+    const rows = recordsList.map(d => [
+      `"${d.id || ''}"`,
+      `"${(d.title || '').replace(/"/g, '""')}"`,
+      `"${d.category || ''}"`,
+      `"${d.subCategory || ''}"`,
+      `"${d.naacCriterion || ''}"`,
+      `"${d.ownerName || ''}"`,
+      `"${d.department || ''}"`,
+      `"${d.status || ''}"`,
+      `"${d.currentStage || ''}"`,
+      `"${d.evidenceFile || ''}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Exported ${recordsList.length} records to ${filename}`, "success");
+  };
+
+  const handleDownloadEvidence = (filename) => {
+    showToast(`Downloading secure evidence: ${filename || 'certified_document.pdf'}`, "info");
+  };
+
+  // Filtered documents for main table
   const filteredDocs = documents.filter(doc => {
     if (selectedCategory !== 'ALL' && doc.category !== selectedCategory) return false;
     if (selectedStatus !== 'ALL' && doc.status !== selectedStatus) return false;
@@ -151,10 +251,10 @@ export default function App() {
   });
 
   const kpis = {
-    total: filteredDocs.length,
-    underVerification: filteredDocs.filter(d => d.status === 'Under Verification').length,
-    returned: filteredDocs.filter(d => d.status === 'Returned').length,
-    approved: filteredDocs.filter(d => d.status === 'Approved').length
+    total: documents.length,
+    underVerification: documents.filter(d => d.status === 'Under Verification').length,
+    returned: documents.filter(d => d.status === 'Returned').length,
+    approved: documents.filter(d => d.status === 'Approved').length
   };
 
   return (
@@ -203,24 +303,25 @@ export default function App() {
                 </div>
 
                 <div className="login-input-group">
-                  <label className="login-label">
-                    <span>{isOtpMode ? "One-Time Password (OTP)" : "Password"}</span>
-                    <a
-                      href="javascript:void(0)"
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="login-label">Password</label>
+                    <button
+                      type="button"
+                      className="login-forgot-link"
                       onClick={() => {
                         setIsOtpMode(!isOtpMode);
                         if (!isOtpMode) {
                           setLoginPassword("1234");
-                          showToast("OTP sent to institutional email (Default: 1234)", "info");
+                          showToast("OTP sent to your email (Default OTP: 1234)", "info");
                         } else {
                           setLoginPassword("Password@123");
                         }
                       }}
-                      style={{ fontSize: '11.5px', color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     >
                       {isOtpMode ? "Login with Password" : "Login with OTP"}
-                    </a>
-                  </label>
+                    </button>
+                  </div>
                   <div className="login-input-wrap">
                     <svg className="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     <input
@@ -234,38 +335,32 @@ export default function App() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12.5px', color: '#475569', cursor: 'pointer' }}>
-                    <input type="checkbox" defaultChecked style={{ accentColor: '#2563eb' }} />
-                    <span>Remember me</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 16px 0' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', cursor: 'pointer' }}>
+                    <input type="checkbox" defaultChecked /> Remember me
                   </label>
-                  <a
-                    href="javascript:void(0)"
+                  <button
+                    type="button"
+                    className="login-forgot-link"
                     onClick={() => setShowForgotView(true)}
-                    style={{ fontSize: '12.5px', color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                   >
                     Forgot Password?
-                  </a>
+                  </button>
                 </div>
 
-                <button type="submit" className="login-btn-submit" style={{ marginTop: '8px' }}>
-                  <span>Sign In to Repository</span>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                <button type="submit" className="login-btn-submit" style={{ marginTop: '4px' }}>
+                  <span>Sign In to Repository &rarr;</span>
                 </button>
-
-                <div className="login-footer-hint">
-                  Protected by Central University Authentication (SSO) &bull; 256-Bit SSL Encrypted
-                </div>
               </form>
             ) : (
               <form className="login-body-form" onSubmit={handleForgotPassword}>
-                <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Reset Your Password</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>Enter your registered university email below to receive a secure password reset link.</div>
+                <div style={{ marginBottom: '14px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0' }}>Reset Password</h3>
+                  <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Enter your registered email to receive an institutional reset link.</p>
                 </div>
-
                 <div className="login-input-group">
-                  <label className="login-label">Official Institutional Email</label>
+                  <label className="login-label">Registered Email</label>
                   <div className="login-input-wrap">
                     <svg className="login-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                     <input
@@ -278,154 +373,187 @@ export default function App() {
                     />
                   </div>
                 </div>
-
                 <button type="submit" className="login-btn-submit" style={{ marginTop: '8px' }}>
-                  <span>Send Password Reset Link</span>
+                  Send Password Reset Link
                 </button>
-
-                <div style={{ textAlign: 'center', marginTop: '6px' }}>
-                  <a
-                    href="javascript:void(0)"
-                    onClick={() => setShowForgotView(false)}
-                    style={{ fontSize: '13px', color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}
-                  >
-                    &larr; Back to Sign In
-                  </a>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotView(false)}
+                  style={{ width: '100%', marginTop: '10px', background: 'none', border: 'none', color: '#64748b', fontSize: '12.5px', cursor: 'pointer' }}
+                >
+                  &larr; Back to Sign In
+                </button>
               </form>
             )}
           </div>
         </div>
       )}
 
-      {/* MAIN APPLICATION LAYOUT (When authenticated) */}
+      {/* MAIN PORTAL APP LAYOUT */}
       {isAuthenticated && (
         <>
-          {/* Mobile Sidebar Backdrop */}
           <div
             className={`sidebar-backdrop ${mobileSidebarOpen ? 'active' : ''}`}
             onClick={() => setMobileSidebarOpen(false)}
-          ></div>
+          />
 
           <div className="app-layout">
-            {/* SIDEBAR */}
-            <aside className={`sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
-              <div className="sidebar-top">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #f1f5f9' }}>
-                  <div className="sidebar-brand" style={{ marginBottom: 0, paddingBottom: 0, borderBottom: 'none' }}>
-                    <div className="brand-icon">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {/* SIDEBAR NAVIGATION */}
+            <aside className={`main-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+              <div>
+                <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div className="brand-logo-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z"/>
                       </svg>
                     </div>
-                    <div className="brand-text">
-                      <span className="brand-title">University</span>
-                      <span className="brand-subtitle">Repository</span>
+                    <div className="brand-title">
+                      <div>University</div>
+                      <span>Repository</span>
                     </div>
                   </div>
+
                   <button
                     className="sidebar-close-btn"
                     onClick={() => setMobileSidebarOpen(false)}
-                    aria-label="Close navigation sidebar"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
 
-              <nav className="sidebar-nav">
-                <a className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                  <span>Dashboard</span>
-                </a>
-
-                {['Faculty', 'DeanHOD', 'Admin'].includes(currentUser.role) && (
-                  <a className="nav-item" onClick={() => setShowUploadModal(true)}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/></svg>
-                    <span>Upload Document</span>
+                <nav className="sidebar-nav">
+                  <a className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setMobileSidebarOpen(false); }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    <span>Dashboard</span>
                   </a>
-                )}
 
-                <a className={`nav-item ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <span>My Documents</span>
-                  <span className="nav-badge">{documents.length}</span>
-                </a>
+                  {['Faculty', 'DeanHOD', 'Admin'].includes(currentUser.role) && (
+                    <a className="nav-item" onClick={() => { setShowUploadModal(true); setMobileSidebarOpen(false); }}>
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/></svg>
+                      <span>Upload Document</span>
+                    </a>
+                  )}
 
-                {['DeanHOD', 'IQAC', 'Admin'].includes(currentUser.role) && (
-                  <a className={`nav-item ${activeTab === 'queue' ? 'active' : ''}`} onClick={() => setActiveTab('queue')}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 12 15 16 10"/></svg>
-                    <span>Verification Queue</span>
-                    <span className="nav-badge danger">{kpis.underVerification}</span>
+                  <a className={`nav-item ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => { setActiveTab('documents'); setMobileSidebarOpen(false); }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span>My Documents</span>
+                    <span className="nav-badge">{documents.length}</span>
                   </a>
-                )}
 
-                <a className={`nav-item ${activeTab === 'repository' ? 'active' : ''}`} onClick={() => setActiveTab('repository')}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                  <span>Document Repository</span>
+                  {['DeanHOD', 'IQAC', 'Admin'].includes(currentUser.role) && (
+                    <a className={`nav-item ${activeTab === 'queue' ? 'active' : ''}`} onClick={() => { setActiveTab('queue'); setMobileSidebarOpen(false); }}>
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 12 15 16 10"/></svg>
+                      <span>Verification Queue</span>
+                      <span className="nav-badge danger">{kpis.underVerification}</span>
+                    </a>
+                  )}
+
+                  <a className={`nav-item ${activeTab === 'repository' ? 'active' : ''}`} onClick={() => { setActiveTab('repository'); setMobileSidebarOpen(false); }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                    <span>Document Repository</span>
+                  </a>
+
+                  <a className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => { setActiveTab('reports'); setMobileSidebarOpen(false); }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    <span>Reports</span>
+                  </a>
+
+                  <a className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => { setActiveTab('audit'); setMobileSidebarOpen(false); }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
+                    <span>Audit Trail</span>
+                  </a>
+                </nav>
+              </div>
+
+              <div className="sidebar-footer">
+                <a className="logout-link" onClick={handleLogout} style={{ cursor: 'pointer' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <span>Logout</span>
                 </a>
+              </div>
+            </aside>
 
-                <a className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                  <span>Reports</span>
-                </a>
-
-                <a className={`nav-item ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>
-                  <span>Audit Trail</span>
-                </a>
-              </nav>
-            </div>
-
-            <div className="sidebar-footer">
-              <a className="logout-link" onClick={handleLogout} style={{ cursor: 'pointer' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                <span>Logout</span>
-              </a>
-            </div>
-          </aside>
-
-          {/* MAIN WRAPPER */}
-          <div className="main-wrapper">
-            {/* TOP NAVBAR */}
+            {/* HEADER NAVBAR */}
             <header className="top-navbar">
-              <div className="top-navbar-left">
-                {/* Mobile Hamburger Drawer Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button
                   className="mobile-nav-toggle"
                   onClick={() => setMobileSidebarOpen(true)}
-                  aria-label="Open navigation menu"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                  </svg>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
 
-                <div className="search-box-container">
-                  <svg className="search-icon-nav" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <div className="nav-search-bar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input
                     type="text"
-                    className="global-search-input"
-                    placeholder="Search documents, criteria, faculty..."
+                    placeholder="Search documents, criteria..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14 }}
+                    >
+                      &times;
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="navbar-actions" style={{ position: 'relative' }}>
-                {/* System Notifications */}
-                <button className="notification-btn" onClick={() => showToast("System Notifications: All records up to date.", "info")}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                  <span className="notification-dot"></span>
+              <div className="nav-actions-group" style={{ position: 'relative' }}>
+                {/* Notifications Bell */}
+                <button
+                  className="notification-btn"
+                  onClick={() => {
+                    setNotifMenuOpen(!notifMenuOpen);
+                    setUserMenuOpen(false);
+                  }}
+                  style={{ position: 'relative' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                  {hasUnreadNotifs && <span className="notification-dot"></span>}
                 </button>
 
-                {/* Official User Profile Badge */}
+                {/* Notifications Menu Popover */}
+                {notifMenuOpen && (
+                  <div className="context-menu-popup active" style={{ display: 'block', right: 100, top: 50, width: 320, zIndex: 9999 }}>
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>System Notifications</span>
+                      <button
+                        onClick={() => {
+                          setHasUnreadNotifs(false);
+                          showToast("All notifications marked as read.", "success");
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontSize: 12 }}>
+                        <div style={{ fontWeight: 600, color: '#1e293b' }}>Annual NAAC Cycle 2026-27 Active</div>
+                        <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>SSR evidence collection window is open.</div>
+                      </div>
+                      <div style={{ padding: '12px 16px', fontSize: 12 }}>
+                        <div style={{ fontWeight: 600, color: '#1e293b' }}>PostgreSQL Ledger Connected</div>
+                        <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>All accreditation records synchronized.</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* User Profile Badge */}
                 <div
                   className="user-profile-badge"
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  onClick={() => {
+                    setUserMenuOpen(!userMenuOpen);
+                    setNotifMenuOpen(false);
+                  }}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="user-avatar-circle">{currentUser.avatar || currentUser.name.charAt(0)}</div>
@@ -436,11 +564,41 @@ export default function App() {
                 {/* User Profile Dropdown Menu */}
                 {userMenuOpen && (
                   <div className="context-menu-popup active" style={{ display: 'block', right: 0, top: 50, width: 280, zIndex: 9999 }}>
-                    <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0' }}>
+                    <div style={{ padding: '14px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                       <div style={{ fontWeight: 700, fontSize: '13.5px', color: '#0f172a' }}>{currentUser.name}</div>
                       <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>{currentUser.designation}</div>
-                      <div style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, marginTop: '2px' }}>{currentUser.department}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#dbeafe', color: '#1d4ed8' }}>
+                          {currentUser.role}
+                        </span>
+                        <span style={{ fontSize: 11, color: '#475569' }}>{currentUser.employeeId}</span>
+                      </div>
                     </div>
+
+                    <div style={{ padding: '8px 12px', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>SWITCH ACTIVE DEMO ROLE:</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {['Faculty', 'DeanHOD', 'IQAC', 'Admin', 'Inspector'].map(role => (
+                          <button
+                            key={role}
+                            onClick={() => handleSwitchUserRole(role)}
+                            style={{
+                              fontSize: 10.5,
+                              padding: '3px 7px',
+                              borderRadius: 4,
+                              border: currentUser.role === role ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                              background: currentUser.role === role ? '#eff6ff' : '#fff',
+                              color: currentUser.role === role ? '#1d4ed8' : '#334155',
+                              cursor: 'pointer',
+                              fontWeight: currentUser.role === role ? 700 : 500
+                            }}
+                          >
+                            {role === 'DeanHOD' ? 'Dean' : role}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div style={{ padding: '6px 0' }}>
                       <div className="context-menu-item" onClick={() => { setActiveTab('dashboard'); setUserMenuOpen(false); }}>
                         <span>Dashboard Home</span>
@@ -459,133 +617,700 @@ export default function App() {
 
             {/* MAIN CONTENT AREA */}
             <main className="main-content">
-              {/* Personalized Header Banner */}
-              <div className="dashboard-header">
+              {/* ========================================================
+                  VIEW: DASHBOARD
+                  ======================================================== */}
+              {activeTab === 'dashboard' && (
                 <div>
-                  <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Welcome, {currentUser.name}</h1>
-                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
-                    {currentUser.designation} &bull; {currentUser.department} &bull; Cycle 2026-2027
-                  </p>
-                </div>
+                  <div className="dashboard-header">
+                    <div>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Welcome, {currentUser.name}</h1>
+                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+                        {currentUser.designation} &bull; {currentUser.department} &bull; Cycle 2026-2027
+                      </p>
+                    </div>
 
-                {['Faculty', 'DeanHOD', 'Admin'].includes(currentUser.role) && (
-                  <button
-                    className="primary-btn"
-                    onClick={() => setShowUploadModal(true)}
-                  >
-                    <span>+ Upload Document</span>
-                  </button>
-                )}
-              </div>
-
-              {/* 4 Standard Responsive KPI Cards */}
-              <div className="kpi-cards-grid">
-                <div className="kpi-card kpi-card-blue">
-                  <div className="kpi-value">{kpis.total}</div>
-                  <div className="kpi-label">Total Documents</div>
-                </div>
-                <div className="kpi-card kpi-card-amber">
-                  <div className="kpi-value">{kpis.underVerification}</div>
-                  <div className="kpi-label">Under Verification</div>
-                </div>
-                <div className="kpi-card kpi-card-red">
-                  <div className="kpi-value">{kpis.returned}</div>
-                  <div className="kpi-label">Returned</div>
-                </div>
-                <div className="kpi-card kpi-card-green">
-                  <div className="kpi-value">{kpis.approved}</div>
-                  <div className="kpi-label">Approved & Locked in SSR</div>
-                </div>
-              </div>
-
-              {/* Primary Accreditation Evidence Records Table */}
-              <div className="table-card" style={{ marginTop: 24 }}>
-                <div className="table-card-header">
-                  <div className="table-card-title">
-                    Accreditation Evidence Records
-                  </div>
-                  <div className="table-filters-group">
-                    <select
-                      className="select-filter"
-                      value={selectedCategory}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
-                    >
-                      <option value="ALL">All Categories</option>
-                      <option value="Academic">Academic</option>
-                      <option value="Research">Research</option>
-                      <option value="Co-curricular">Co-curricular</option>
-                      <option value="NAAC">NAAC</option>
-                      <option value="Student">Student</option>
-                    </select>
-
-                    <select
-                      className="select-filter"
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value)}
-                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
-                    >
-                      <option value="ALL">All Status</option>
-                      <option value="Under Verification">Under Verification</option>
-                      <option value="Returned">Returned</option>
-                      <option value="Approved">Approved</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="table-responsive">
-                  <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
-                        <th style={{ padding: '12px 16px' }}>#</th>
-                        <th style={{ padding: '12px 16px' }}>Document Title</th>
-                        <th style={{ padding: '12px 16px' }}>Category</th>
-                        <th style={{ padding: '12px 16px' }}>Owner / Submitter</th>
-                        <th style={{ padding: '12px 16px' }}>Submitted On</th>
-                        <th style={{ padding: '12px 16px' }}>Status</th>
-                        <th style={{ padding: '12px 16px' }}>Stage</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDocs.length === 0 ? (
-                        <tr>
-                          <td colSpan="7" style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>No records found</div>
-                            <div style={{ fontSize: 12, marginTop: 4 }}>Submit new accreditation records using the "+ Upload Document" button.</div>
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredDocs.map((doc, idx) => (
-                          <tr key={doc.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
-                            <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.displayNum || idx + 1}</td>
-                            <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{doc.title}</td>
-                            <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.category}</td>
-                            <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.ownerName || currentUser.name}</td>
-                            <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.submittedOn || 'Today'}</td>
-                            <td style={{ padding: '12px 16px' }}>
-                              <span style={{
-                                padding: '3px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
-                                background: doc.status === 'Approved' ? '#dcfce7' : doc.status === 'Returned' ? '#fee2e2' : '#fef3c7',
-                                color: doc.status === 'Approved' ? '#15803d' : doc.status === 'Returned' ? '#b91c1c' : '#b45309'
-                              }}>
-                                {doc.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.currentStage || 'Dean/HOD'}</td>
-                          </tr>
-                        ))
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => handleExportCSV(documents, "Accreditation_Master_Export.csv")}
+                        style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                      >
+                        Export CSV
+                      </button>
+                      {['Faculty', 'DeanHOD', 'Admin'].includes(currentUser.role) && (
+                        <button
+                          className="primary-btn"
+                          onClick={() => setShowUploadModal(true)}
+                        >
+                          <span>+ Upload Document</span>
+                        </button>
                       )}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+
+                  {/* 4 Standard Responsive KPI Cards */}
+                  <div className="kpi-cards-grid">
+                    <div className="kpi-card kpi-card-blue" onClick={() => setSelectedStatus('ALL')} style={{ cursor: 'pointer' }}>
+                      <div className="kpi-value">{kpis.total}</div>
+                      <div className="kpi-label">Total Documents</div>
+                    </div>
+                    <div className="kpi-card kpi-card-amber" onClick={() => setSelectedStatus('Under Verification')} style={{ cursor: 'pointer' }}>
+                      <div className="kpi-value">{kpis.underVerification}</div>
+                      <div className="kpi-label">Under Verification</div>
+                    </div>
+                    <div className="kpi-card kpi-card-red" onClick={() => setSelectedStatus('Returned')} style={{ cursor: 'pointer' }}>
+                      <div className="kpi-value">{kpis.returned}</div>
+                      <div className="kpi-label">Returned</div>
+                    </div>
+                    <div className="kpi-card kpi-card-green" onClick={() => setSelectedStatus('Approved')} style={{ cursor: 'pointer' }}>
+                      <div className="kpi-value">{kpis.approved}</div>
+                      <div className="kpi-label">Approved & Locked in SSR</div>
+                    </div>
+                  </div>
+
+                  {/* Primary Accreditation Evidence Records Table */}
+                  <div className="table-card" style={{ marginTop: 24 }}>
+                    <div className="table-card-header">
+                      <div className="table-card-title">
+                        Accreditation Evidence Records
+                      </div>
+                      <div className="table-filters-group">
+                        <select
+                          className="select-filter"
+                          value={selectedCategory}
+                          onChange={(e) => setSelectedCategory(e.target.value)}
+                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        >
+                          <option value="ALL">All Categories</option>
+                          <option value="Academic">Academic</option>
+                          <option value="Research">Research</option>
+                          <option value="Co-curricular">Co-curricular</option>
+                          <option value="NAAC">NAAC</option>
+                          <option value="Student">Student</option>
+                        </select>
+
+                        <select
+                          className="select-filter"
+                          value={selectedStatus}
+                          onChange={(e) => setSelectedStatus(e.target.value)}
+                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                        >
+                          <option value="ALL">All Status</option>
+                          <option value="Under Verification">Under Verification</option>
+                          <option value="Returned">Returned</option>
+                          <option value="Approved">Approved</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="table-responsive">
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
+                            <th style={{ padding: '12px 16px' }}>#</th>
+                            <th style={{ padding: '12px 16px' }}>Document Title</th>
+                            <th style={{ padding: '12px 16px' }}>Category</th>
+                            <th style={{ padding: '12px 16px' }}>Owner / Submitter</th>
+                            <th style={{ padding: '12px 16px' }}>Submitted On</th>
+                            <th style={{ padding: '12px 16px' }}>Status</th>
+                            <th style={{ padding: '12px 16px' }}>Stage</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDocs.length === 0 ? (
+                            <tr>
+                              <td colSpan="8" style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>No records found</div>
+                                <div style={{ fontSize: 12, marginTop: 4 }}>Submit new accreditation records using the "+ Upload Document" button.</div>
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredDocs.map((doc, idx) => (
+                              <tr key={doc.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.displayNum || idx + 1}</td>
+                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{doc.title}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.category}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.ownerName || currentUser.name}</td>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.submittedOn || 'Today'}</td>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <span style={{
+                                    padding: '3px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
+                                    background: doc.status === 'Approved' ? '#dcfce7' : doc.status === 'Returned' ? '#fee2e2' : '#fef3c7',
+                                    color: doc.status === 'Approved' ? '#15803d' : doc.status === 'Returned' ? '#b91c1c' : '#b45309'
+                                  }}>
+                                    {doc.status}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.currentStage || 'Dean/HOD'}</td>
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                  <button
+                                    onClick={() => setSelectedDocForModal(doc)}
+                                    className="btn-action-view"
+                                    style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                                  >
+                                    View
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* ========================================================
+                  VIEW: MY DOCUMENTS
+                  ======================================================== */}
+              {activeTab === 'documents' && (
+                <div>
+                  <div className="dashboard-header">
+                    <div>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>My Document Repository</h1>
+                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+                        Manage personal submissions, draft entries, returned corrections, and approved records
+                      </p>
+                    </div>
+                    <button className="primary-btn" onClick={() => setShowUploadModal(true)}>
+                      <span>+ Create New Record</span>
+                    </button>
+                  </div>
+
+                  <div className="table-card" style={{ marginTop: 20 }}>
+                    <div className="table-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {['ALL', 'Under Verification', 'Returned', 'Approved'].map(tab => (
+                          <button
+                            key={tab}
+                            onClick={() => setMyDocsSubTab(tab)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 6,
+                              border: myDocsSubTab === tab ? '1px solid #2563eb' : '1px solid #e2e8f0',
+                              background: myDocsSubTab === tab ? '#eff6ff' : '#fff',
+                              color: myDocsSubTab === tab ? '#1d4ed8' : '#64748b',
+                              fontWeight: myDocsSubTab === tab ? 700 : 500,
+                              fontSize: 12,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {tab === 'ALL' ? 'All Records' : tab}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => handleExportCSV(documents, "My_Submissions_Export.csv")}
+                        style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Export CSV
+                      </button>
+                    </div>
+
+                    <div className="table-responsive">
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
+                            <th style={{ padding: '12px 16px' }}>#</th>
+                            <th style={{ padding: '12px 16px' }}>Title</th>
+                            <th style={{ padding: '12px 16px' }}>Criterion</th>
+                            <th style={{ padding: '12px 16px' }}>Submitted On</th>
+                            <th style={{ padding: '12px 16px' }}>Status</th>
+                            <th style={{ padding: '12px 16px' }}>Current Stage</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {documents
+                            .filter(d => myDocsSubTab === 'ALL' || d.status === myDocsSubTab)
+                            .map((doc, idx) => (
+                              <tr key={doc.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{idx + 1}</td>
+                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{doc.title}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.naacCriterion || 'Criteria 1'}</td>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.submittedOn || 'Today'}</td>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <span style={{
+                                    padding: '3px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
+                                    background: doc.status === 'Approved' ? '#dcfce7' : doc.status === 'Returned' ? '#fee2e2' : '#fef3c7',
+                                    color: doc.status === 'Approved' ? '#15803d' : doc.status === 'Returned' ? '#b91c1c' : '#b45309'
+                                  }}>
+                                    {doc.status}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.currentStage}</td>
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                  <button
+                                    onClick={() => setSelectedDocForModal(doc)}
+                                    style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                                  >
+                                    Inspect
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================
+                  VIEW: VERIFICATION QUEUE
+                  ======================================================== */}
+              {activeTab === 'queue' && (
+                <div>
+                  <div className="dashboard-header">
+                    <div>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Institutional Verification Queue</h1>
+                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+                        Review submitted evidence, authorize stage progression, and lock records into NAAC SSR dossier
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => handleExportCSV(documents.filter(d => d.status === 'Under Verification'), "Verification_Queue.csv")}
+                        style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                      >
+                        Export Queue CSV
+                      </button>
+                      <button
+                        className="primary-btn"
+                        onClick={handleBatchApproveQueue}
+                      >
+                        <span>Batch Approve Queue</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="table-card" style={{ marginTop: 20 }}>
+                    <div className="table-responsive">
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
+                            <th style={{ padding: '12px 16px' }}>#</th>
+                            <th style={{ padding: '12px 16px' }}>Record Title</th>
+                            <th style={{ padding: '12px 16px' }}>Submitter</th>
+                            <th style={{ padding: '12px 16px' }}>Department</th>
+                            <th style={{ padding: '12px 16px' }}>Criterion</th>
+                            <th style={{ padding: '12px 16px' }}>Evidence File</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {documents.filter(d => d.status === 'Under Verification').length === 0 ? (
+                            <tr>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>Queue is completely clear!</div>
+                                <div style={{ fontSize: 12, marginTop: 4 }}>All submitted accreditation records have been reviewed.</div>
+                              </td>
+                            </tr>
+                          ) : (
+                            documents.filter(d => d.status === 'Under Verification').map((doc, idx) => (
+                              <tr key={doc.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{idx + 1}</td>
+                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{doc.title}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.ownerName}</td>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.department}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.naacCriterion}</td>
+                                <td style={{ padding: '12px 16px', color: '#2563eb' }}>{doc.evidenceFile || 'evidence.pdf'}</td>
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                  <div style={{ display: 'inline-flex', gap: 6 }}>
+                                    <button
+                                      onClick={() => handleApproveRecord(doc.id)}
+                                      style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleReturnRecord(doc.id)}
+                                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#fee2e2', color: '#dc2626', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                                    >
+                                      Return
+                                    </button>
+                                    <button
+                                      onClick={() => setSelectedDocForModal(doc)}
+                                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
+                                    >
+                                      Details
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================
+                  VIEW: DOCUMENT REPOSITORY
+                  ======================================================== */}
+              {activeTab === 'repository' && (
+                <div>
+                  <div className="dashboard-header">
+                    <div>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Accreditation Evidence Repository</h1>
+                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+                        Master verified register of immutable SSR evidence records locked for peer-review
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => window.print()}
+                        style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                      >
+                        Print Register
+                      </button>
+                      <button
+                        className="primary-btn"
+                        onClick={() => handleExportCSV(documents.filter(d => d.status === 'Approved'), "NAAC_Accreditation_Register.csv")}
+                      >
+                        <span>Export Register (.CSV)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="table-card" style={{ marginTop: 20 }}>
+                    <div className="table-responsive">
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
+                            <th style={{ padding: '12px 16px' }}>Record ID</th>
+                            <th style={{ padding: '12px 16px' }}>Document Title</th>
+                            <th style={{ padding: '12px 16px' }}>Criterion</th>
+                            <th style={{ padding: '12px 16px' }}>Department</th>
+                            <th style={{ padding: '12px 16px' }}>Certified Owner</th>
+                            <th style={{ padding: '12px 16px' }}>Integrity Lock</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {documents.filter(d => d.status === 'Approved').length === 0 ? (
+                            <tr>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>No locked records yet</div>
+                                <div style={{ fontSize: 12, marginTop: 4 }}>Approved records from the verification queue will appear here.</div>
+                              </td>
+                            </tr>
+                          ) : (
+                            documents.filter(d => d.status === 'Approved').map((doc, idx) => (
+                              <tr key={doc.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                                <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{doc.id}</td>
+                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{doc.title}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.naacCriterion}</td>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{doc.department}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{doc.ownerName}</td>
+                                <td style={{ padding: '12px 16px' }}>
+                                  <span style={{ padding: '3px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#15803d' }}>
+                                    &bull; SSR Locked
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                  <button
+                                    onClick={() => setSelectedDocForModal(doc)}
+                                    style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                                  >
+                                    Inspect Evidence
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================
+                  VIEW: REPORTS & ANALYTICS
+                  ======================================================== */}
+              {activeTab === 'reports' && (
+                <div>
+                  <div className="dashboard-header">
+                    <div>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Accreditation Reports & Analytics Workspace</h1>
+                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+                        Criteria progress matrices, annual capacity development registers, and institutional SSR summaries
+                      </p>
+                    </div>
+
+                    <button
+                      className="primary-btn"
+                      onClick={() => handleExportCSV(documents, "NAAC_Full_SSR_Data.csv")}
+                    >
+                      <span>Download Full NAAC Data (.CSV)</span>
+                    </button>
+                  </div>
+
+                  <div className="kpi-cards-grid" style={{ marginTop: 20 }}>
+                    <div className="kpi-card kpi-card-blue">
+                      <div className="kpi-value">₹50,500</div>
+                      <div className="kpi-label">Financial Support Disbursed</div>
+                    </div>
+                    <div className="kpi-card kpi-card-amber">
+                      <div className="kpi-value">2.4 Days</div>
+                      <div className="kpi-label">Avg Verification SLA</div>
+                    </div>
+                    <div className="kpi-card kpi-card-green">
+                      <div className="kpi-value">5 National</div>
+                      <div className="kpi-label">Awards & Recognitions</div>
+                    </div>
+                    <div className="kpi-card kpi-card-blue">
+                      <div className="kpi-value">7 Criteria</div>
+                      <div className="kpi-label">NAAC Indicators Covered</div>
+                    </div>
+                  </div>
+
+                  <div className="table-card" style={{ marginTop: 24 }}>
+                    <div className="table-card-header">
+                      <div className="table-card-title">Accreditation Evidence Register (Criteria Breakdown)</div>
+                    </div>
+
+                    <div className="table-responsive">
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
+                            <th style={{ padding: '12px 16px' }}>Criterion / Metric</th>
+                            <th style={{ padding: '12px 16px' }}>Evidence Nature</th>
+                            <th style={{ padding: '12px 16px' }}>Total Records</th>
+                            <th style={{ padding: '12px 16px' }}>Approved & Locked</th>
+                            <th style={{ padding: '12px 16px' }}>Compliance Metric</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {NAAC_CRITERIA_METRICS.map((cm, idx) => (
+                            <tr key={cm.code || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                              <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{cm.name}</td>
+                              <td style={{ padding: '12px 16px', color: '#475569' }}>{cm.focus}</td>
+                              <td style={{ padding: '12px 16px', fontWeight: 600 }}>{cm.count}</td>
+                              <td style={{ padding: '12px 16px', color: '#16a34a', fontWeight: 700 }}>{cm.approved} / {cm.count}</td>
+                              <td style={{ padding: '12px 16px', color: '#64748b' }}>{cm.target}</td>
+                              <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                <button
+                                  onClick={() => {
+                                    setActiveTab('dashboard');
+                                    showToast(`Navigated to dashboard records for ${cm.name}`, "info");
+                                  }}
+                                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                                >
+                                  View Register
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================
+                  VIEW: AUDIT TRAIL
+                  ======================================================== */}
+              {activeTab === 'audit' && (
+                <div>
+                  <div className="dashboard-header">
+                    <div>
+                      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Immutable Audit Trail & Ledger</h1>
+                      <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+                        Cryptographically hashed, tamper-evident log of all submissions, approvals, returns, and portal logins
+                      </p>
+                    </div>
+
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleExportCSV(auditLogs.length > 0 ? auditLogs : [
+                        { id: "LOG-001", title: "Record Submission", category: "System", subCategory: "Audit", ownerName: currentUser.name, department: currentUser.department, status: "Verified" }
+                      ], "Immutable_Audit_Ledger.csv")}
+                      style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                    >
+                      Export Audit Log (.CSV)
+                    </button>
+                  </div>
+
+                  <div className="table-card" style={{ marginTop: 20 }}>
+                    <div className="table-responsive">
+                      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: 12, color: '#64748b' }}>
+                            <th style={{ padding: '12px 16px' }}>Timestamp</th>
+                            <th style={{ padding: '12px 16px' }}>Event Action</th>
+                            <th style={{ padding: '12px 16px' }}>Actor / User</th>
+                            <th style={{ padding: '12px 16px' }}>Target Record</th>
+                            <th style={{ padding: '12px 16px' }}>SHA-256 Hash</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {auditLogs.length === 0 ? (
+                            [
+                              { time: "Today 10:42 AM", event: "DOCUMENT_SUBMITTED", actor: "Dr. Rajesh Sharma (Faculty)", target: "DOC-2026-001", hash: "9e107d9d372bb6826bd81d3542a419d6" },
+                              { time: "Today 11:15 AM", event: "VERIFICATION_FORWARD", actor: "Prof. A. K. Verma (Dean)", target: "DOC-2026-001", hash: "e4d909c290d0fb1ca068ffaddf22cbd0" },
+                              { time: "Today 12:00 PM", event: "SSR_LOCK_CERTIFIED", actor: "Dr. Sunita Rao (IQAC)", target: "DOC-2026-001", hash: "7c6a58f278061eb0d8b74681640a3f8a" },
+                              { time: "Today 01:20 PM", event: "AUTHENTICATION_SUCCESS", actor: "Dr. Rajesh Sharma (Faculty)", target: "PORTAL_LOGIN", hash: "a3b4c5d6e7f8091a2b3c4d5e6f7a8b9c" }
+                            ].map((log, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{log.time}</td>
+                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{log.event}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{log.actor}</td>
+                                <td style={{ padding: '12px 16px', color: '#2563eb' }}>{log.target}</td>
+                                <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>{log.hash}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            auditLogs.map((log, idx) => (
+                              <tr key={log.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                                <td style={{ padding: '12px 16px', color: '#64748b' }}>{log.timestamp || 'Today'}</td>
+                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{log.action}</td>
+                                <td style={{ padding: '12px 16px', color: '#475569' }}>{log.user || log.performedBy}</td>
+                                <td style={{ padding: '12px 16px', color: '#2563eb' }}>{log.documentId || log.details}</td>
+                                <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>{log.hash || 'e3b0c44298fc1c149afbf4c8996fb924'}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </main>
           </div>
-        </div>
-      </>
+        </>
       )}
 
-      {/* UPLOAD DOCUMENT MODAL */}
+      {/* ========================================================
+          DOCUMENT DETAIL & INSPECTION MODAL
+          ======================================================== */}
+      {selectedDocForModal && (
+        <div className="modal-overlay active" style={{ display: 'flex', zIndex: 99999 }}>
+          <div className="modal-dialog" style={{ maxWidth: '640px', width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #e2e8f0' }}>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Accreditation Evidence Details</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Record ID: {selectedDocForModal.id}</div>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={() => setSelectedDocForModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0' }}>{selectedDocForModal.title}</h3>
+                  <div style={{ fontSize: 13, color: '#475569' }}>{selectedDocForModal.category} &bull; {selectedDocForModal.subCategory || 'General'}</div>
+                </div>
+                <span style={{
+                  padding: '4px 10px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+                  background: selectedDocForModal.status === 'Approved' ? '#dcfce7' : selectedDocForModal.status === 'Returned' ? '#fee2e2' : '#fef3c7',
+                  color: selectedDocForModal.status === 'Approved' ? '#15803d' : selectedDocForModal.status === 'Returned' ? '#b91c1c' : '#b45309'
+                }}>
+                  {selectedDocForModal.status}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, background: '#f8fafc', padding: 14, borderRadius: 8, fontSize: 12.5, marginBottom: 16 }}>
+                <div>
+                  <span style={{ color: '#64748b' }}>Owner / Submitter:</span>
+                  <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{selectedDocForModal.ownerName}</div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Department:</span>
+                  <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{selectedDocForModal.department || 'Computer Science'}</div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>NAAC Criterion:</span>
+                  <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{selectedDocForModal.naacCriterion || 'Criteria 1'}</div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Workflow Stage:</span>
+                  <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{selectedDocForModal.currentStage}</div>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 6, background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11 }}>
+                    PDF
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{selectedDocForModal.evidenceFile || 'evidence_certificate.pdf'}</div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>256-bit SHA Certified &bull; 2.4 MB</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDownloadEvidence(selectedDocForModal.evidenceFile)}
+                  style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                >
+                  Download Evidence
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Print Record
+                </button>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['DeanHOD', 'IQAC', 'Admin'].includes(currentUser.role) && selectedDocForModal.status !== 'Approved' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleReturnRecord(selectedDocForModal.id)}
+                        style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ef4444', background: '#fee2e2', color: '#dc2626', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        Return for Correction
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApproveRecord(selectedDocForModal.id)}
+                        style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        Approve Record
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDocForModal(null)}
+                    style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          UPLOAD DOCUMENT MODAL
+          ======================================================== */}
       {showUploadModal && (
         <div className="modal-overlay active" style={{ display: 'flex', zIndex: 99999 }}>
           <div className="modal-dialog" style={{ maxWidth: '640px', width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}>
@@ -600,7 +1325,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleUploadSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={(e) => { e.preventDefault(); handleUploadSubmit(false); }} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
                   Document Title <span style={{ color: '#ef4444' }}>*</span>
@@ -668,6 +1393,13 @@ export default function App() {
                   style={{ padding: '9px 16px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}
                 >
                   Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUploadSubmit(true)}
+                  style={{ padding: '9px 16px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Save as Draft
                 </button>
                 <button
                   type="submit"

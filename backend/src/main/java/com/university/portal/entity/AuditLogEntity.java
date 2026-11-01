@@ -22,10 +22,11 @@ public class AuditLogEntity {
 
     private String hash;
 
-    public AuditLogEntity() {}
+    public AuditLogEntity() {
+    }
 
     public AuditLogEntity(String id, String timestamp, String actor, String action, String recordId,
-                          String title, String priorStatus, String newStatus, String comments, String hash) {
+            String title, String priorStatus, String newStatus, String comments, String hash) {
         this.id = id;
         this.timestamp = timestamp;
         this.actor = actor;
@@ -38,34 +39,83 @@ public class AuditLogEntity {
         this.hash = hash;
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getId() {
+        return id;
+    }
 
-    public String getTimestamp() { return timestamp; }
-    public void setTimestamp(String timestamp) { this.timestamp = timestamp; }
+    public void setId(String id) {
+        this.id = id;
+    }
 
-    public String getActor() { return actor; }
-    public void setActor(String actor) { this.actor = actor; }
+    public String getTimestamp() {
+        return timestamp;
+    }
 
-    public String getAction() { return action; }
-    public void setAction(String action) { this.action = action; }
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
 
-    public String getRecordId() { return recordId; }
-    public void setRecordId(String recordId) { this.recordId = recordId; }
+    public String getActor() {
+        return actor;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public void setActor(String actor) {
+        this.actor = actor;
+    }
 
-    public String getPriorStatus() { return priorStatus; }
-    public void setPriorStatus(String priorStatus) { this.priorStatus = priorStatus; }
+    public String getAction() {
+        return action;
+    }
 
-    public String getNewStatus() { return newStatus; }
-    public void setNewStatus(String newStatus) { this.newStatus = newStatus; }
+    public void setAction(String action) {
+        this.action = action;
+    }
 
-    public String getComments() { return comments; }
-    public void setComments(String comments) { this.comments = comments; }
+    public String getRecordId() {
+        return recordId;
+    }
 
-    public String getHash() { return hash; }
-    public void setHash(String hash) { this.hash = hash; }
+    public void setRecordId(String recordId) {
+        this.recordId = recordId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getPriorStatus() {
+        return priorStatus;
+    }
+
+    public void setPriorStatus(String priorStatus) {
+        this.priorStatus = priorStatus;
+    }
+
+    public String getNewStatus() {
+        return newStatus;
+    }
+
+    public void setNewStatus(String newStatus) {
+        this.newStatus = newStatus;
+    }
+
+    public String getComments() {
+        return comments;
+    }
+
+    public void setComments(String comments) {
+        this.comments = comments;
+    }
+
+    public String getHash() {
+        return hash;
+    }
+
+    public void setHash(String hash) {
+        this.hash = hash;
+    }
 }
-

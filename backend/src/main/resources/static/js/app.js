@@ -878,6 +878,23 @@ const App = {
 
         // Close any popups
         this.closeAllPopups();
+
+        // Refresh dynamic view contents
+        if (viewName === "dashboard") {
+            this.renderRoleDashboard();
+        } else if (viewName === "my-documents") {
+            this.renderMyDocumentsTable();
+        } else if (viewName === "verification-queue") {
+            this.renderVerificationQueue();
+        } else if (viewName === "document-repository") {
+            this.renderRepositoryTable();
+        } else if (viewName === "reports") {
+            this.renderReports();
+        } else if (viewName === "audit-trail") {
+            this.renderAuditLogs();
+        } else if (viewName === "users") {
+            this.renderUsersTable();
+        }
     },
 
     // =========================================================================
@@ -1963,26 +1980,33 @@ const App = {
         // Notification toggle
         const notifBtn = document.getElementById("btn-notifications");
         const notifMenu = document.getElementById("notifications-menu");
-        notifBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            notifMenu.classList.toggle("active");
-            rolePopup.classList.remove("active");
-        });
+        if (notifBtn && notifMenu) {
+            notifBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                notifMenu.classList.toggle("active");
+                if (rolePopup) rolePopup.classList.remove("active");
+                if (userProfilePopup) userProfilePopup.classList.remove("active");
+            });
+        }
 
-        document.getElementById("mark-all-read").addEventListener("click", () => {
-            document.querySelector(".notification-dot").style.display = "none";
-            this.showToast("All notifications marked as read", "success");
-        });
+        const markAllReadBtn = document.getElementById("mark-all-read");
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener("click", () => {
+                const notifDot = document.querySelector(".notification-dot");
+                if (notifDot) notifDot.style.display = "none";
+                this.showToast("All notifications marked as read", "success");
+            });
+        }
 
         // Close popups when clicking outside
         document.addEventListener("click", (e) => {
-            if (rolePopup && !rolePopup.contains(e.target) && !roleBtn.contains(e.target)) {
+            if (rolePopup && roleBtn && !rolePopup.contains(e.target) && !roleBtn.contains(e.target)) {
                 rolePopup.classList.remove("active");
             }
-            if (userProfilePopup && !userProfilePopup.contains(e.target) && !userProfileBtn.contains(e.target)) {
+            if (userProfilePopup && userProfileBtn && !userProfilePopup.contains(e.target) && !userProfileBtn.contains(e.target)) {
                 userProfilePopup.classList.remove("active");
             }
-            if (!notifMenu.contains(e.target) && !notifBtn.contains(e.target)) {
+            if (notifMenu && notifBtn && !notifMenu.contains(e.target) && !notifBtn.contains(e.target)) {
                 notifMenu.classList.remove("active");
             }
             const ctxMenu = document.getElementById("row-context-menu");
