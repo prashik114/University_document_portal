@@ -24,7 +24,6 @@ const App = {
         this.loadState();
         this.setupNavigation();
         this.setupEventListeners();
-        this.setupLoginScreen();
 
         // Gated authentication flow: show login screen if not authenticated
         const isAuth = localStorage.getItem("portal_auth_user") || sessionStorage.getItem("portal_auth_user");
@@ -847,6 +846,9 @@ const App = {
     },
 
     setupLoginScreen() {
+        if (this.loginScreenInitialized) return;
+        this.loginScreenInitialized = true;
+
         const loginForm = document.getElementById("login-form");
         const forgotForm = document.getElementById("forgot-password-form");
         const linkForgot = document.getElementById("link-forgot-password");
@@ -967,15 +969,21 @@ const App = {
                     }
                 }
 
-                // 4. Authenticated successfully
-                this.switchUser(matchedUser.id);
+                // 4. Authenticated successfully (Single clean institutional sign-in toast)
+                this.state.currentUser = {
+                    ...matchedUser,
+                    roleTitle: matchedUser.designation ? `${matchedUser.designation} (${matchedUser.role})` : matchedUser.role,
+                    avatar: matchedUser.avatar || (matchedUser.name ? matchedUser.name.charAt(0) : matchedUser.role.charAt(0)),
+                    badgeClass: matchedUser.role === 'Faculty' ? 'badge-doc' : (matchedUser.role === 'DeanHOD' ? 'badge-xls' : 'badge-pdf')
+                };
+                this.saveState();
                 localStorage.setItem("portal_auth_user", "true");
                 sessionStorage.setItem("portal_auth_user", "true");
                 this.hideLoginScreen();
                 this.renderAll();
                 this.syncFromBackend();
-                const userName = matchedUser ? matchedUser.name : "User";
-                const userRole = matchedUser ? (matchedUser.roleTitle || matchedUser.role) : "Repository";
+                const userName = matchedUser.name || "User";
+                const userRole = matchedUser.roleTitle || matchedUser.role || "Repository";
                 this.showToast(`Signed in successfully as ${userName} (${userRole})`, "success");
             });
         }
@@ -2903,6 +2911,14 @@ const App = {
     showToast(message, type = "info") {
         const container = document.getElementById("toast-container");
         if (!container) return;
+
+        // Prevent duplicate toasts from stacking
+        const existingToasts = container.querySelectorAll(".toast span");
+        for (let t of existingToasts) {
+            if (t.textContent.trim() === message.trim()) {
+                return;
+            }
+        }
 
         const toast = document.createElement("div");
         toast.className = `toast ${type}`;
