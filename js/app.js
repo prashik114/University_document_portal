@@ -605,10 +605,10 @@ const App = {
 
         const pending = this.state.documents.filter(d => {
             if (role === "DeanHOD") {
-                return d.status === "Under Verification" && d.currentStage === "Dean/HOD";
+                return d.status === "Under Verification" && (d.currentStage === "Dean/HOD" || d.currentStage === "Faculty / HoD Review" || d.currentStage === "Faculty" || !d.currentStage);
             }
             if (role === "IQAC") {
-                return d.status === "Under Verification" && d.currentStage === "IQAC";
+                return d.status === "Under Verification" && (d.currentStage === "IQAC" || !d.currentStage);
             }
             return d.status === "Under Verification";
         });
@@ -938,14 +938,16 @@ const App = {
                     return;
                 }
 
-                // 3. Password / OTP Verification
+                // 3. Strict Password / Security OTP Verification
+                const expectedPassword = matchedUser.password || "Password@123";
                 const btnOtpToggle = document.getElementById("btn-otp-toggle");
                 const isOtpMode = btnOtpToggle && btnOtpToggle.textContent.includes("Password");
+
                 if (isOtpMode) {
                     if (password !== "1234") {
-                        const msg = "Invalid Security OTP. Please enter the 4-digit verification code sent to your email (Demo OTP: 1234).";
+                        const msg = "Access Denied: Invalid Security OTP. Please enter the valid 4-digit code (1234).";
                         this.showLoginError(msg);
-                        this.showToast("Invalid OTP code. Please enter 1234.", "error");
+                        this.showToast("Invalid OTP code. Access denied.", "error");
                         if (pwdInput) {
                             pwdInput.focus();
                             pwdInput.select();
@@ -953,11 +955,14 @@ const App = {
                         return;
                     }
                 } else {
-                    if (!password || password.length < 4) {
-                        const msg = "Please enter your password (minimum 4 characters).";
+                    if (!password || password !== expectedPassword) {
+                        const msg = "Access Denied: Incorrect password. Please check your credentials and try again.";
                         this.showLoginError(msg);
-                        this.showToast(msg, "warning");
-                        if (pwdInput) pwdInput.focus();
+                        this.showToast("Incorrect password. Access denied.", "error");
+                        if (pwdInput) {
+                            pwdInput.focus();
+                            pwdInput.select();
+                        }
                         return;
                     }
                 }

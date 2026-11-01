@@ -4,18 +4,18 @@ import './styles.css';
 
 // Master users directory matching logins.md
 const USERS_DIRECTORY = [
-  { id: "USR-001", name: "Dr. Rajesh Sharma", email: "rajesh.sharma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Computer Science & Engineering", employeeId: "FAC-CSE-2048", avatar: "F" },
-  { id: "USR-002", name: "Prof. A. K. Verma", email: "ak.verma@university.edu", role: "DeanHOD", designation: "Head of Department & Professor", department: "Computer Science & Engineering", employeeId: "HOD-CSE-1002", avatar: "D" },
-  { id: "USR-003", name: "Dr. Sunita Rao", email: "sunita.rao@university.edu", role: "IQAC", designation: "Director & Central IQAC Coordinator", department: "Internal Quality Assurance Cell", employeeId: "IQAC-DIR-004", avatar: "I" },
-  { id: "USR-004", name: "Er. Vikram Mehta", email: "admin@university.edu", role: "Admin", designation: "Chief Systems Administrator", department: "Central IT & Institutional Governance", employeeId: "ADM-SYS-001", avatar: "A" },
-  { id: "USR-005", name: "Dr. M. S. Swaminathan", email: "naac.evaluator@naac.gov.in", role: "Inspector", designation: "NAAC Peer Team Lead Assessor", department: "External Peer Review Committee", employeeId: "EXT-NAAC-881", avatar: "E" },
-  { id: "USR-006", name: "Dr. Ananya Sen", email: "ananya.sen@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Computer Science & Engineering", employeeId: "FAC-CSE-2089", avatar: "A" },
-  { id: "USR-007", name: "Prof. R. K. Mukherjee", email: "rk.mukherjee@university.edu", role: "DeanHOD", designation: "Dean & Professor", department: "Electronics & Communication Engineering", employeeId: "HOD-ECE-1005", avatar: "R" },
-  { id: "USR-008", name: "Dr. Shalini Verma", email: "shalini.verma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Management Studies", employeeId: "FAC-MGMT-1402", avatar: "S" },
-  { id: "USR-009", name: "Prof. Vivek Chawla", email: "v.chawla@university.edu", role: "DeanHOD", designation: "Head of Department", department: "Mechanical Engineering", employeeId: "HOD-MECH-1008", avatar: "V" },
-  { id: "USR-010", name: "Dr. Kavita Deshmukh", email: "kavita.d@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Biotechnology & Bioinformatics", employeeId: "FAC-BIO-1120", avatar: "K" },
-  { id: "USR-011", name: "Aarav Patel", email: "aarav.p@student.university.edu", role: "Student", designation: "Student Representative (B.Tech)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8842", avatar: "S" },
-  { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Student", designation: "Research Scholar (Ph.D)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910", avatar: "P" }
+  { id: "USR-001", name: "Dr. Rajesh Sharma", email: "rajesh.sharma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Computer Science & Engineering", employeeId: "FAC-CSE-2048", avatar: "F", password: "Password@123", otp: "1234" },
+  { id: "USR-002", name: "Prof. A. K. Verma", email: "ak.verma@university.edu", role: "DeanHOD", designation: "Head of Department & Professor", department: "Computer Science & Engineering", employeeId: "HOD-CSE-1002", avatar: "D", password: "Password@123", otp: "1234" },
+  { id: "USR-003", name: "Dr. Sunita Rao", email: "sunita.rao@university.edu", role: "IQAC", designation: "Director & Central IQAC Coordinator", department: "Internal Quality Assurance Cell", employeeId: "IQAC-DIR-004", avatar: "I", password: "Password@123", otp: "1234" },
+  { id: "USR-004", name: "Er. Vikram Mehta", email: "admin@university.edu", role: "Admin", designation: "Chief Systems Administrator", department: "Central IT & Institutional Governance", employeeId: "ADM-SYS-001", avatar: "A", password: "Password@123", otp: "1234" },
+  { id: "USR-005", name: "Dr. M. S. Swaminathan", email: "naac.evaluator@naac.gov.in", role: "Inspector", designation: "NAAC Peer Team Lead Assessor", department: "External Peer Review Committee", employeeId: "EXT-NAAC-881", avatar: "E", password: "Password@123", otp: "1234" },
+  { id: "USR-006", name: "Dr. Ananya Sen", email: "ananya.sen@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Computer Science & Engineering", employeeId: "FAC-CSE-2089", avatar: "A", password: "Password@123", otp: "1234" },
+  { id: "USR-007", name: "Prof. R. K. Mukherjee", email: "rk.mukherjee@university.edu", role: "DeanHOD", designation: "Dean & Professor", department: "Electronics & Communication Engineering", employeeId: "HOD-ECE-1005", avatar: "R", password: "Password@123", otp: "1234" },
+  { id: "USR-008", name: "Dr. Shalini Verma", email: "shalini.verma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Management Studies", employeeId: "FAC-MGMT-1402", avatar: "S", password: "Password@123", otp: "1234" },
+  { id: "USR-009", name: "Prof. Vivek Chawla", email: "v.chawla@university.edu", role: "DeanHOD", designation: "Head of Department", department: "Mechanical Engineering", employeeId: "HOD-MECH-1008", avatar: "V", password: "Password@123", otp: "1234" },
+  { id: "USR-010", name: "Dr. Kavita Deshmukh", email: "kavita.d@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Biotechnology & Bioinformatics", employeeId: "FAC-BIO-1120", avatar: "K", password: "Password@123", otp: "1234" },
+  { id: "USR-011", name: "Aarav Patel", email: "aarav.p@student.university.edu", role: "Student", designation: "Student Representative (B.Tech)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8842", avatar: "S", password: "Password@123", otp: "1234" },
+  { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Student", designation: "Research Scholar (Ph.D)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910", avatar: "P", password: "Password@123", otp: "1234" }
 ];
 
 const NAAC_CRITERIA_METRICS = [
@@ -40,12 +40,12 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem("portal_auth_user") === "true";
   });
-  const [loginEmail, setLoginEmail] = useState("rajesh.sharma@university.edu");
-  const [loginPassword, setLoginPassword] = useState("Password@123");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isOtpMode, setIsOtpMode] = useState(false);
   const [showForgotView, setShowForgotView] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("rajesh.sharma@university.edu");
+  const [forgotEmail, setForgotEmail] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifMenuOpen, setNotifMenuOpen] = useState(false);
@@ -116,16 +116,17 @@ export default function App() {
     }
 
     // Password / OTP Verification
+    const expectedPassword = matched.password || "Password@123";
     if (isOtpMode) {
       if (loginPassword.trim() !== "1234") {
-        setLoginError("Invalid Security OTP. Please enter the 4-digit code sent to your email (Demo OTP: 1234).");
-        showToast("Invalid OTP code. Please enter 1234.", "error");
+        setLoginError("Access Denied: Invalid Security OTP. Please enter the valid 4-digit code (1234).");
+        showToast("Invalid OTP code. Access denied.", "error");
         return;
       }
     } else {
-      if (!loginPassword || loginPassword.length < 4) {
-        setLoginError("Please enter your password (minimum 4 characters).");
-        showToast("Please enter your password.", "warning");
+      if (!loginPassword || loginPassword !== expectedPassword) {
+        setLoginError("Access Denied: Incorrect password. Please check your credentials and try again.");
+        showToast("Incorrect password. Access denied.", "error");
         return;
       }
     }
@@ -189,16 +190,29 @@ export default function App() {
   };
 
   const handleApproveRecord = (docId) => {
+    const isDean = currentUser.role === 'DeanHOD';
     setDocuments(prev => prev.map(d => {
       if (d.id === docId) {
-        return { ...d, status: "Approved", currentStage: "IQAC Certified & Locked", isLocked: true };
+        if (isDean) {
+          return { ...d, status: "Under Verification", currentStage: "IQAC" };
+        } else {
+          return { ...d, status: "Approved", currentStage: "IQAC Certified & Locked", isLocked: true };
+        }
       }
       return d;
     }));
     if (selectedDocForModal && selectedDocForModal.id === docId) {
-      setSelectedDocForModal(prev => ({ ...prev, status: "Approved", currentStage: "IQAC Certified & Locked", isLocked: true }));
+      setSelectedDocForModal(prev => ({
+        ...prev,
+        status: isDean ? "Under Verification" : "Approved",
+        currentStage: isDean ? "IQAC" : "IQAC Certified & Locked",
+        isLocked: !isDean
+      }));
     }
-    showToast(`Record ${docId} approved and certified for NAAC SSR!`, "success");
+    const msg = isDean
+      ? `Record ${docId} verified by Department and forwarded to Central IQAC Queue!`
+      : `Record ${docId} approved and certified for NAAC SSR!`;
+    showToast(msg, "success");
   };
 
   const handleReturnRecord = (docId) => {
@@ -366,7 +380,7 @@ export default function App() {
                       required
                       value={loginEmail}
                       onChange={(e) => { setLoginEmail(e.target.value); setLoginError(""); }}
-                      placeholder="e.g. rajesh.sharma@university.edu"
+                      placeholder="e.g. your.name@university.edu"
                     />
                   </div>
                 </div>
@@ -399,7 +413,7 @@ export default function App() {
                       required
                       value={loginPassword}
                       onChange={(e) => { setLoginPassword(e.target.value); setLoginError(""); }}
-                      placeholder={isOtpMode ? "Enter OTP (Default: 1234)" : "Enter password"}
+                      placeholder={isOtpMode ? "Enter 4-digit Security OTP" : "Enter your institutional password"}
                     />
                   </div>
                 </div>
@@ -438,7 +452,7 @@ export default function App() {
                       required
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="e.g. rajesh.sharma@university.edu"
+                      placeholder="e.g. your.name@university.edu"
                     />
                   </div>
                 </div>
@@ -1148,7 +1162,16 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {documents.filter(d => d.status === 'Under Verification').length === 0 ? (
+                          {documents.filter(d => {
+                            if (d.status !== 'Under Verification') return false;
+                            if (currentUser.role === 'DeanHOD') {
+                              return d.currentStage === 'Dean/HOD' || d.currentStage === 'Faculty / HoD Review' || !d.currentStage || d.currentStage === 'Faculty';
+                            }
+                            if (currentUser.role === 'IQAC') {
+                              return d.currentStage === 'IQAC' || !d.currentStage;
+                            }
+                            return true;
+                          }).length === 0 ? (
                             <tr>
                               <td colSpan="7" style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b' }}>
                                 <div style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>Queue is completely clear!</div>
@@ -1156,7 +1179,16 @@ export default function App() {
                               </td>
                             </tr>
                           ) : (
-                            documents.filter(d => d.status === 'Under Verification').map((doc, idx) => (
+                            documents.filter(d => {
+                              if (d.status !== 'Under Verification') return false;
+                              if (currentUser.role === 'DeanHOD') {
+                                return d.currentStage === 'Dean/HOD' || d.currentStage === 'Faculty / HoD Review' || !d.currentStage || d.currentStage === 'Faculty';
+                              }
+                              if (currentUser.role === 'IQAC') {
+                                return d.currentStage === 'IQAC' || !d.currentStage;
+                              }
+                              return true;
+                            }).map((doc, idx) => (
                               <tr key={doc.id || idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
                                 <td style={{ padding: '12px 16px', color: '#64748b' }}>{idx + 1}</td>
                                 <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>{doc.title}</td>
