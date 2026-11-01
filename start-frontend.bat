@@ -20,3 +20,4 @@ if not exist node_modules (
 echo [INFO] Launching Vite development server...
 call npm run dev
 pause
+

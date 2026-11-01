@@ -12,3 +12,4 @@ if (-not (Test-Path "node_modules")) {
 
 Write-Host "Dev Server: http://localhost:3000" -ForegroundColor Green
 npm run dev
+

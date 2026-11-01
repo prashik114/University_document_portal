@@ -480,7 +480,8 @@ body {
 }
 
 /* Primary Button */
-.btn-primary {
+.btn-primary,
+.primary-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -496,12 +497,14 @@ body {
     transition: all 0.15s ease;
 }
 
-.btn-primary:hover {
+.btn-primary:hover,
+.primary-btn:hover {
     background-color: var(--primary-hover);
     box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
 }
 
-.btn-primary svg {
+.btn-primary svg,
+.primary-btn svg {
     width: 16px;
     height: 16px;
     stroke-width: 2.5;

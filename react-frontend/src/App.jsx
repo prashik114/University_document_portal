@@ -587,7 +587,7 @@ export default function App() {
                 </button>
 
                 <div className="search-box-container">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <svg className="search-icon-nav" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input
                     type="text"
                     className="global-search-input"
@@ -606,7 +606,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="nav-actions-group" style={{ position: 'relative' }}>
+              <div className="navbar-actions nav-actions-group" style={{ position: 'relative' }}>
                 {/* Notifications Bell */}
                 <button
                   className="notification-btn"
@@ -937,7 +937,7 @@ export default function App() {
                           className="select-filter"
                           value={selectedCategory}
                           onChange={(e) => setSelectedCategory(e.target.value)}
-                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          style={{ minWidth: 140 }}
                         >
                           <option value="ALL">All Categories</option>
                           <option value="Academic">Academic</option>
@@ -951,7 +951,7 @@ export default function App() {
                           className="select-filter"
                           value={selectedStatus}
                           onChange={(e) => setSelectedStatus(e.target.value)}
-                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                          style={{ minWidth: 140 }}
                         >
                           <option value="ALL">All Status</option>
                           <option value="Under Verification">Under Verification</option>

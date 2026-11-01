@@ -18,3 +18,4 @@ if (Test-Path "target\portal-backend-1.0.0.jar") {
     .\mvnw.cmd clean package -DskipTests
     & "$env:JAVA_HOME\bin\java.exe" -jar target\portal-backend-1.0.0.jar
 }
+
