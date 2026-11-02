@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Institutional Single Sign-On - University Repository</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 50% 25%, #1e293b 0%, #0f172a 100%);
+            padding: 16px;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+        }
+        .login-card {
+            background: #ffffff;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+            animation: cardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes cardPop {
+            from { transform: scale(0.96) translateY(8px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .login-header {
+            padding: 28px 30px 20px 30px;
+            text-align: center;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .login-logo {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: #eff6ff;
+            border: 1.5px solid #bfdbfe;
+            color: #2563eb;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        .login-body {
+            padding: 24px 30px 28px 30px;
+        }
+        .method-tabs {
+            display: flex;
+            background: #f1f5f9;
+            padding: 3px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .method-tab {
+            flex: 1;
+            padding: 8px 12px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            border: none;
+            background: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .method-tab.active {
+            background: #ffffff;
+            color: #0f172a;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+        .input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-wrap svg {
+            position: absolute;
+            left: 12px;
+            width: 17px;
+            height: 17px;
+            color: #94a3b8;
+        }
+        .input-control {
+            width: 100%;
+            height: 42px;
+            padding: 0 14px 0 40px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13.5px;
+            color: #0f172a;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.15s;
+        }
+        .input-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+        .submit-btn {
+            width: 100%;
+            height: 44px;
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
+            transition: background 0.15s;
+        }
+        .submit-btn:hover {
+            background: #1d4ed8;
+        }
+        .error-alert {
+            display: none;
+            padding: 10px 14px;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+        .footer-note {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 11px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28">
+                    <path d="M3 21h18M3 10h18M5 10v11M9 10v11M15 10v11M19 10v11M12 2L2 7h20L12 2z"/>
+                </svg>
+            </div>
+            <div style="font-size: 20px; font-weight: 800; color: #0f172a;">University Central SSO</div>
+            <div style="font-size: 12.5px; color: #64748b; margin-top: 3px;">Document Repository & Accreditation System</div>
+        </div>
+
+        <div class="login-body">
+            <div id="error-alert" class="error-alert"></div>
+
+            <div class="method-tabs">
+                <button type="button" class="method-tab active" id="tab-pass" onclick="setLoginMethod('password')">Password</button>
+                <button type="button" class="method-tab" id="tab-otp" onclick="setLoginMethod('otp')">Verification OTP</button>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label" for="login-email">Official University Email</label>
+                    <div class="input-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <input type="email" id="login-email" class="input-control" placeholder="your.name@university.edu" required autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group" id="group-password">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label class="form-label" for="login-password" style="margin-bottom: 0;">Account Password</label>
+                        <a href="javascript:void(0)" onclick="alert('Please contact your department IT Administrator (admin@university.edu) to reset institutional password.')" style="font-size: 11px; color: #2563eb; text-decoration: none;">Forgot?</a>
+                    </div>
+                    <div class="input-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input type="password" id="login-password" class="input-control" placeholder="Enter password" autocomplete="current-password">
+                    </div>
+                </div>
+
+                <div class="form-group" id="group-otp" style="display: none;">
+                    <label class="form-label" for="login-otp">One-Time Password (OTP)</label>
+                    <div class="input-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <input type="text" id="login-otp" class="input-control" placeholder="Enter 4-digit code (1234)">
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="btn-submit">
+                    <span id="btn-text">Sign In to Repository</span>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </form>
+
+            <div class="footer-note">
+                <span style="color: #16a34a; font-weight: 600;">&#10003; 256-Bit SSL Encrypted</span> &bull; Central LDAP / SAML 2.0
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMethod = 'password';
+
+        function setLoginMethod(method) {
+            currentMethod = method;
+            document.getElementById('tab-pass').classList.toggle('active', method === 'password');
+            document.getElementById('tab-otp').classList.toggle('active', method === 'otp');
+            document.getElementById('group-password').style.display = method === 'password' ? 'block' : 'none';
+            document.getElementById('group-otp').style.display = method === 'otp' ? 'block' : 'none';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const otp = document.getElementById('login-otp').value.trim();
+            const alertBox = document.getElementById('error-alert');
+            const btn = document.getElementById('btn-submit');
+
+            alertBox.style.display = 'none';
+
+            if (!email) {
+                showError("Please enter your official university email.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+
+            try {
+                const res = await fetch("http://localhost:8080/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password, otp, method: currentMethod })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || !data.authenticated) {
+                    showError(data.error || "Authentication failed. Invalid email or credentials.");
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    return;
+                }
+
+                // Successful authentication
+                const user = data.user;
+                localStorage.setItem("portal_auth_user", "true");
+                localStorage.setItem("portal_current_user", JSON.stringify(user));
+                sessionStorage.setItem("portal_auth_user", "true");
+                sessionStorage.setItem("portal_current_user", JSON.stringify(user));
+
+                // Direct routing to user's dedicated portal page
+                redirectToPortal(user.role);
+            } catch (err) {
+                console.warn("Backend offline, checking institutional directory fallback", err);
+                fallbackLocalLogin(email, password, otp);
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
+
+        function fallbackLocalLogin(email, password, otp) {
+            // Authorized institutional directory
+            const DIRECTORY = [
+                { id: "USR-001", name: "Dr. Rajesh Sharma", email: "rajesh.sharma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Computer Science & Engineering", employeeId: "FAC-CSE-2048" },
+                { id: "USR-002", name: "Prof. A. K. Verma", email: "ak.verma@university.edu", role: "DeanHOD", designation: "Head of Department & Professor", department: "Computer Science & Engineering", employeeId: "HOD-CSE-1002" },
+                { id: "USR-003", name: "Dr. Sunita Rao", email: "sunita.rao@university.edu", role: "IQAC", designation: "Director & Central IQAC Coordinator", department: "Internal Quality Assurance Cell", employeeId: "IQAC-DIR-004" },
+                { id: "USR-004", name: "Er. Vikram Mehta", email: "admin@university.edu", role: "Admin", designation: "Chief Systems Administrator", department: "Central IT & Institutional Governance", employeeId: "ADM-SYS-001" },
+                { id: "USR-005", name: "Dr. M. S. Swaminathan", email: "naac.evaluator@naac.gov.in", role: "Inspector", designation: "External Peer Review Team Assessor", department: "NAAC Peer Review Committee", employeeId: "EXT-NAAC-881" },
+                { id: "USR-006", name: "Dr. Ananya Sen", email: "ananya.sen@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Computer Science & Engineering", employeeId: "FAC-CSE-2089" },
+                { id: "USR-007", name: "Prof. R. K. Mukherjee", email: "rk.mukherjee@university.edu", role: "DeanHOD", designation: "Dean & Professor", department: "Electronics & Communication Engineering", employeeId: "HOD-ECE-1005" },
+                { id: "USR-008", name: "Dr. Shalini Verma", email: "shalini.verma@university.edu", role: "Faculty", designation: "Associate Professor", department: "Management Studies", employeeId: "FAC-MGMT-1402" },
+                { id: "USR-009", name: "Prof. Vivek Chawla", email: "v.chawla@university.edu", role: "DeanHOD", designation: "Head of Department", department: "Mechanical Engineering", employeeId: "HOD-MECH-1008" },
+                { id: "USR-010", name: "Dr. Kavita Deshmukh", email: "kavita.d@university.edu", role: "Faculty", designation: "Assistant Professor", department: "Biotechnology & Bioinformatics", employeeId: "FAC-BIO-1120" },
+                { id: "USR-011", name: "Aarav Patel", email: "aarav.p@student.university.edu", role: "Student", designation: "Student Representative (B.Tech)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8842" },
+                { id: "USR-012", name: "Priya Nair", email: "priya.n@student.university.edu", role: "Student", designation: "Research Scholar (Ph.D)", department: "Computer Science & Engineering", employeeId: "STU-CSE-8910" }
+            ];
+
+            const found = DIRECTORY.find(u => u.email.toLowerCase() === email.toLowerCase());
+            if (!found) {
+                showError("No institutional account found with this email. Access denied.");
+                return;
+            }
+
+            if (currentMethod === 'password') {
+                if (!password || password !== "Password@123") {
+                    showError("Invalid password. Access denied.");
+                    return;
+                }
+            } else {
+                if (!otp || otp !== "1234") {
+                    showError("Invalid or expired OTP. Please enter the valid verification code.");
+                    return;
+                }
+            }
+
+            localStorage.setItem("portal_auth_user", "true");
+            localStorage.setItem("portal_current_user", JSON.stringify(found));
+            sessionStorage.setItem("portal_auth_user", "true");
+            sessionStorage.setItem("portal_current_user", JSON.stringify(found));
+            redirectToPortal(found.role);
+        }
+
+        function redirectToPortal(role) {
+            switch(role) {
+                case "Student": window.location.href = "student.html"; break;
+                case "DeanHOD": window.location.href = "dean.html"; break;
+                case "IQAC": window.location.href = "iqac.html"; break;
+                case "Inspector": window.location.href = "inspector.html"; break;
+                case "Admin": window.location.href = "admin.html"; break;
+                case "Faculty":
+                default: window.location.href = "faculty.html"; break;
+            }
+        }
+
+        function showError(msg) {
+            const box = document.getElementById('error-alert');
+            box.textContent = msg;
+            box.style.display = 'block';
+        }
+
+        // Display flash message if redirected from another page
+        window.addEventListener('DOMContentLoaded', () => {
+            const msg = sessionStorage.getItem("portal_login_msg");
+            if (msg) {
+                showError(msg);
+                sessionStorage.removeItem("portal_login_msg");
+            }
+        });
+    </script>
+</body>
+</html>

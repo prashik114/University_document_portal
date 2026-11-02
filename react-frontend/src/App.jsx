@@ -40,6 +40,43 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem("portal_auth_user") === "true";
   });
+  const [currentPath, setCurrentPath] = useState(() => {
+    const p = window.location.pathname.replace(/^\//, '') || '';
+    return p;
+  });
+
+  const navigateTo = (path) => {
+    try {
+      window.history.pushState({}, '', `/${path}`);
+    } catch (_) {}
+    setCurrentPath(path);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const p = window.location.pathname.replace(/^\//, '') || '';
+      setCurrentPath(p);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (!currentPath || currentPath === 'login') {
+        const targetPath = currentUser.role === 'Student' ? 'student' :
+                           currentUser.role === 'DeanHOD' ? 'dean' :
+                           currentUser.role === 'IQAC' ? 'iqac' :
+                           currentUser.role === 'Inspector' ? 'inspector' :
+                           currentUser.role === 'Admin' ? 'admin' : 'faculty';
+        navigateTo(targetPath);
+      }
+    } else {
+      if (currentPath !== 'login') {
+        navigateTo('login');
+      }
+    }
+  }, [isAuthenticated, currentUser]);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -135,6 +172,12 @@ export default function App() {
     setIsAuthenticated(true);
     localStorage.setItem("portal_auth_user", "true");
     localStorage.setItem("portal_user_profile", JSON.stringify(matched));
+    const rolePath = matched.role === 'Student' ? 'student' :
+                     matched.role === 'DeanHOD' ? 'dean' :
+                     matched.role === 'IQAC' ? 'iqac' :
+                     matched.role === 'Inspector' ? 'inspector' :
+                     matched.role === 'Admin' ? 'admin' : 'faculty';
+    navigateTo(rolePath);
     showToast(`Signed in successfully as ${matched.name} (${matched.role})`, "success");
   };
 
@@ -144,6 +187,7 @@ export default function App() {
     setUserMenuOpen(false);
     localStorage.removeItem("portal_auth_user");
     localStorage.removeItem("portal_user_profile");
+    navigateTo("login");
     showToast("Logged out successfully.", "info");
   };
 
