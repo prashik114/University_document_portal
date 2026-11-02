@@ -1,23 +1,26 @@
 package com.university.portal.controller;
 
-import com.university.portal.entity.DocumentEntity;
 import com.university.portal.entity.RevisionRequestEntity;
 import com.university.portal.repository.DocumentRepository;
 import com.university.portal.repository.RevisionRequestRepository;
+import com.university.portal.util.IdGenerator;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Manages post-approval revision requests.
+ * IDs are now UUID-derived to prevent collision.
+ */
 @RestController
 @RequestMapping("/api/revisions")
 public class RevisionController {
 
     private final RevisionRequestRepository revisionRepository;
-    private final DocumentRepository documentRepository;
+    private final DocumentRepository        documentRepository;
 
     public RevisionController(RevisionRequestRepository revisionRepository,
                               DocumentRepository documentRepository) {
@@ -31,27 +34,30 @@ public class RevisionController {
     }
 
     @PostMapping
-    public ResponseEntity<RevisionRequestEntity> create(@RequestBody RevisionRequestEntity req) {
-        if (req.getId() == null || req.getId().trim().isEmpty()) {
-            req.setId("REV-2026-" + (int)(100 + Math.random() * 900));
+    public ResponseEntity<RevisionRequestEntity> create(
+            @RequestBody RevisionRequestEntity req) {
+
+        if (req.getId() == null || req.getId().isBlank()) {
+            req.setId(IdGenerator.revisionId());
         }
-        if (req.getRequestedDate() == null) {
-            req.setRequestedDate(LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy")));
+        if (req.getRequestedDate() == null || req.getRequestedDate().isBlank()) {
+            req.setRequestedDate(LocalDate.now()
+                    .format(DateTimeFormatter.ofPattern("dd MMM yyyy")));
         }
-        if (req.getStatus() == null) {
+        if (req.getStatus() == null || req.getStatus().isBlank()) {
             req.setStatus("Pending Admin Approval");
         }
         return ResponseEntity.ok(revisionRepository.save(req));
     }
 
     @PostMapping("/{id}/authorize")
-    public ResponseEntity<RevisionRequestEntity> authorize(@PathVariable String id, @RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<RevisionRequestEntity> authorize(@PathVariable String id) {
         return revisionRepository.findById(id).map(rev -> {
             rev.setStatus("Authorized by Admin");
             revisionRepository.save(rev);
 
-            // Unlock target document
-            if (rev.getRecordId() != null) {
+            // Unlock the target document
+            if (rev.getRecordId() != null && !rev.getRecordId().isBlank()) {
                 documentRepository.findById(rev.getRecordId()).ifPresent(doc -> {
                     doc.setStatus("Returned");
                     doc.setCurrentStage("Faculty");
@@ -71,4 +77,3 @@ public class RevisionController {
         }).orElse(ResponseEntity.notFound().build());
     }
 }
-

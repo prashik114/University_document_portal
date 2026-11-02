@@ -2912,13 +2912,8 @@ const App = {
         const container = document.getElementById("toast-container");
         if (!container) return;
 
-        // Prevent duplicate toasts from stacking
-        const existingToasts = container.querySelectorAll(".toast span");
-        for (let t of existingToasts) {
-            if (t.textContent.trim() === message.trim()) {
-                return;
-            }
-        }
+        // Clear existing toasts to prevent duplicate stacking
+        container.innerHTML = "";
 
         const toast = document.createElement("div");
         toast.className = `toast ${type}`;

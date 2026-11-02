@@ -1,25 +1,36 @@
-# Environment files
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Vite / React build output ─────────────────────────────────────────────────
+react-frontend/dist/
+react-frontend/node_modules/
+
+# ── Maven / Java ──────────────────────────────────────────────────────────────
+backend/target/
+backend/data/
+data/
+*.class
+*.jar
+!**/mvnw
+!**/mvnw.cmd
+
+# ── Uploaded evidence files ───────────────────────────────────────────────────
+uploads/
+
+# ── Environment variables ─────────────────────────────────────────────────────
 .env
 .env.local
-.env.*.local
+.env.production
+# Keep example files for reference
+!.env.example
 
-# Dependencies
-node_modules/
-package-lock.json
+# ── Mobile ────────────────────────────────────────────────────────────────────
+mobile-app/node_modules/
+mobile-app/.expo/
 
-# Builds
-dist/
-build/
-target/
-*.jar
-
-# Logs & temp
-*.log
-.vscode/
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
 .idea/
-.DS_Store
-
-
-# Data and upload directories
-data/
-uploads/
+.vscode/settings.json
+*.DS_Store
+Thumbs.db

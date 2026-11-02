@@ -38,6 +38,10 @@
                         <span>Verification Queue</span>
                         <span class="nav-badge danger" id="dean-queue-badge">0</span>
                     </a>
+                    <a class="nav-item" href="javascript:void(0)" onclick="openProvisionModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                        <span>Provision Members</span>
+                    </a>
                 </nav>
             </div>
 
@@ -80,13 +84,29 @@
                 <div class="dashboard-header">
                     <div>
                         <h1 id="dean-welcome-title" style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Department Governance: Prof. A. K. Verma</h1>
-                        <p id="dean-welcome-sub" style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Head of Department & Professor &bull; Computer Science & Engineering &bull; Cycle 2026-2027</p>
+                        <p id="dean-welcome-sub" style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Head of Department &bull; Computer Science & Engineering &bull; Cycle 2026-2027</p>
                     </div>
-                    <div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-secondary" onclick="openProvisionModal()" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                            <span>+ Provision Member</span>
+                        </button>
                         <button class="btn-primary" onclick="batchForwardAll()" style="background-color: #059669;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                            <span>Batch Verify & Forward All</span>
+                            <span>Batch Forward All</span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- DEPARTMENT ISOLATION STATUS BANNER -->
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 18px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #16a34a;"></span>
+                        <span style="font-size: 13px; font-weight: 700; color: #166534;">Department Scope Granted:</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #15803d;" id="dean-dept-name">Computer Science & Engineering</span>
+                    </div>
+                    <div style="font-size: 12px; color: #475569;">
+                        Other Departments (Mechanical, Civil): <strong style="color: #dc2626;">Strictly Isolated (No Access)</strong>
                     </div>
                 </div>
 
@@ -148,13 +168,83 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- DEPARTMENT MEMBERS TABLE -->
+                <div class="table-card" style="margin-top: 28px;">
+                    <div class="table-card-header">
+                        <div class="table-card-title">Department Members (Faculty & Students)</div>
+                        <button class="btn-secondary" onclick="openProvisionModal()" style="font-size: 12px; padding: 6px 12px;">+ Add Department Member</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 12px; color: #64748b;">
+                                    <th style="padding: 12px 16px;">Name</th>
+                                    <th style="padding: 12px 16px;">Role</th>
+                                    <th style="padding: 12px 16px;">Designation</th>
+                                    <th style="padding: 12px 16px;">Department</th>
+                                    <th style="padding: 12px 16px;">Official Email</th>
+                                    <th style="padding: 12px 16px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dean-members-body">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 24px 16px; color: #64748b;">Loading department members...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </main>
+        </div>
+    </div>
+
+    <!-- PROVISION MEMBER MODAL (DEAN: LOCKED TO FACULTY & STUDENT IN ASSIGNED DEPT) -->
+    <div class="modal-backdrop" id="provision-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Provision Department Member</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Authorized for Faculty & Students within your department only.</p>
+                </div>
+                <button onclick="closeProvisionModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <form id="dean-provision-form" onsubmit="handleProvisionSubmit(event)" style="padding: 24px;">
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Full Name *</label>
+                    <input type="text" id="prov-name" required placeholder="e.g. Dr. Priya Nair" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Official University Email *</label>
+                    <input type="email" id="prov-email" required placeholder="e.g. priya.nair@university.edu" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Institutional Role * (Policy: Faculty & Students Only)</label>
+                    <select id="prov-role" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                        <option value="Faculty">Faculty Member</option>
+                        <option value="Student">Student Submitter</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Academic Designation</label>
+                    <input type="text" id="prov-designation" placeholder="e.g. Assistant Professor / Research Scholar" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Assigned Department (Locked to Your Department)</label>
+                    <input type="text" id="prov-department" readonly style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #475569; font-weight: 600;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" onclick="closeProvisionModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: #059669;">Create Member Account</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script src="js/portal-client.js"></script>
     <script>
         let allDocs = [];
+        let deptMembers = [];
 
         window.addEventListener('DOMContentLoaded', async () => {
             const ok = await PortalClient.init(['DeanHOD']);
@@ -163,8 +253,10 @@
             const u = PortalClient.currentUser;
             document.getElementById('dean-welcome-title').textContent = `Department Governance: ${u.name}`;
             document.getElementById('dean-welcome-sub').textContent = `${u.designation || 'Head of Department'} • ${u.department} • Cycle 2026-2027`;
+            document.getElementById('dean-dept-name').textContent = u.department || 'Computer Science & Engineering';
 
             loadAndRender();
+            loadDepartmentMembers();
         });
 
         function loadAndRender() {
@@ -178,6 +270,25 @@
             document.getElementById('dean-kpi-approved').textContent = allDocs.filter(d => d.status === 'Approved').length;
 
             renderTable();
+        }
+
+        async function loadDepartmentMembers() {
+            const tbody = document.getElementById('dean-members-body');
+            deptMembers = await PortalClient.loadUsers();
+            if (!deptMembers || deptMembers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px 16px; color: #64748b;">No department members registered yet. Use "+ Provision Member" above.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = deptMembers.map(m => `
+                <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                    <td style="padding: 12px 16px; font-weight: 600; color: #0f172a;">${m.name}</td>
+                    <td style="padding: 12px 16px;"><span class="status-pill status-approved" style="background: #f1f5f9; color: #0f172a; border-color: #cbd5e1;">${m.role}</span></td>
+                    <td style="padding: 12px 16px; color: #475569;">${m.designation || '—'}</td>
+                    <td style="padding: 12px 16px; color: #475569;">${m.department || '—'}</td>
+                    <td style="padding: 12px 16px; color: #2563eb;">${m.email}</td>
+                    <td style="padding: 12px 16px;"><span class="status-pill status-approved">Active</span></td>
+                </tr>
+            `).join('');
         }
 
         function renderTable() {
@@ -229,20 +340,16 @@
 
         async function verifyAndForward(docId) {
             try {
-                await fetch(`http://localhost:8080/api/documents/${encodeURIComponent(docId)}/verify`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reviewerName: PortalClient.currentUser.name, reviewerRole: "DeanHOD", comment: "Endorsed by HoD; forwarded to IQAC." })
-                });
-            } catch (_) {}
-
-            const target = allDocs.find(d => d.id === docId);
-            if (target) {
-                target.currentStage = "IQAC";
-                target.status = "Under Verification";
+                await PortalClient.verifyDocument(docId, "Endorsed by HoD; forwarded to IQAC.");
+                const target = allDocs.find(d => d.id === docId);
+                if (target) {
+                    target.currentStage = "IQAC";
+                    target.status = "Under Verification";
+                }
+                loadAndRender();
+            } catch (e) {
+                console.error(e);
             }
-            PortalClient.showToast("Record verified and forwarded to Central IQAC!", "success");
-            loadAndRender();
         }
 
         async function returnCorrection(docId) {
@@ -250,33 +357,53 @@
             if (!reason) return;
 
             try {
-                await fetch(`http://localhost:8080/api/documents/${encodeURIComponent(docId)}/return`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reviewerName: PortalClient.currentUser.name, reviewerRole: "DeanHOD", reason })
-                });
-            } catch (_) {}
-
-            const target = allDocs.find(d => d.id === docId);
-            if (target) {
-                target.status = "Returned";
-                target.currentStage = "Returned to Submitter";
+                await PortalClient.returnDocument(docId, reason);
+                const target = allDocs.find(d => d.id === docId);
+                if (target) {
+                    target.status = "Returned";
+                    target.currentStage = "Returned to Submitter";
+                }
+                loadAndRender();
+            } catch (e) {
+                console.error(e);
             }
-            PortalClient.showToast("Record returned to submitter for revision.", "warning");
+        }
+
+        async function batchForwardAll() {
+            await PortalClient.batchForward();
+            await PortalClient.loadData();
             loadAndRender();
         }
 
-        function batchForwardAll() {
-            const pending = allDocs.filter(d => d.status === 'Under Verification');
-            if (pending.length === 0) {
-                alert("No pending records in the verification queue.");
-                return;
+        function openProvisionModal() {
+            const u = PortalClient.currentUser;
+            document.getElementById('prov-department').value = u.department || 'Computer Science & Engineering';
+            document.getElementById('provision-modal').style.display = 'flex';
+        }
+
+        function closeProvisionModal() {
+            document.getElementById('provision-modal').style.display = 'none';
+            document.getElementById('dean-provision-form').reset();
+        }
+
+        async function handleProvisionSubmit(e) {
+            e.preventDefault();
+            const u = PortalClient.currentUser;
+            const userData = {
+                name: document.getElementById('prov-name').value.trim(),
+                email: document.getElementById('prov-email').value.trim(),
+                role: document.getElementById('prov-role').value,
+                designation: document.getElementById('prov-designation').value.trim(),
+                department: u.department || 'Computer Science & Engineering'
+            };
+
+            try {
+                await PortalClient.provisionUser(userData);
+                closeProvisionModal();
+                loadDepartmentMembers();
+            } catch (err) {
+                // error toast already displayed by portal-client
             }
-            pending.forEach(d => {
-                d.currentStage = "IQAC";
-            });
-            PortalClient.showToast(`Batch verified ${pending.length} records and forwarded to Central IQAC!`, "success");
-            loadAndRender();
         }
 
         function toggleSidebar() {

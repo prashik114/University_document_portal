@@ -1,140 +1,163 @@
-# University Repository & Accreditation Portal
+# University Document Portal
 
-Enterprise-grade, full-stack multi-platform repository and accreditation system for higher education institutions, compliant with NAAC Cycle 3 SSR standards.
+**NAAC Cycle 3 – Institutional Accreditation Evidence Repository**
 
----
-
-## 🌟 Tech Stack
-
-- **Backend**: Spring Boot 3.3.4 (Java 17), Spring Data JPA, Hibernate, Maven, REST API
-- **Database**: PostgreSQL (Hosted on Neon DB: `jdbc:postgresql://ep-steep-voice-b48wnr2e-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require`)
-- **Web Frontend (Existing & Zero-Glitch)**: Production HTML5, CSS3, JavaScript (Pixel-perfect replica, zero alterations to UI, integrated with REST backend)
-- **Web Frontend (React JS)**: React 18 + Vite in `react-frontend/`
-- **Mobile Application**: React Native + Expo in `mobile-app/`
+A multi-tier web application for managing the complete lifecycle of NAAC Self-Study Report (SSR) evidence — from faculty submission through departmental verification, IQAC certification, and final cryptographic locking.
 
 ---
 
-## ⚡ Launch Everything at Once (Recommended)
+## Architecture
 
-Simply double-click:
-👉 **[`launch-all.bat`](./launch-all.bat)**
-
-This single script automatically:
-1. **Starts the Spring Boot Backend** connected to your Neon PostgreSQL database on `http://localhost:8080`.
-2. **Opens the Main Portal** in your default web browser (`index.html` linked live with the backend).
-3. **Starts the React JS Frontend** on `http://localhost:3000`.
+```
+┌────────────────────────────────────────────────────────────┐
+│    Spring Boot 3.3.4 REST API  (port 8080)                 │
+│    H2 file DB (dev)  ←→  PostgreSQL/Neon (production)      │
+└───────────────────┬────────────────────────────────────────┘
+                    │  /api/*
+       ┌────────────┼─────────────┐
+       ▼            ▼             ▼
+  Vanilla JS     React.js      React Native
+  (index.html)  (Vite / :3000) (Expo mobile)
+```
 
 ---
 
-## 🚀 Quick Start Guide (Individual Services)
+## Project Structure
 
-### 1. Run the Spring Boot Backend (PostgreSQL Neon DB)
-You can start the backend in either of two easy ways:
+```
+university-document-portal/
+├── backend/                        Spring Boot backend
+│   └── src/main/java/com/university/portal/
+│       ├── config/                 WebConfig (CORS, file serving)
+│       ├── controller/             REST controllers
+│       ├── dto/                    API data transfer objects
+│       ├── entity/                 JPA entities
+│       ├── repository/             Spring Data repositories
+│       ├── service/                Business logic
+│       └── util/                   IdGenerator, DocumentMapper
+│
+├── react-frontend/                 Vite + React 18 frontend
+│   └── src/
+│       ├── components/             LoginScreen, UploadModal, modals, etc.
+│       ├── constants/              User directory, NAAC criteria
+│       ├── hooks/                  usePortalData, useToast
+│       ├── services/               api.js (REST client)
+│       └── App.jsx                 Root component
+│
+├── mobile-app/                     Expo / React Native mobile client
+│   ├── App.js                      Root component (login + document list)
+│   └── src/services/api.js         Mobile API client
+│
+├── js/                             Vanilla JS frontend (legacy)
+├── css/                            Vanilla JS styles (legacy)
+├── index.html                      Vanilla JS entry point
+└── README.md
+```
 
-#### Option A: One-Click Batch Script
-Double-click `start-backend.bat` in the root directory.
+---
 
-#### Option B: Terminal Command
+## Running the Project
+
+### Prerequisites
+- Java 17+
+- Node.js 18+
+
+### 1. Start the backend
+
 ```powershell
-$env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
-cd "d:\PROGRAMS\University document portal\backend"
+cd backend
 .\mvnw.cmd spring-boot:run
 ```
-The backend starts at `http://localhost:8080`.
-- Health/State API: `http://localhost:8080/api/state`
-- Documents API: `http://localhost:8080/api/documents`
-- File Uploads: `http://localhost:8080/api/files/{fileName}`
-- Pre-seeded with all 14 official records, 12 users, audit trails, and KPIs in PostgreSQL.
 
----
+Backend runs on `http://localhost:8080`.
 
-### 2. Run the Main Portal Frontend (Same UI)
-- Open [`index.html`](./index.html) in any browser (Chrome, Edge, Safari, Firefox).
-- Automatically connects to the Spring Boot REST backend (`http://localhost:8080/api`).
-- All document uploads, stage verifications, return comments, and SSR cryptographic locks are saved directly to Neon PostgreSQL.
-- Includes seamless offline fallback to ensure zero downtime or glitches.
+### 2. Start the React frontend
 
----
-
-### 3. Run the React.js Web Frontend
-Located in `react-frontend/`:
-```bash
+```powershell
 cd react-frontend
 npm install
 npm run dev
 ```
-Access at `http://localhost:3000`.
 
----
+Frontend runs on `http://localhost:3000` and proxies `/api` to the backend.
 
-### 4. Run the React Native Mobile App
-Located in `mobile-app/`:
-```bash
+### 3. Start the mobile app (optional)
+
+```powershell
 cd mobile-app
 npm install
 npx expo start
 ```
-Run on Android Emulator, iOS Simulator, or the Expo Go mobile app.
 
 ---
 
-## 🏛️ System Features & Persona Workflows
+## User Accounts (Demo)
 
-1. **Faculty Persona (`Dr. Rajesh Sharma`)**:
-   - Create personal & student capacity development / award records.
-   - Attach PDF, DOCX, XLSX evidence files (uploaded to backend storage).
-   - Track verification stages and resubmit returned corrections.
+All accounts use:
+- **Password:** `Password@123`
+- **OTP:** `1234`
 
-2. **Dean / HOD Verifier (`Prof. A. K. Verma`)**:
-   - Department Verification Desk for CSE submissions.
-   - Approve & forward to IQAC with automated stage advance.
-   - Return submissions with mandatory reason requirement.
-   - Batch forward all pending submissions.
-
-3. **IQAC Accreditation Reviewer (`Dr. Sunita Rao`)**:
-   - Verify records against NAAC Criteria (1.3.2, 3.4.2, 5.3.1, 6.3.3).
-   - Apply permanent cryptographic SSR lock (`Approved & Locked`).
-   - Batch lock verified dossiers for SSR submission.
-
-4. **Repository Administrator (`Er. Vikram Mehta`)**:
-   - Manage user directory and access roles.
-   - Post-approval formal revision request governance (unlock locked files).
-   - System storage and academic cycle configuration.
-
-5. **NAAC Inspector (`Dr. M. S. Swaminathan`)**:
-   - Read-only accredited dossier view with tamper-evident digital seal.
+| Role      | Email                                 | Access Level                       |
+|-----------|---------------------------------------|------------------------------------|
+| Faculty   | rajesh.sharma@university.edu          | Submit documents, track status     |
+| Faculty   | ananya.sen@university.edu             | Submit documents, track status     |
+| DeanHOD   | ak.verma@university.edu               | Verify & forward to IQAC           |
+| DeanHOD   | rk.mukherjee@university.edu           | Verify & forward to IQAC           |
+| IQAC      | sunita.rao@university.edu             | Final approval & SSR lock          |
+| Admin     | admin@university.edu                  | Full system access                 |
+| Inspector | naac.evaluator@naac.gov.in            | Read-only NAAC review              |
+| Student   | aarav.p@student.university.edu        | Submit achievements                |
 
 ---
 
-## 📁 Repository Directory Structure
+## Document Workflow
 
 ```
-├── index.html                   # Main Production Portal UI (100% preserved visual design)
-├── css/
-│   └── styles.css               # Exact pixel-perfect styling
-├── js/
-│   ├── data.js                  # Data model, personas, and PortalAPI REST client
-│   └── app.js                   # Application controller with Spring Boot backend sync
-├── start-backend.bat            # One-click Spring Boot server launcher
-├── start-react.bat              # One-click React.js launcher
-├── backend/                     # Spring Boot 3 + PostgreSQL project
-│   ├── src/main/java/com/university/portal/
-│   │   ├── PortalBackendApplication.java
-│   │   ├── config/WebConfig.java (CORS & static handlers)
-│   │   ├── entity/ (User, Document, AuditLog, RecentActivity, Revision, Settings)
-│   │   ├── repository/ (Spring Data JPA Repositories)
-│   │   ├── service/ (DocumentService, DataSeederService)
-│   │   └── controller/ (DocumentController, AuthController, StateController, FileController...)
-│   ├── src/main/resources/application.properties (Neon PostgreSQL Connection)
-│   ├── pom.xml
-│   └── mvnw.cmd
-├── react-frontend/              # React.js application
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── src/App.jsx
-│   └── src/services/api.js
-└── mobile-app/                  # React Native / Expo application
-    ├── package.json
-    ├── App.js
-    └── src/services/api.js
+Faculty / Student submits
+       ↓
+  Draft  ──→  Under Verification (Dean/HOD stage)
+                      ↓  Dean approves
+               Under Verification (IQAC stage)
+                      ↓  IQAC approves
+               Approved + Locked (Finalized for SSR)
+
+  Any stage  ←──  Returned  ←──  Return action (Dean or IQAC)
 ```
+
+Post-approval revision:
+1. Faculty or Dean raises a revision request
+2. Admin authorises
+3. Document unlocks back to "Returned / Faculty" stage
+
+---
+
+## API Reference
+
+| Method | Endpoint                          | Description                    |
+|--------|-----------------------------------|--------------------------------|
+| GET    | /api/health                       | System health check            |
+| POST   | /api/auth/login                   | Authenticate user              |
+| GET    | /api/state                        | Full application state         |
+| GET    | /api/documents                    | List documents (with filters)  |
+| POST   | /api/documents                    | Submit new document            |
+| PUT    | /api/documents/{id}               | Update document                |
+| DELETE | /api/documents/{id}               | Delete document                |
+| POST   | /api/documents/{id}/verify        | Advance workflow stage         |
+| POST   | /api/documents/{id}/return        | Return for correction          |
+| POST   | /api/documents/{id}/lock          | IQAC SSR lock                  |
+| POST   | /api/documents/batch-forward      | Batch forward Dean queue       |
+| POST   | /api/documents/batch-lock         | Batch lock IQAC queue          |
+| POST   | /api/files/upload                 | Upload evidence file           |
+| GET    | /api/files/{fileName}             | Download / preview file        |
+| GET    | /api/audit-logs                   | All audit entries              |
+| GET    | /api/revisions                    | Revision requests              |
+| POST   | /api/revisions/{id}/authorize     | Admin authorise revision       |
+
+---
+
+## Production Deployment
+
+1. Set `SPRING_DATASOURCE_URL` (and credentials) in the environment.
+2. Set `PORTAL_CORS_EXTRA_ORIGINS` to your production frontend URL.
+3. Run `npm run build` from the project root to build both apps.
+4. Deploy the backend JAR; deploy `react-frontend/dist/` to a CDN.

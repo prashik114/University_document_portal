@@ -274,16 +274,27 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 28px;
+    padding: 0 24px;
     position: sticky;
     top: 0;
     z-index: 30;
+    gap: 16px;
+}
+
+.top-navbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
 }
 
 /* Global Search */
 .search-box-container {
     position: relative;
-    width: 360px;
+    flex: 1;
+    max-width: 360px;
+    min-width: 140px;
 }
 
 .search-icon-nav {
@@ -321,6 +332,7 @@ body {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex-shrink: 0;
 }
 
 /* Interactive Role Switcher for Client Demo */

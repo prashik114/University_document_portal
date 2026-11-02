@@ -6,11 +6,16 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      // Proxy /api requests to the Spring Boot backend during development
       '/api': {
         target: 'http://localhost:8080',
-        changeOrigin: true
-      }
-    }
-  }
+        changeOrigin: true,
+        rewrite: (path) => path, // keep /api prefix
+      },
+    },
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+  },
 });
-

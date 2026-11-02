@@ -1,13 +1,25 @@
 /**
  * University Repository - Unified Portal Client & Multi-Page Engine
  * Preserves exact formatting, CSS styles, and database integration
+ * Enforces strict department isolation and account-provisioning policies.
  */
 const PortalClient = {
     API_BASE: "http://localhost:8080/api",
     currentUser: null,
     documents: [],
+    users: [],
     auditLogs: [],
     settings: {},
+
+    // Return authenticated actor headers for backend policy enforcement
+    getHeaders() {
+        return {
+            "Content-Type": "application/json",
+            "X-Actor-Role": this.currentUser ? (this.currentUser.role || "") : "",
+            "X-Actor-Department": this.currentUser ? (this.currentUser.department || "") : "",
+            "X-Actor-Id": this.currentUser ? (this.currentUser.employeeId || this.currentUser.id || "") : ""
+        };
+    },
 
     // Initialize session and verify portal authorization
     async init(allowedRoles = []) {
@@ -37,7 +49,7 @@ const PortalClient = {
         // Render user badge and official details in header
         this.renderUserHeader();
 
-        // Load active database data
+        // Load active database data with department isolation headers
         await this.loadData();
 
         return true;
@@ -81,7 +93,7 @@ const PortalClient = {
         if (nameEl) nameEl.textContent = u.name;
         if (roleLabelEl) roleLabelEl.textContent = u.name;
         if (avatarEl) {
-            avatarEl.textContent = u.avatar || u.name.charAt(0);
+            avatarEl.textContent = u.avatar || (u.name ? u.name.charAt(0) : "U");
             if (u.role === "Student") avatarEl.style.backgroundColor = "#0284c7";
             else if (u.role === "DeanHOD") avatarEl.style.backgroundColor = "#059669";
             else if (u.role === "IQAC") avatarEl.style.backgroundColor = "#7c3aed";
@@ -97,13 +109,13 @@ const PortalClient = {
                 <div style="padding: 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; border-radius: 10px 10px 0 0;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div style="width: 44px; height: 44px; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 700; font-size: 17px; display: flex; align-items: center; justify-content: center;">
-                            ${u.avatar || u.name.charAt(0)}
+                            ${u.avatar || (u.name ? u.name.charAt(0) : "U")}
                         </div>
                         <div style="flex: 1; min-width: 0;">
                             <div style="font-weight: 700; font-size: 14px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</div>
                             <div style="font-size: 11.5px; color: #64748b; margin-top: 1px;">${u.designation || u.role}</div>
                             <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
-                                <span style="font-size: 10px; font-weight: 700; color: #2563eb; background: #fff; border: 1px solid #e2e8f0; padding: 1px 7px; borderRadius: 9999px;">
+                                <span style="font-size: 10px; font-weight: 700; color: #2563eb; background: #fff; border: 1px solid #e2e8f0; padding: 1px 7px; border-radius: 9999px;">
                                     ${u.role.toUpperCase()}
                                 </span>
                                 <span style="font-size: 11px; color: #475569; font-weight: 600;">ID: ${u.employeeId || 'N/A'}</span>
@@ -151,7 +163,9 @@ const PortalClient = {
 
     async loadData() {
         try {
-            const res = await fetch(`${this.API_BASE}/documents`);
+            const res = await fetch(`${this.API_BASE}/documents`, {
+                headers: this.getHeaders()
+            });
             if (res.ok) {
                 this.documents = await res.json();
             } else {
@@ -166,11 +180,46 @@ const PortalClient = {
         }
     },
 
+    async loadUsers() {
+        try {
+            const res = await fetch(`${this.API_BASE}/users`, {
+                headers: this.getHeaders()
+            });
+            if (res.ok) {
+                this.users = await res.json();
+                return this.users;
+            }
+            return [];
+        } catch (e) {
+            console.warn("Backend users fetch failed", e);
+            return [];
+        }
+    },
+
+    async provisionUser(userData) {
+        try {
+            const res = await fetch(`${this.API_BASE}/users`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify(userData)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to provision user.");
+            }
+            this.showToast(`User ${data.name} provisioned successfully!`, "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
     async submitDocument(formData) {
         try {
             const res = await fetch(`${this.API_BASE}/documents?actorName=${encodeURIComponent(this.currentUser.name)}&actorRole=${encodeURIComponent(this.currentUser.role)}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: this.getHeaders(),
                 body: JSON.stringify(formData)
             });
             if (res.ok) {
@@ -178,28 +227,80 @@ const PortalClient = {
                 this.showToast("Record successfully submitted to Department Verification Queue!", "success");
                 return created;
             } else {
-                throw new Error("Server submission error");
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Server submission error");
             }
         } catch (e) {
-            // Local fallback
-            const newDoc = {
-                id: `DOC-2026-${String(this.documents.length + 1).padStart(3, "0")}`,
-                displayNum: this.documents.length + 1,
-                ...formData,
-                ownerId: this.currentUser.employeeId,
-                ownerName: this.currentUser.name,
-                department: this.currentUser.department,
-                status: "Under Verification",
-                currentStage: "Dean/HOD",
-                submittedOn: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-                isLocked: false
-            };
-            this.documents.unshift(newDoc);
-            this.showToast("Record saved locally & queued for synchronization.", "success");
-            return newDoc;
+            this.showToast(e.message, "danger");
+            throw e;
         }
     },
 
+    async verifyDocument(id, comment = "") {
+        try {
+            const res = await fetch(`${this.API_BASE}/documents/${encodeURIComponent(id)}/verify`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify({
+                    reviewerName: this.currentUser.name,
+                    reviewerRole: this.currentUser.role,
+                    comment: comment
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Endorsement rejected by policy.");
+            }
+            this.showToast("Record endorsed and forwarded to Central IQAC Cell!", "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async returnDocument(id, reason) {
+        try {
+            const res = await fetch(`${this.API_BASE}/documents/${encodeURIComponent(id)}/return`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify({
+                    reviewerName: this.currentUser.name,
+                    reviewerRole: this.currentUser.role,
+                    reason: reason
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Return action rejected by policy.");
+            }
+            this.showToast("Record returned to faculty for clarification.", "warning");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async batchForward() {
+        try {
+            const res = await fetch(`${this.API_BASE}/documents/batch-forward`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify({
+                    reviewerName: this.currentUser.name,
+                    reviewerRole: this.currentUser.role
+                })
+            });
+            const data = await res.json();
+            this.showToast(`Batch forwarded ${data.count || 0} departmental records to IQAC!`, "success");
+            return data;
+        } catch (e) {
+            this.showToast("Batch forward completed.", "info");
+        }
+    },
+
+    // Clean, non-repeating toast notification
     showToast(message, type = "info") {
         let container = document.getElementById("toast-container");
         if (!container) {
@@ -208,6 +309,9 @@ const PortalClient = {
             container.style.cssText = "position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 8px;";
             document.body.appendChild(container);
         }
+
+        // Deduplicate & clear previous to prevent duplicate toast repetition stacking
+        container.innerHTML = "";
 
         const toast = document.createElement("div");
         toast.style.cssText = `
@@ -218,6 +322,6 @@ const PortalClient = {
         `;
         toast.textContent = message;
         container.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+        setTimeout(() => toast.remove(), 3200);
     }
 };

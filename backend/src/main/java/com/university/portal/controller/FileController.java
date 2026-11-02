@@ -3,12 +3,12 @@ package com.university.portal.controller;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,78 +16,125 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Handles evidence file uploads and downloads.
+ *
+ * <p><strong>Security controls added:</strong>
+ * <ul>
+ *   <li>Allowed file types are explicitly whitelisted ({@link #ALLOWED_EXTENSIONS}).</li>
+ *   <li>File names are sanitised before storage.</li>
+ *   <li>A UUID prefix is prepended to prevent name guessing.</li>
+ *   <li>Downloads use {@code inline} disposition to allow in-browser preview.</li>
+ * </ul>
+ * </p>
+ */
 @RestController
 @RequestMapping("/api/files")
 public class FileController {
 
-    private final Path fileStorageLocation;
+    /** Only evidence-related file formats are accepted. */
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+            "png", "jpg", "jpeg", "gif", "zip"
+    );
+
+    private static final long MAX_SIZE_BYTES = 50L * 1024 * 1024; // 50 MB
+
+    private final Path storageRoot;
 
     public FileController() {
-        this.fileStorageLocation = Paths.get("uploads/evidence").toAbsolutePath().normalize();
+        this.storageRoot = Paths.get("uploads/evidence").toAbsolutePath().normalize();
         try {
-            Files.createDirectories(this.fileStorageLocation);
-        } catch (Exception ex) {
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
+            Files.createDirectories(this.storageRoot);
+        } catch (IOException ex) {
+            throw new RuntimeException("Could not initialise evidence storage directory.", ex);
         }
     }
+
+    // ── Upload ────────────────────────────────────────────────────────────────
 
     @PostMapping("/upload")
-    public ResponseEntity<Map<String, Object>> uploadFile(@RequestParam("file") MultipartFile file) {
-        String originalFileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf";
-        String cleanFileName = originalFileName.replaceAll("[^a-zA-Z0-9._-]", "_");
-        String uniqueFileName = UUID.randomUUID().toString().substring(0, 8) + "_" + cleanFileName;
+    public ResponseEntity<Map<String, Object>> upload(@RequestParam("file") MultipartFile file) {
+
+        if (file.isEmpty()) {
+            return badRequest("No file provided.");
+        }
+        if (file.getSize() > MAX_SIZE_BYTES) {
+            return badRequest("File exceeds the 50 MB size limit.");
+        }
+
+        String originalName  = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf";
+        String cleanName     = originalName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String ext           = extension(cleanName);
+
+        if (!ALLOWED_EXTENSIONS.contains(ext)) {
+            return badRequest("File type '." + ext + "' is not permitted. " +
+                    "Allowed: " + ALLOWED_EXTENSIONS);
+        }
+
+        String uniqueName   = UUID.randomUUID().toString().substring(0, 8) + "_" + cleanName;
+        Path   target       = storageRoot.resolve(uniqueName);
 
         try {
-            Path targetLocation = this.fileStorageLocation.resolve(uniqueFileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
-            long sizeBytes = file.getSize();
-            String fileSizeStr = String.format("%.1f MB", sizeBytes / (1024.0 * 1024.0));
-            if (sizeBytes < 1024 * 1024) {
-                fileSizeStr = String.format("%.0f KB", sizeBytes / 1024.0);
-            }
-
-            String fileType = "pdf";
-            int dotIdx = cleanFileName.lastIndexOf('.');
-            if (dotIdx > 0) {
-                fileType = cleanFileName.substring(dotIdx + 1).toLowerCase();
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("fileName", uniqueFileName);
-            response.put("originalName", originalFileName);
-            response.put("fileSize", fileSizeStr);
-            response.put("fileType", fileType);
-            response.put("downloadUrl", "/api/files/" + uniqueFileName);
-
-            return ResponseEntity.ok(response);
+            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ex) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "File upload failed: " + ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "File upload failed: " + ex.getMessage()));
         }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("fileName",     uniqueName);
+        response.put("originalName", originalName);
+        response.put("fileSize",     humanSize(file.getSize()));
+        response.put("fileType",     ext);
+        response.put("downloadUrl",  "/api/files/" + uniqueName);
+        return ResponseEntity.ok(response);
     }
 
+    // ── Download / inline preview ─────────────────────────────────────────────
+
     @GetMapping("/{fileName:.+}")
-    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> download(@PathVariable String fileName) {
         try {
-            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            Path     filePath = storageRoot.resolve(fileName).normalize();
+            // Prevent path traversal
+            if (!filePath.startsWith(storageRoot)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             Resource resource = new UrlResource(filePath.toUri());
-            if (resource.exists()) {
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) {
-                    contentType = "application/octet-stream";
-                }
-                return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
-                        .body(resource);
-            } else {
+            if (!resource.exists() || !resource.isReadable()) {
                 return ResponseEntity.notFound().build();
             }
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) contentType = "application/octet-stream";
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "inline; filename=\"" + resource.getFilename() + "\"")
+                    .body(resource);
+
         } catch (Exception ex) {
             return ResponseEntity.notFound().build();
         }
     }
-}
 
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private static String extension(String name) {
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(dot + 1).toLowerCase() : "";
+    }
+
+    private static String humanSize(long bytes) {
+        if (bytes >= 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        return String.format("%.0f KB", bytes / 1024.0);
+    }
+
+    private static ResponseEntity<Map<String, Object>> badRequest(String msg) {
+        return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+}

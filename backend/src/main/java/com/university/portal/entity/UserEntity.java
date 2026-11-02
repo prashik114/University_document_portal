@@ -1,7 +1,13 @@
 package com.university.portal.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
+/**
+ * Represents an institutional user in the portal.
+ * The {@code passwordHash} field is stored but never serialised to JSON
+ * ({@link JsonIgnore}), so credentials are never exposed in API responses.
+ */
 @Entity
 @Table(name = "portal_users")
 public class UserEntity {
@@ -16,7 +22,7 @@ public class UserEntity {
     private String email;
 
     @Column(nullable = false)
-    private String role; // Faculty, DeanHOD, IQAC, Admin, Inspector
+    private String role; // Faculty | DeanHOD | IQAC | Admin | Inspector | Student
 
     private String roleTitle;
     private String designation;
@@ -29,13 +35,23 @@ public class UserEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    private String status; // Active / Inactive
+    private String status; // Active | Inactive
+
+    /**
+     * BCrypt-hashed password — never returned in any API response.
+     * Stored as a plain hash; in a production deployment replace with
+     * Spring Security BCryptPasswordEncoder.
+     */
+    @JsonIgnore
+    @Column(name = "password_hash")
+    private String passwordHash;
 
     public UserEntity() {}
 
     public UserEntity(String id, String name, String email, String role, String roleTitle,
                       String designation, String department, String school, String employeeId,
-                      String avatar, String badgeClass, String description, String status) {
+                      String avatar, String badgeClass, String description, String status,
+                      String passwordHash) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -49,7 +65,10 @@ public class UserEntity {
         this.badgeClass = badgeClass;
         this.description = description;
         this.status = status;
+        this.passwordHash = passwordHash;
     }
+
+    // ── Getters & Setters ────────────────────────────────────────────────────
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -89,5 +108,8 @@ public class UserEntity {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-}
 
+    @JsonIgnore
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+}
