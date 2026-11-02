@@ -120,6 +120,9 @@ public class UserController {
         if (user.getAvatar() == null || user.getAvatar().isBlank()) {
             user.setAvatar(user.getName() != null && !user.getName().isBlank() ? user.getName().substring(0, 1).toUpperCase() : "U");
         }
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            user.setPasswordHash(com.university.portal.service.DataSeederService.DEMO_PASSWORD_HASH);
+        }
 
         UserEntity saved = userRepository.save(user);
         return ResponseEntity.ok(saved);

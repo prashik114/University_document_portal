@@ -82,10 +82,19 @@ public class AuthController {
             if (req.getPassword() == null || req.getPassword().isBlank()) {
                 return error(HttpStatus.UNAUTHORIZED, "Password is required for institutional access.");
             }
-            // Compare against the hash stored in the DB (plain-text demo; use BCrypt in prod)
-            if (!req.getPassword().trim().equals(user.getPasswordHash())) {
+            String inputPwd = req.getPassword().trim();
+            String storedPwd = (user.getPasswordHash() != null && !user.getPasswordHash().isBlank())
+                    ? user.getPasswordHash()
+                    : DataSeederService.DEMO_PASSWORD_HASH;
+
+            if (!inputPwd.equals(storedPwd)) {
                 return error(HttpStatus.UNAUTHORIZED,
                         "Invalid password. Please check your credentials.");
+            }
+
+            if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+                user.setPasswordHash(DataSeederService.DEMO_PASSWORD_HASH);
+                userRepository.save(user);
             }
         }
 

@@ -62,6 +62,19 @@ public class DataSeederService implements CommandLineRunner {
     // ── Users ─────────────────────────────────────────────────────────────────
 
     private void seedUsers() {
+        // Ensure all existing users have demo password hash set
+        List<UserEntity> existing = userRepository.findAll();
+        boolean updated = false;
+        for (UserEntity u : existing) {
+            if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) {
+                u.setPasswordHash(DEMO_PASSWORD_HASH);
+                updated = true;
+            }
+        }
+        if (updated) {
+            userRepository.saveAll(existing);
+        }
+
         if (userRepository.count() >= 12) return;
 
         List<UserEntity> users = List.of(
