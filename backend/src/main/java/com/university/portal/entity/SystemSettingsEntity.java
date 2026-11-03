@@ -9,6 +9,9 @@ public class SystemSettingsEntity {
     @Id
     private String id = "DEFAULT";
 
+    private String instituteName = "National Institute of Science & Technology";
+    private String instituteCode = "UNIV-2026";
+    private String accreditationCycle = "NAAC Cycle 3 (2026-2031)";
     private String activeAcademicYear = "2026-2027";
     private String ssrLockDate = "2026-11-30";
     private Boolean autoForwardToIQAC = true;
@@ -16,12 +19,27 @@ public class SystemSettingsEntity {
     private Boolean enforceMFA = true;
     private Double storageQuotaGB = 10.0;
     private Double storageUsedGB = 1.4;
-    private String lastBackupDate = "30 Oct 2026, 02:00 AM";
+    private String lastBackupDate = "03 Nov 2026, 02:00 AM";
+
+    @Column(columnDefinition = "TEXT")
+    private String documentCategories = "Curricular Aspects & Syllabus, Teaching-Learning & Evaluation, Research Publications & Journals, Infrastructure & Learning Resources, Student Support & Progression, Governance Leadership & Management, Institutional Values & Best Practices, Student Certifications & Awards";
+
+    @Column(columnDefinition = "TEXT")
+    private String academicYears = "2026-2027, 2025-2026, 2024-2025, 2023-2024";
 
     public SystemSettingsEntity() {}
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getInstituteName() { return instituteName; }
+    public void setInstituteName(String instituteName) { this.instituteName = instituteName; }
+
+    public String getInstituteCode() { return instituteCode; }
+    public void setInstituteCode(String instituteCode) { this.instituteCode = instituteCode; }
+
+    public String getAccreditationCycle() { return accreditationCycle; }
+    public void setAccreditationCycle(String accreditationCycle) { this.accreditationCycle = accreditationCycle; }
 
     public String getActiveAcademicYear() { return activeAcademicYear; }
     public void setActiveAcademicYear(String activeAcademicYear) { this.activeAcademicYear = activeAcademicYear; }
@@ -46,5 +64,10 @@ public class SystemSettingsEntity {
 
     public String getLastBackupDate() { return lastBackupDate; }
     public void setLastBackupDate(String lastBackupDate) { this.lastBackupDate = lastBackupDate; }
-}
 
+    public String getDocumentCategories() { return documentCategories; }
+    public void setDocumentCategories(String documentCategories) { this.documentCategories = documentCategories; }
+
+    public String getAcademicYears() { return academicYears; }
+    public void setAcademicYears(String academicYears) { this.academicYears = academicYears; }
+}

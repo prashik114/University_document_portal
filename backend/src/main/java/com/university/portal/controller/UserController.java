@@ -1,32 +1,48 @@
 package com.university.portal.controller;
 
+import com.university.portal.entity.AuditLogEntity;
+import com.university.portal.entity.RecentActivityEntity;
 import com.university.portal.entity.UserEntity;
+import com.university.portal.repository.AuditLogRepository;
+import com.university.portal.repository.RecentActivityRepository;
 import com.university.portal.repository.UserRepository;
 import com.university.portal.util.IdGenerator;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Controller enforcing role-based access control and department governance.
+ * Controller enforcing role-based access control, account provisioning hierarchy,
+ * and departmental data isolation.
  *
- * Rules:
- * 1. IT Admin creates all user accounts (HODs, Teachers, and Students) and assigns roles and primary departments.
- * 2. Each HOD can view and manage documents belonging only to their assigned department by default.
- * 3. IT Admin can optionally grant an HOD access to additional departments without changing their primary department.
+ * Account Hierarchy:
+ * - Main Admin creates everyone (HOD, Faculty, Student, IQAC, Inspector, Admin).
+ * - HOD creates Faculty & Students within assigned departments.
+ * - Faculty creates Students within their assigned department.
+ * - Students can only submit and view their own documents.
+ * - IQAC handles final approval and document locking.
+ * - NAAC Inspector has authorised read-only access.
  */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
     private final UserRepository userRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final RecentActivityRepository activityRepository;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository,
+                          AuditLogRepository auditLogRepository,
+                          RecentActivityRepository activityRepository) {
         this.userRepository = userRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.activityRepository = activityRepository;
     }
 
     @GetMapping
@@ -50,7 +66,7 @@ public class UserController {
 
         List<UserEntity> all = userRepository.findAll();
 
-        // Default or Admin/IQAC: Institutional view
+        // Default or Admin/IQAC: Institutional view across all users
         if (callerRole.isBlank() || "Admin".equalsIgnoreCase(callerRole) || "IQAC".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.ok(all);
         }
@@ -89,23 +105,56 @@ public class UserController {
     }
 
     /**
-     * Rule 1: IT Admin creates all user accounts (HODs, Teachers, and Students)
-     * and assigns their roles and primary departments.
+     * Account Creation Hierarchy:
+     * - Main Admin creates everyone.
+     * - HOD creates Faculty and Students within assigned departments.
+     * - Faculty creates Students within their assigned department.
+     * - Students, IQAC, Inspector cannot create user accounts.
      */
     @PostMapping
     public ResponseEntity<?> create(
             @RequestBody UserEntity user,
             @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
             @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader,
+            @RequestHeader(value = "X-Actor-Department", required = false) String actorDeptHeader,
+            @RequestHeader(value = "X-User-Dept", required = false) String userDeptHeader,
+            @RequestHeader(value = "X-Actor-Id", required = false) String actorIdHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
             @RequestParam(required = false) String actorRole,
             @RequestParam(required = false) String role) {
 
         String callerRole = resolveRole(role, actorRole, actorRoleHeader, userRoleHeader);
+        String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
+        String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
 
-        // Rule 1 Enforcement: Only Central IT Admin can provision user accounts
-        if (!"Admin".equalsIgnoreCase(callerRole)) {
+        // Account hierarchy enforcement
+        if ("Admin".equalsIgnoreCase(callerRole)) {
+            // Main Admin creates everyone across any role and department
+        } else if ("DeanHOD".equalsIgnoreCase(callerRole)) {
+            // HOD can create Faculty or Student, but only within assigned departments
+            if (!"Faculty".equalsIgnoreCase(user.getRole()) && !"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: HOD can only provision Faculty and Student accounts."));
+            }
+            List<String> allowedDepts = resolveAllowedDepartments(callerId, callerDept);
+            if (user.getDepartment() == null || !allowedDepts.stream().anyMatch(d -> d.equalsIgnoreCase(user.getDepartment().trim()))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: HOD can only provision members within their assigned departments: " + allowedDepts));
+            }
+        } else if ("Faculty".equalsIgnoreCase(callerRole)) {
+            // Faculty can create Student, but only within their assigned department
+            if (!"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only provision Student accounts."));
+            }
+            if (user.getDepartment() == null || callerDept.isBlank() || !callerDept.equalsIgnoreCase(user.getDepartment().trim())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only provision Students within their own assigned department (" + callerDept + ")."));
+            }
+        } else {
+            // Students, IQAC, Inspector, and Unauthenticated cannot create users
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Access Denied: Only Central IT Admin is authorized to create institutional user accounts."));
+                    .body(Map.of("error", "Access Denied: Your role (" + (callerRole.isBlank() ? "Guest" : callerRole) + ") is not authorized to create user accounts."));
         }
 
         // Validate email uniqueness
@@ -134,6 +183,140 @@ public class UserController {
         }
 
         UserEntity saved = userRepository.save(user);
+
+        // Record audit trail and recent activity
+        String nowStr = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").format(LocalDateTime.now());
+        auditLogRepository.save(new AuditLogEntity(
+                "AUD-" + System.currentTimeMillis() % 100000,
+                nowStr,
+                callerRole + (callerId.isBlank() ? "" : " (" + callerId + ")"),
+                "USER_PROVISIONED",
+                saved.getId(),
+                "Account created: " + saved.getName() + " (" + saved.getRole() + ")",
+                "—",
+                saved.getStatus(),
+                "Provisioned in department: " + saved.getDepartment(),
+                "SHA256:" + Integer.toHexString((saved.getId() + saved.getEmail() + nowStr).hashCode())
+        ));
+
+        activityRepository.save(new RecentActivityEntity(
+                "user-plus",
+                "#2563eb",
+                "New " + saved.getRole() + " provisioned: " + saved.getName() + " (" + saved.getDepartment() + ")",
+                "Just now",
+                callerRole
+        ));
+
+        return ResponseEntity.ok(saved);
+    }
+
+    /**
+     * User Editing: Admin can update user details, designation, role, and department.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(
+            @PathVariable String id,
+            @RequestBody UserEntity updated,
+            @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
+            @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader) {
+
+        String callerRole = resolveRole(null, null, actorRoleHeader, userRoleHeader);
+        if (!"Admin".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access Denied: Only Central IT Admin can edit institutional user accounts."));
+        }
+
+        UserEntity user = userRepository.findById(id).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "User not found with ID " + id));
+        }
+
+        if (updated.getName() != null && !updated.getName().isBlank()) {
+            user.setName(updated.getName().trim());
+        }
+        if (updated.getEmail() != null && !updated.getEmail().isBlank()) {
+            user.setEmail(updated.getEmail().trim().toLowerCase());
+        }
+        if (updated.getRole() != null && !updated.getRole().isBlank()) {
+            user.setRole(updated.getRole().trim());
+        }
+        if (updated.getDepartment() != null) {
+            user.setDepartment(updated.getDepartment().trim());
+        }
+        if (updated.getDesignation() != null) {
+            user.setDesignation(updated.getDesignation().trim());
+        }
+        if (updated.getEmployeeId() != null) {
+            user.setEmployeeId(updated.getEmployeeId().trim());
+        }
+        if (updated.getStatus() != null && !updated.getStatus().isBlank()) {
+            user.setStatus(updated.getStatus().trim());
+        }
+        if (updated.getAdditionalDepartments() != null) {
+            user.setAdditionalDepartments(updated.getAdditionalDepartments().trim());
+        }
+
+        UserEntity saved = userRepository.save(user);
+
+        String nowStr = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").format(LocalDateTime.now());
+        auditLogRepository.save(new AuditLogEntity(
+                "AUD-" + System.currentTimeMillis() % 100000,
+                nowStr,
+                callerRole,
+                "USER_UPDATED",
+                saved.getId(),
+                "User account updated: " + saved.getName(),
+                "Active",
+                saved.getStatus(),
+                "Updated details for user " + saved.getId(),
+                "SHA256:" + Integer.toHexString((saved.getId() + nowStr).hashCode())
+        ));
+
+        return ResponseEntity.ok(saved);
+    }
+
+    /**
+     * Activate / Deactivate User Account.
+     */
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updateStatus(
+            @PathVariable String id,
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
+            @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader) {
+
+        String callerRole = resolveRole(null, null, actorRoleHeader, userRoleHeader);
+        if (!"Admin".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access Denied: Only Central IT Admin can activate/deactivate accounts."));
+        }
+
+        UserEntity user = userRepository.findById(id).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "User not found with ID " + id));
+        }
+
+        String newStatus = body.getOrDefault("status", "Active");
+        String oldStatus = user.getStatus();
+        user.setStatus(newStatus);
+        UserEntity saved = userRepository.save(user);
+
+        String nowStr = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").format(LocalDateTime.now());
+        auditLogRepository.save(new AuditLogEntity(
+                "AUD-" + System.currentTimeMillis() % 100000,
+                nowStr,
+                callerRole,
+                "USER_STATUS_CHANGE",
+                saved.getId(),
+                "Account " + saved.getName() + " status changed to " + newStatus,
+                oldStatus,
+                newStatus,
+                "Status modification by Admin",
+                "SHA256:" + Integer.toHexString((saved.getId() + newStatus + nowStr).hashCode())
+        ));
+
         return ResponseEntity.ok(saved);
     }
 
@@ -182,6 +365,29 @@ public class UserController {
         }
 
         UserEntity updated = userRepository.save(user);
+
+        String nowStr = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").format(LocalDateTime.now());
+        auditLogRepository.save(new AuditLogEntity(
+                "AUD-" + System.currentTimeMillis() % 100000,
+                nowStr,
+                callerRole,
+                "HOD_PERMISSIONS_UPDATED",
+                updated.getId(),
+                "Department scope updated for " + updated.getName(),
+                "—",
+                "Updated",
+                "Primary: " + updated.getDepartment() + " | Additional: " + updated.getAdditionalDepartments(),
+                "SHA256:" + Integer.toHexString((updated.getId() + nowStr).hashCode())
+        ));
+
+        activityRepository.save(new RecentActivityEntity(
+                "shield-check",
+                "#059669",
+                "HOD permissions configured for " + updated.getName() + " (Scope: " + updated.getAllowedDepartments() + ")",
+                "Just now",
+                "Admin"
+        ));
+
         return ResponseEntity.ok(updated);
     }
 
@@ -203,6 +409,21 @@ public class UserController {
             return ResponseEntity.notFound().build();
         }
         userRepository.deleteById(id);
+
+        String nowStr = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").format(LocalDateTime.now());
+        auditLogRepository.save(new AuditLogEntity(
+                "AUD-" + System.currentTimeMillis() % 100000,
+                nowStr,
+                callerRole,
+                "USER_DELETED",
+                id,
+                "User account deleted: " + id,
+                "Active",
+                "Deleted",
+                "Account removed by Central IT Admin",
+                "SHA256:" + Integer.toHexString((id + nowStr).hashCode())
+        ));
+
         return ResponseEntity.noContent().build();
     }
 

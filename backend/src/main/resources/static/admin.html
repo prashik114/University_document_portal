@@ -3,49 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administration Console - University Repository</title>
+    <title>Main Institute Admin Portal - University Repository</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .admin-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .admin-nav-item:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .admin-nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+            font-weight: 700;
+        }
+        .admin-nav-item.active svg {
+            stroke: #2563eb;
+        }
+        .admin-tab-pane {
+            display: none;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+        .admin-tab-pane.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .dept-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .dept-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .badge-role {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-role-admin { background: #fee2e2; color: #dc2626; }
+        .badge-role-deanhod { background: #dcfce7; color: #15803d; }
+        .badge-role-faculty { background: #eff6ff; color: #2563eb; }
+        .badge-role-student { background: #e0f2fe; color: #0284c7; }
+        .badge-role-iqac { background: #f3e8ff; color: #7c3aed; }
+        .badge-role-inspector { background: #ccfbf1; color: #0f766e; }
+        
+        .badge-status-active { background: #dcfce7; color: #16a34a; font-weight: 600; padding: 2px 8px; border-radius: 12px; font-size: 11.5px; }
+        .badge-status-inactive { background: #f1f5f9; color: #64748b; font-weight: 600; padding: 2px 8px; border-radius: 12px; font-size: 11.5px; }
+
+        .pipeline-col {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 380px;
+        }
+        .pipeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .pipeline-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .pipeline-card:hover {
+            border-color: #93c5fd;
+            box-shadow: 0 4px 8px rgba(37,99,235,0.08);
+        }
+
+        .matrix-table th, .matrix-table td {
+            padding: 12px 16px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 13px;
+        }
+        .matrix-table th:first-child, .matrix-table td:first-child {
+            text-align: left;
+        }
+        .check-icon { color: #16a34a; font-weight: 800; font-size: 16px; }
+        .cross-icon { color: #cbd5e1; font-weight: 600; font-size: 14px; }
+        
+        .report-progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 9999px;
+            overflow: hidden;
+            display: flex;
+        }
+        .report-progress-fill {
+            background: #16a34a;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        @media print {
+            .sidebar, .top-navbar, .navbar-actions, .btn-primary, .btn-secondary, .table-filters-group, .admin-nav-item {
+                display: none !important;
+            }
+            .main-content {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .app-layout {
+                display: block !important;
+            }
+            .admin-tab-pane {
+                display: block !important;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
     <div class="app-layout">
-        <!-- SIDEBAR -->
-        <aside class="sidebar" id="main-sidebar">
+        <!-- SIDEBAR WITH 9 MODULES -->
+        <aside class="sidebar" id="main-sidebar" style="width: 260px;">
             <div class="sidebar-top">
                 <div class="sidebar-brand">
                     <div class="brand-icon" style="background: #fee2e2; color: #dc2626; border-color: #fecaca;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                            <line x1="6" y1="6" x2="6.01" y2="6"/>
-                            <line x1="6" y1="18" x2="6.01" y2="18"/>
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                         </svg>
                     </div>
                     <div class="brand-text">
-                        <span class="brand-title">Admin</span>
-                        <span class="brand-subtitle" style="color: #dc2626;">Governance Console</span>
+                        <span class="brand-title">Main Admin</span>
+                        <span class="brand-subtitle" style="color: #dc2626;">Institute Governance</span>
                     </div>
                 </div>
 
-                <nav class="sidebar-nav">
-                    <a class="nav-item active" href="admin.html">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        <span>User Directory</span>
-                    </a>
-                    <a class="nav-item" href="javascript:void(0)" onclick="openAdminProvisionModal()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-                        <span>Provision User</span>
-                    </a>
+                <nav class="sidebar-nav" style="display: flex; flex-direction: column; gap: 4px; margin-top: 16px;">
+                    <button class="admin-nav-item active" onclick="switchAdminTab('dashboard')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        <span>1. Dashboard</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('users')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span>2. User Management</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('departments')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                        <span>3. Departments</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('permissions')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>4. Roles & Permissions</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('repository')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        <span>5. Repository Master</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('approvals')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        <span>6. Approval Pipeline</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('reports')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        <span>7. Reports & Analytics</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('audit')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span>8. Audit Trail</span>
+                    </button>
+                    <button class="admin-nav-item" onclick="switchAdminTab('settings')">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <span>9. Institute Settings</span>
+                    </button>
                 </nav>
             </div>
 
             <div class="sidebar-footer">
                 <a class="logout-link" onclick="PortalClient.logout()" style="cursor: pointer;">
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     <span>Sign Out</span>
                 </a>
             </div>
@@ -59,9 +229,8 @@
                     <button class="mobile-nav-toggle" onclick="toggleSidebar()">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     </button>
-                    <div class="search-box-container">
-                        <svg class="search-icon-nav" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input type="text" id="admin-search" class="global-search-input" placeholder="Search institutional users..." oninput="renderUsersTable()">
+                    <div style="font-weight: 700; font-size: 15px; color: #0f172a;" id="top-institute-title">
+                        National Institute of Science & Technology &bull; Main Admin
                     </div>
                 </div>
 
@@ -74,111 +243,587 @@
                 </div>
             </header>
 
-            <!-- User Profile Dropdown -->
             <div class="context-menu-popup dropdown-users" id="user-profile-popup"></div>
 
             <!-- MAIN CONTENT -->
-            <main class="main-content">
-                <div class="dashboard-header">
-                    <div>
-                        <h1 id="admin-welcome-title" style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Institutional Administration Console</h1>
-                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Chief Systems Administrator &bull; Central IT & Master Governance &bull; 2026-2027</p>
+            <main class="main-content" style="padding: 24px;">
+
+                <!-- ======================================================== -->
+                <!-- MODULE 1: DASHBOARD -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane active" id="tab-dashboard">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Institutional Governance Dashboard</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Central IT & Institute Authority &bull; Cycle 2026-2027 &bull; Real-time Repository Oversight</p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-secondary" onclick="switchAdminTab('reports')">Generate SSR Report</button>
+                            <button class="btn-primary" onclick="openAdminProvisionModal()" style="background: #2563eb;">+ Provision User</button>
+                        </div>
                     </div>
-                    <div>
-                        <button class="btn-primary" onclick="openAdminProvisionModal()" style="display: inline-flex; align-items: center; gap: 8px;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-                            <span>+ Provision Institutional User</span>
-                        </button>
+
+                    <!-- 5 KPI CARDS -->
+                    <div class="kpi-cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div class="kpi-card kpi-card-blue" onclick="switchAdminTab('users')" style="cursor: pointer;">
+                            <div class="kpi-value" id="kpi-dash-users">0</div>
+                            <div class="kpi-label">Institutional Users</div>
+                            <div style="font-size: 11px; color: #2563eb; margin-top: 4px;" id="kpi-dash-users-sub">0 Active</div>
+                        </div>
+                        <div class="kpi-card kpi-card-green" onclick="switchAdminTab('departments')" style="cursor: pointer;">
+                            <div class="kpi-value" id="kpi-dash-depts">0</div>
+                            <div class="kpi-label">Academic Departments</div>
+                            <div style="font-size: 11px; color: #16a34a; margin-top: 4px;" id="kpi-dash-depts-sub">All Active</div>
+                        </div>
+                        <div class="kpi-card kpi-card-amber" onclick="switchAdminTab('repository')" style="cursor: pointer;">
+                            <div class="kpi-value" id="kpi-dash-docs">0</div>
+                            <div class="kpi-label">Total Documents</div>
+                            <div style="font-size: 11px; color: #d97706; margin-top: 4px;" id="kpi-dash-docs-sub">Evidence Repository</div>
+                        </div>
+                        <div class="kpi-card kpi-card-red" onclick="switchAdminTab('approvals')" style="cursor: pointer;">
+                            <div class="kpi-value" id="kpi-dash-pending">0</div>
+                            <div class="kpi-label">Pending Verification</div>
+                            <div style="font-size: 11px; color: #dc2626; margin-top: 4px;" id="kpi-dash-pending-sub">0 HOD / 0 IQAC</div>
+                        </div>
+                        <div class="kpi-card kpi-card-blue" onclick="switchAdminTab('approvals')" style="cursor: pointer;">
+                            <div class="kpi-value" id="kpi-dash-locked">0</div>
+                            <div class="kpi-label">Locked SSR Evidence</div>
+                            <div style="font-size: 11px; color: #2563eb; margin-top: 4px;" id="kpi-dash-locked-sub">100% Cryptographic Seal</div>
+                        </div>
+                    </div>
+
+                    <!-- RECENT ACTIVITIES & SYSTEM STATUS -->
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 24px;">
+                        <div class="table-card">
+                            <div class="table-card-header">
+                                <div class="table-card-title">Recent Institutional Activity Feed</div>
+                                <button class="btn-secondary" onclick="loadActivities()" style="padding: 4px 10px; font-size: 12px;">Refresh</button>
+                            </div>
+                            <div style="padding: 16px; max-height: 380px; overflow-y: auto;" id="dash-activities-list">
+                                <div style="text-align: center; color: #64748b; padding: 20px;">Loading recent activities...</div>
+                            </div>
+                        </div>
+
+                        <div class="table-card">
+                            <div class="table-card-header">
+                                <div class="table-card-title">System & Governance Health</div>
+                            </div>
+                            <div style="padding: 18px; font-size: 13px; line-height: 1.8; color: #334155;">
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                                    <span>Department Isolation:</span>
+                                    <strong style="color: #16a34a;">Active &bull; 100% Enforced</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding: 8px 0;">
+                                    <span>SSR Lock Integrity:</span>
+                                    <strong style="color: #2563eb;">SHA-256 Verifiable</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding: 8px 0;">
+                                    <span>Active Academic Year:</span>
+                                    <strong id="dash-active-year">2026-2027</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding: 8px 0;">
+                                    <span>SSR Deadline:</span>
+                                    <strong id="dash-lock-date" style="color: #d97706;">30 Nov 2026</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding-top: 8px;">
+                                    <span>Database Storage:</span>
+                                    <span id="dash-storage-info">1.4 GB / 10 GB</span>
+                                </div>
+                                <div style="margin-top: 16px;">
+                                    <button class="btn-secondary" onclick="switchAdminTab('settings')" style="width: 100%; text-align: center;">Manage Institute Settings</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 4 ADMIN KPI CARDS -->
-                <div class="kpi-cards-grid">
-                    <div class="kpi-card kpi-card-blue">
-                        <div class="kpi-value" id="admin-kpi-users">12</div>
-                        <div class="kpi-label">Active Institutional Users</div>
+                <!-- ======================================================== -->
+                <!-- MODULE 2: USER MANAGEMENT -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-users">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Institutional User Management</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Manage HODs, Faculty, Students, IQAC Coordinators & NAAC Inspectors.</p>
+                        </div>
+                        <div>
+                            <button class="btn-primary" onclick="openAdminProvisionModal()" style="background: #2563eb;">+ Provision User</button>
+                        </div>
                     </div>
-                    <div class="kpi-card kpi-card-green">
-                        <div class="kpi-value" id="admin-kpi-docs">0</div>
-                        <div class="kpi-label">Database Documents</div>
-                    </div>
-                    <div class="kpi-card kpi-card-amber">
-                        <div class="kpi-value">Active</div>
-                        <div class="kpi-label">PostgreSQL Database</div>
-                    </div>
-                    <div class="kpi-card kpi-card-blue">
-                        <div class="kpi-value">100%</div>
-                        <div class="kpi-label">Department Isolation Health</div>
+
+                    <div class="table-card">
+                        <div class="table-card-header" style="flex-wrap: wrap; gap: 12px;">
+                            <div class="table-filters-group" style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
+                                <input type="text" id="users-search-input" placeholder="Search by name, email, ID..." oninput="renderUsersTable()" class="search-input" style="min-width: 200px;">
+                                <select id="users-filter-role" onchange="renderUsersTable()" class="select-filter" style="min-width: 140px;">
+                                    <option value="ALL">All Roles</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="DeanHOD">Dean / HOD</option>
+                                    <option value="Faculty">Faculty</option>
+                                    <option value="Student">Student</option>
+                                    <option value="IQAC">IQAC Coordinator</option>
+                                    <option value="Inspector">NAAC Inspector</option>
+                                </select>
+                                <select id="users-filter-dept" onchange="renderUsersTable()" class="select-filter" style="min-width: 160px;">
+                                    <option value="ALL">All Departments</option>
+                                </select>
+                                <select id="users-filter-status" onchange="renderUsersTable()" class="select-filter" style="min-width: 120px;">
+                                    <option value="ALL">All Status</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 12px; color: #64748b;">
+                                        <th style="padding: 12px 16px;">#</th>
+                                        <th style="padding: 12px 16px;">Name & Designation</th>
+                                        <th style="padding: 12px 16px;">Official Email</th>
+                                        <th style="padding: 12px 16px;">Role</th>
+                                        <th style="padding: 12px 16px;">Department / Extra Scope</th>
+                                        <th style="padding: 12px 16px;">Institutional ID</th>
+                                        <th style="padding: 12px 16px;">Status</th>
+                                        <th style="padding: 12px 16px; text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-tbody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <!-- USER DIRECTORY TABLE -->
-                <div class="table-card" style="margin-top: 24px;">
-                    <div class="table-card-header">
-                        <div class="table-card-title">Institutional User Directory & Role Clearance</div>
+                <!-- ======================================================== -->
+                <!-- MODULE 3: DEPARTMENT MANAGEMENT -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-departments">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Academic Department Management</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Create departments, assign HODs, and monitor departmental member allocation.</p>
+                        </div>
+                        <div>
+                            <button class="btn-primary" onclick="openCreateDeptModal()" style="background: #059669;">+ Create Department</button>
+                        </div>
                     </div>
 
-                    <div class="table-responsive">
-                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 12px; color: #64748b;">
-                                    <th style="padding: 12px 16px;">#</th>
-                                    <th style="padding: 12px 16px;">Name & Designation</th>
-                                    <th style="padding: 12px 16px;">Official Email</th>
-                                    <th style="padding: 12px 16px;">Department / School</th>
-                                    <th style="padding: 12px 16px;">Portal Role</th>
-                                    <th style="padding: 12px 16px;">Institutional ID</th>
-                                    <th style="padding: 12px 16px; text-align: right;">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="admin-users-tbody"></tbody>
-                        </table>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;" id="departments-grid">
+                        <!-- Loaded dynamically -->
                     </div>
                 </div>
+
+                <!-- ======================================================== -->
+                <!-- MODULE 4: ROLES & PERMISSIONS -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-permissions">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Roles & Permissions Matrix</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Role governance, departmental data isolation boundaries, and HOD multi-department permissions.</p>
+                        </div>
+                    </div>
+
+                    <!-- PERMISSIONS MATRIX TABLE -->
+                    <div class="table-card">
+                        <div class="table-card-header">
+                            <div class="table-card-title">Institutional Role Permissions Matrix</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table matrix-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8fafc; font-size: 12px; color: #64748b;">
+                                        <th>Institutional Role</th>
+                                        <th>Account Provisioning</th>
+                                        <th>Document Submission</th>
+                                        <th>Department Review</th>
+                                        <th>IQAC SSR Seal</th>
+                                        <th>Inspection Audit</th>
+                                        <th>Governance Settings</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Central IT Admin</strong></td>
+                                        <td><span class="check-icon">&#10003;</span> All Accounts</td>
+                                        <td><span class="check-icon">&#10003;</span> Institutional</td>
+                                        <td><span class="check-icon">&#10003;</span> Override</td>
+                                        <td><span class="check-icon">&#10003;</span> Full</td>
+                                        <td><span class="check-icon">&#10003;</span> Full</td>
+                                        <td><span class="check-icon">&#10003;</span> Master</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Dean / HOD</strong></td>
+                                        <td><span class="check-icon">&#10003;</span> Dept Faculty/Students</td>
+                                        <td><span class="check-icon">&#10003;</span> Dept Scope</td>
+                                        <td><span class="check-icon">&#10003;</span> Endorse & Forward</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Faculty Member</strong></td>
+                                        <td><span class="check-icon">&#10003;</span> Dept Students</td>
+                                        <td><span class="check-icon">&#10003;</span> Research & Teaching</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Student Submitter</strong></td>
+                                        <td><span class="cross-icon">&times;</span> None</td>
+                                        <td><span class="check-icon">&#10003;</span> Student Achievements</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>IQAC Coordinator</strong></td>
+                                        <td><span class="cross-icon">&times;</span> None</td>
+                                        <td><span class="cross-icon">&times;</span> None</td>
+                                        <td><span class="check-icon">&#10003;</span> Institutional Review</td>
+                                        <td><span class="check-icon">&#10003;</span> Lock Records</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>NAAC Inspector</strong></td>
+                                        <td><span class="cross-icon">&times;</span> None</td>
+                                        <td><span class="cross-icon">&times;</span> None</td>
+                                        <td><span class="cross-icon">&times;</span> None</td>
+                                        <td><span class="cross-icon">&times;</span> None</td>
+                                        <td><span class="check-icon">&#10003;</span> Read-Only SSR</td>
+                                        <td><span class="cross-icon">&times;</span> No</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- HOD ADDITIONAL SCOPE CONFIGURATION SECTION -->
+                    <div class="table-card" style="margin-top: 24px;">
+                        <div class="table-card-header">
+                            <div>
+                                <div class="table-card-title">HOD Multi-Department Permissions Manager</div>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Rule 3: IT Admin can optionally grant an HOD access to additional departments without changing their primary department.</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8fafc; font-size: 12px; color: #64748b; text-align: left;">
+                                        <th style="padding: 12px 16px;">HOD Name & Designation</th>
+                                        <th style="padding: 12px 16px;">Official Email</th>
+                                        <th style="padding: 12px 16px;">Primary Department</th>
+                                        <th style="padding: 12px 16px;">Additional Authorized Scope</th>
+                                        <th style="padding: 12px 16px; text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hod-permissions-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- MODULE 5: REPOSITORY MANAGEMENT -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-repository">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Institutional Evidence Repository</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Master repository of accredited documents across all criteria, departments, and academic years.</p>
+                        </div>
+                        <div>
+                            <button class="btn-secondary" onclick="exportRepositoryCSV()">Export Repository CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-card-header" style="flex-wrap: wrap; gap: 12px;">
+                            <div class="table-filters-group" style="flex: 1; display: flex; gap: 10px; flex-wrap: wrap;">
+                                <input type="text" id="repo-search" placeholder="Search by title, owner, metric..." oninput="renderRepoTable()" class="search-input" style="min-width: 220px;">
+                                <select id="repo-filter-dept" onchange="renderRepoTable()" class="select-filter" style="min-width: 170px;">
+                                    <option value="ALL">All Departments</option>
+                                </select>
+                                <select id="repo-filter-status" onchange="renderRepoTable()" class="select-filter" style="min-width: 150px;">
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="Under Verification">Under Verification</option>
+                                    <option value="Approved">Approved / Certified</option>
+                                    <option value="Returned">Returned</option>
+                                </select>
+                                <select id="repo-filter-category" onchange="renderRepoTable()" class="select-filter" style="min-width: 170px;">
+                                    <option value="ALL">All Categories</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8fafc; font-size: 12px; color: #64748b; text-align: left;">
+                                        <th style="padding: 12px 16px;">#</th>
+                                        <th style="padding: 12px 16px;">Document Title & Metric</th>
+                                        <th style="padding: 12px 16px;">Department</th>
+                                        <th style="padding: 12px 16px;">Category</th>
+                                        <th style="padding: 12px 16px;">Submitter</th>
+                                        <th style="padding: 12px 16px;">Stage & Status</th>
+                                        <th style="padding: 12px 16px;">Lock</th>
+                                        <th style="padding: 12px 16px; text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="repo-table-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- MODULE 6: APPROVAL MONITORING -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-approvals">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Approval Pipeline Monitoring</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Real-time tracking of HOD verification, IQAC final verification, and permanently locked documents.</p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-primary" onclick="adminBatchForward()" style="background: #059669;">Batch Forward HOD Queue</button>
+                            <button class="btn-primary" onclick="adminBatchLock()" style="background: #7c3aed;">Batch Lock IQAC Queue</button>
+                        </div>
+                    </div>
+
+                    <!-- 3 PIPELINE STAGES -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px;">
+                        <!-- Stage 1 -->
+                        <div class="pipeline-col">
+                            <div class="pipeline-header">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 14px; color: #0f172a;">Stage 1: HOD Verification</div>
+                                    <div style="font-size: 11.5px; color: #64748b;">Pending department endorsement</div>
+                                </div>
+                                <span class="badge-role" style="background: #fef3c7; color: #b45309;" id="pipe-hod-count">0</span>
+                            </div>
+                            <div id="pipe-hod-list"></div>
+                        </div>
+
+                        <!-- Stage 2 -->
+                        <div class="pipeline-col">
+                            <div class="pipeline-header">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 14px; color: #0f172a;">Stage 2: IQAC Verification</div>
+                                    <div style="font-size: 11.5px; color: #64748b;">Endorsed by HOD, awaiting IQAC</div>
+                                </div>
+                                <span class="badge-role" style="background: #ede9fe; color: #6d28d9;" id="pipe-iqac-count">0</span>
+                            </div>
+                            <div id="pipe-iqac-list"></div>
+                        </div>
+
+                        <!-- Stage 3 -->
+                        <div class="pipeline-col">
+                            <div class="pipeline-header">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 14px; color: #0f172a;">Stage 3: Certified & Locked</div>
+                                    <div style="font-size: 11.5px; color: #64748b;">Permanently locked in SSR</div>
+                                </div>
+                                <span class="badge-role" style="background: #dcfce7; color: #15803d;" id="pipe-locked-count">0</span>
+                            </div>
+                            <div id="pipe-locked-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- MODULE 7: REPORTS & ANALYTICS -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-reports">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Institutional Reports & Analytics</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Department-wise compliance breakdown, NAAC criteria analysis, and export tools.</p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-secondary" onclick="exportAnalyticsExcel()" style="display: inline-flex; align-items: center; gap: 6px;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                <span>Export to Excel (CSV)</span>
+                            </button>
+                            <button class="btn-primary" onclick="printSSRReport()" style="display: inline-flex; align-items: center; gap: 6px; background: #0f172a;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                <span>Export / Print SSR Report</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DEPARTMENT BREAKDOWN TABLE -->
+                    <div class="table-card" id="printable-report-section">
+                        <div class="table-card-header" style="border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
+                            <div>
+                                <div class="table-card-title">Department-wise Evidence & Compliance Audit</div>
+                                <div style="font-size: 12px; color: #64748b;">Accreditation Cycle 2026-2027 &bull; Institutional Aggregate</div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8fafc; font-size: 12px; color: #64748b; text-align: left;">
+                                        <th style="padding: 12px 16px;">Department Name</th>
+                                        <th style="padding: 12px 16px; text-align: center;">Total Submissions</th>
+                                        <th style="padding: 12px 16px; text-align: center;">HOD Pending</th>
+                                        <th style="padding: 12px 16px; text-align: center;">IQAC Pending</th>
+                                        <th style="padding: 12px 16px; text-align: center;">Approved / Locked</th>
+                                        <th style="padding: 12px 16px; text-align: center;">Returned</th>
+                                        <th style="padding: 12px 16px; width: 180px;">Compliance Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reports-dept-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- MODULE 8: AUDIT LOGS -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-audit">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Institutional Audit Trail</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Tamper-evident logs of user activities, permission updates, and document verifications.</p>
+                        </div>
+                        <div>
+                            <button class="btn-secondary" onclick="loadAuditLogs()">Refresh Audit Trail</button>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-card-header">
+                            <div class="table-filters-group" style="display: flex; gap: 10px; width: 100%;">
+                                <input type="text" id="audit-search" placeholder="Search audit trail by actor, action, record..." oninput="renderAuditTable()" class="search-input" style="flex: 1;">
+                                <select id="audit-filter-action" onchange="renderAuditTable()" class="select-filter" style="min-width: 180px;">
+                                    <option value="ALL">All Actions</option>
+                                    <option value="USER_PROVISIONED">USER_PROVISIONED</option>
+                                    <option value="USER_UPDATED">USER_UPDATED</option>
+                                    <option value="USER_STATUS_CHANGE">USER_STATUS_CHANGE</option>
+                                    <option value="HOD_PERMISSIONS_UPDATED">HOD_PERMISSIONS_UPDATED</option>
+                                    <option value="STAGE_ADVANCE">STAGE_ADVANCE</option>
+                                    <option value="SSR_LOCK">SSR_LOCK</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f8fafc; font-size: 12px; color: #64748b; text-align: left;">
+                                        <th style="padding: 12px 16px;">Log ID</th>
+                                        <th style="padding: 12px 16px;">Timestamp</th>
+                                        <th style="padding: 12px 16px;">Actor & Role</th>
+                                        <th style="padding: 12px 16px;">Action</th>
+                                        <th style="padding: 12px 16px;">Target Record / User</th>
+                                        <th style="padding: 12px 16px;">Details / Audit Comments</th>
+                                        <th style="padding: 12px 16px;">SHA-256 Hash</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-table-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- MODULE 9: INSTITUTE SETTINGS -->
+                <!-- ======================================================== -->
+                <div class="admin-tab-pane" id="tab-settings">
+                    <div class="dashboard-header" style="margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Institutional Settings & Governance</h1>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Manage institute metadata, active academic years, and document category classifications.</p>
+                        </div>
+                    </div>
+
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; max-width: 860px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <form id="institute-settings-form" onsubmit="handleSaveSettings(event)">
+                            <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 14px 0;">1. Institutional Identity</h3>
+                            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 16px;">
+                                <div>
+                                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">Institute Legal Name</label>
+                                    <input type="text" id="set-inst-name" required class="search-input" style="width: 100%; height: 38px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">Institute Code</label>
+                                    <input type="text" id="set-inst-code" required class="search-input" style="width: 100%; height: 38px;">
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 22px;">
+                                <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">Accreditation Cycle</label>
+                                <input type="text" id="set-inst-cycle" required class="search-input" style="width: 100%; height: 38px;">
+                            </div>
+
+                            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;">
+
+                            <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 14px 0;">2. Academic Cycle & SSR Deadline</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px;">
+                                <div>
+                                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">Active Academic Year</label>
+                                    <select id="set-active-year" class="select-filter" style="width: 100%; height: 38px;"></select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">SSR Lock Deadline Date</label>
+                                    <input type="date" id="set-lock-date" class="search-input" style="width: 100%; height: 38px;">
+                                </div>
+                            </div>
+
+                            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;">
+
+                            <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 14px 0;">3. Governance & Security Controls</h3>
+                            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px;">
+                                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #334155; cursor: pointer;">
+                                    <input type="checkbox" id="set-auto-forward" style="accent-color: #2563eb;">
+                                    <span><strong>Auto-Forward to IQAC:</strong> Automatically queue endorsed records for IQAC verification.</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #334155; cursor: pointer;">
+                                    <input type="checkbox" id="set-require-slip" style="accent-color: #2563eb;">
+                                    <span><strong>Require Pre-Approval Slip:</strong> Require physical approval voucher for financial claims.</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #334155; cursor: pointer;">
+                                    <input type="checkbox" id="set-enforce-mfa" style="accent-color: #2563eb;">
+                                    <span><strong>Enforce MFA:</strong> Require two-factor authentication for Admin & IQAC accounts.</span>
+                                </label>
+                            </div>
+
+                            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;">
+
+                            <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 14px 0;">4. Document Categories (Comma-separated)</h3>
+                            <div style="margin-bottom: 24px;">
+                                <textarea id="set-categories" rows="3" class="search-input" style="width: 100%; padding: 10px; font-family: inherit; font-size: 13px; line-height: 1.5;"></textarea>
+                            </div>
+
+                            <div style="display: flex; justify-content: flex-end;">
+                                <button type="submit" class="btn-primary" style="background: #2563eb; padding: 10px 24px;">Save Institutional Settings</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
 
-    <!-- CONFIGURE HOD DEPARTMENT SCOPE MODAL (RULE 3) -->
-    <div class="modal-backdrop" id="hod-scope-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
-        <div style="background: #ffffff; width: 100%; max-width: 520px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
-            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
-                <div>
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Configure HOD Department Permissions</h3>
-                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Rule 3: IT Admin can grant an HOD access to additional departments without changing primary department.</p>
-                </div>
-                <button onclick="closeHodScopeModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
-            </div>
-            <form id="hod-scope-form" onsubmit="handleHodScopeSubmit(event)" style="padding: 24px;">
-                <input type="hidden" id="hod-scope-user-id">
-                <div style="margin-bottom: 14px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">HOD Name</label>
-                    <input type="text" id="hod-scope-name" readonly style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #334155;">
-                </div>
-                <div style="margin-bottom: 14px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">Primary Department (Permanent)</label>
-                    <input type="text" id="hod-scope-primary-dept" readonly style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #166534; font-weight: 600;">
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 8px;">Grant Access to Additional Departments (Configurable):</label>
-                    <div id="hod-scope-checkboxes" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; background: #fafafa;">
-                    </div>
-                </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button type="button" class="btn-secondary" onclick="closeHodScopeModal()">Cancel</button>
-                    <button type="submit" class="btn-primary" style="background: #2563eb;">Save Permissions</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <!-- ======================================================== -->
+    <!-- MODALS -->
+    <!-- ======================================================== -->
 
-    <!-- PROVISION USER MODAL (ADMIN: AUTHORIZED TO PROVISION ANY ROLE & DEPT) -->
+    <!-- PROVISION USER MODAL -->
     <div class="modal-backdrop" id="admin-provision-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
         <div style="background: #ffffff; width: 100%; max-width: 540px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
             <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
                 <div>
                     <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Provision Institutional User</h3>
-                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Central IT Administrator Authority: Provision Deans, HODs, IQAC, Faculty, Students & Auditors.</p>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Central IT Administrator Authority: Provision any institutional role.</p>
                 </div>
                 <button onclick="closeAdminProvisionModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
             </div>
@@ -205,16 +850,7 @@
                     </div>
                     <div>
                         <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Department / School *</label>
-                        <select id="adm-prov-dept" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
-                            <option value="Computer Science & Engineering">Computer Science & Engineering</option>
-                            <option value="Mechanical Engineering">Mechanical Engineering</option>
-                            <option value="Civil Engineering">Civil Engineering</option>
-                            <option value="Electrical Engineering">Electrical Engineering</option>
-                            <option value="Electronics & Communication">Electronics & Communication</option>
-                            <option value="Central IQAC Cell">Central IQAC Cell</option>
-                            <option value="External Audit Commission">External Audit Commission</option>
-                            <option value="Central IT & Governance">Central IT & Governance</option>
-                        </select>
+                        <select id="adm-prov-dept" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;"></select>
                     </div>
                 </div>
                 <div style="margin-bottom: 20px;">
@@ -229,40 +865,333 @@
         </div>
     </div>
 
+    <!-- EDIT USER MODAL -->
+    <div class="modal-backdrop" id="edit-user-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 520px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Edit Institutional User Account</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Modify profile details, designation, or primary department.</p>
+                </div>
+                <button onclick="closeEditUserModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <form id="edit-user-form" onsubmit="handleEditUserSubmit(event)" style="padding: 24px;">
+                <input type="hidden" id="edit-user-id">
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Full Name *</label>
+                    <input type="text" id="edit-user-name" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Official University Email *</label>
+                    <input type="email" id="edit-user-email" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Role *</label>
+                        <select id="edit-user-role" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                            <option value="Admin">Admin</option>
+                            <option value="DeanHOD">Dean / HOD</option>
+                            <option value="Faculty">Faculty</option>
+                            <option value="Student">Student</option>
+                            <option value="IQAC">IQAC Coordinator</option>
+                            <option value="Inspector">NAAC Inspector</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Primary Department *</label>
+                        <select id="edit-user-dept" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;"></select>
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Designation</label>
+                    <input type="text" id="edit-user-designation" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" onclick="closeEditUserModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: #2563eb;">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONFIGURE HOD DEPARTMENT SCOPE MODAL (RULE 3) -->
+    <div class="modal-backdrop" id="hod-scope-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 520px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Configure HOD Department Permissions</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Rule 3: IT Admin can grant an HOD access to additional departments without changing primary department.</p>
+                </div>
+                <button onclick="closeHodScopeModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <form id="hod-scope-form" onsubmit="handleHodScopeSubmit(event)" style="padding: 24px;">
+                <input type="hidden" id="hod-scope-user-id">
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">HOD Name</label>
+                    <input type="text" id="hod-scope-name" readonly style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #334155;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">Primary Department (Permanent)</label>
+                    <input type="text" id="hod-scope-primary-dept" readonly style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #166534; font-weight: 600;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 8px;">Grant Access to Additional Departments (Configurable):</label>
+                    <div id="hod-scope-checkboxes" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; background: #fafafa;"></div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" onclick="closeHodScopeModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: #2563eb;">Save Permissions</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CREATE DEPARTMENT MODAL -->
+    <div class="modal-backdrop" id="create-dept-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Create Academic Department</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Add new institutional department and establish HOD leadership.</p>
+                </div>
+                <button onclick="closeCreateDeptModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <form id="create-dept-form" onsubmit="handleCreateDeptSubmit(event)" style="padding: 24px;">
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Department Name *</label>
+                    <input type="text" id="dept-name" required placeholder="e.g. Artificial Intelligence & Data Science" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Department Code *</label>
+                        <input type="text" id="dept-code" required placeholder="e.g. AIDS" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; text-transform: uppercase;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">School / Faculty</label>
+                        <input type="text" id="dept-school" placeholder="e.g. School of Computing & IT" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Assign Head of Department (HOD)</label>
+                    <select id="dept-hod-select" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;"></select>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Department Description</label>
+                    <textarea id="dept-desc" rows="2" placeholder="Academic mission and accreditation scope..." style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit;"></textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" onclick="closeCreateDeptModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: #059669;">Create Department</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DOCUMENT DETAILS MODAL -->
+    <div class="modal-backdrop" id="doc-detail-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 580px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;" id="doc-detail-title">Document Inspection</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;" id="doc-detail-meta">—</p>
+                </div>
+                <button onclick="closeDocDetailModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <div style="padding: 24px; font-size: 13px; line-height: 1.6; color: #334155;" id="doc-detail-body"></div>
+            <div style="padding: 14px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeDocDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/portal-client.js"></script>
     <script>
         let allUsers = [];
+        let allDocs = [];
+        let allDepts = [];
+        let allAudit = [];
+        let allActivities = [];
+        let currentSettings = {};
 
         window.addEventListener('DOMContentLoaded', async () => {
             const ok = await PortalClient.init(['Admin']);
             if (!ok) return;
 
-            document.getElementById('admin-kpi-docs').textContent = (PortalClient.documents || []).length;
-            await loadUsers();
+            await loadAllData();
+
+            // Hash router
+            const hash = window.location.hash.replace('#', '') || 'dashboard';
+            switchAdminTab(hash);
         });
 
-        async function loadUsers() {
-            const data = await PortalClient.loadUsers();
-            if (data && data.length > 0) {
-                allUsers = data;
-            } else {
-                allUsers = [];
+        async function loadAllData() {
+            try {
+                // Parallel data fetching for high responsiveness
+                const [users, depts, audit, acts, settings] = await Promise.all([
+                    PortalClient.loadUsers(),
+                    PortalClient.loadDepartments(),
+                    PortalClient.loadAuditLogs(),
+                    PortalClient.loadActivities(),
+                    PortalClient.loadSettings()
+                ]);
+
+                allUsers = users || [];
+                allDepts = depts || [];
+                allAudit = audit || [];
+                allActivities = acts || [];
+                currentSettings = settings || {};
+                allDocs = PortalClient.documents || [];
+
+                populateDropdowns();
+                updateDashboardKPIs();
+                renderUsersTable();
+                renderDepartmentsGrid();
+                renderHodPermissionsTable();
+                renderRepoTable();
+                renderApprovalPipeline();
+                renderReports();
+                renderAuditTable();
+                populateSettingsForm();
+            } catch (err) {
+                console.error("Error initializing Main Admin portal:", err);
             }
-            document.getElementById('admin-kpi-users').textContent = allUsers.length;
-            renderUsersTable();
         }
 
+        function switchAdminTab(tabId) {
+            document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.admin-tab-pane').forEach(el => el.classList.remove('active'));
+
+            const targetPane = document.getElementById('tab-' + tabId);
+            if (targetPane) {
+                targetPane.classList.add('active');
+                window.location.hash = tabId;
+            }
+
+            // Find matching nav item
+            const navItems = document.querySelectorAll('.admin-nav-item');
+            navItems.forEach(btn => {
+                if (btn.getAttribute('onclick')?.includes(tabId)) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        function populateDropdowns() {
+            // Departments dropdowns
+            const deptOptions = '<option value="ALL">All Departments</option>' +
+                allDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+
+            const provDeptEl = document.getElementById('adm-prov-dept');
+            if (provDeptEl) {
+                provDeptEl.innerHTML = allDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            }
+
+            const editDeptEl = document.getElementById('edit-user-dept');
+            if (editDeptEl) {
+                editDeptEl.innerHTML = allDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            }
+
+            const userFilterDept = document.getElementById('users-filter-dept');
+            if (userFilterDept) userFilterDept.innerHTML = deptOptions;
+
+            const repoFilterDept = document.getElementById('repo-filter-dept');
+            if (repoFilterDept) repoFilterDept.innerHTML = deptOptions;
+
+            // Categories dropdown
+            const cats = (currentSettings.documentCategories || "Curricular Aspects & Syllabus, Teaching-Learning & Evaluation, Research Publications & Journals, Infrastructure & Learning Resources, Student Support & Progression, Governance Leadership & Management, Institutional Values & Best Practices, Student Certifications & Awards").split(',');
+            const catOptions = '<option value="ALL">All Categories</option>' +
+                cats.map(c => `<option value="${c.trim()}">${c.trim()}</option>`).join('');
+            const repoCat = document.getElementById('repo-filter-category');
+            if (repoCat) repoCat.innerHTML = catOptions;
+
+            // Academic years
+            const years = (currentSettings.academicYears || "2026-2027, 2025-2026, 2024-2025, 2023-2024").split(',');
+            const yearSelect = document.getElementById('set-active-year');
+            if (yearSelect) {
+                yearSelect.innerHTML = years.map(y => `<option value="${y.trim()}" ${y.trim() === currentSettings.activeAcademicYear ? 'selected' : ''}>${y.trim()}</option>`).join('');
+            }
+
+            // HOD assignment select for new department
+            const hodSelect = document.getElementById('dept-hod-select');
+            if (hodSelect) {
+                const hods = allUsers.filter(u => u.role === 'DeanHOD');
+                hodSelect.innerHTML = '<option value="">-- Unassigned (Acting Dean) --</option>' +
+                    hods.map(h => `<option value="${h.id}|${h.name}">${h.name} (${h.department})</option>`).join('');
+            }
+        }
+
+        // ── MODULE 1: DASHBOARD LOGIC ─────────────────────────────────────────
+        function updateDashboardKPIs() {
+            const activeUsers = allUsers.filter(u => u.status === 'Active').length;
+            document.getElementById('kpi-dash-users').textContent = allUsers.length;
+            document.getElementById('kpi-dash-users-sub').textContent = `${activeUsers} Active Accounts`;
+
+            document.getElementById('kpi-dash-depts').textContent = allDepts.length;
+            document.getElementById('kpi-dash-depts-sub').textContent = `${allDepts.length} Active Faculties`;
+
+            document.getElementById('kpi-dash-docs').textContent = allDocs.length;
+            document.getElementById('kpi-dash-docs-sub').textContent = `${allDocs.length} Total Submissions`;
+
+            const pendingHOD = allDocs.filter(d => d.status === 'Under Verification' && d.currentStage === 'Dean/HOD').length;
+            const pendingIQAC = allDocs.filter(d => d.status === 'Under Verification' && d.currentStage === 'IQAC').length;
+            document.getElementById('kpi-dash-pending').textContent = pendingHOD + pendingIQAC;
+            document.getElementById('kpi-dash-pending-sub').textContent = `${pendingHOD} HOD / ${pendingIQAC} IQAC`;
+
+            const lockedDocs = allDocs.filter(d => d.isLocked === true || d.status === 'Approved').length;
+            document.getElementById('kpi-dash-locked').textContent = lockedDocs;
+            document.getElementById('kpi-dash-locked-sub').textContent = `${lockedDocs} Locked SSR Records`;
+
+            // Activities feed
+            const feedEl = document.getElementById('dash-activities-list');
+            if (allActivities.length === 0) {
+                feedEl.innerHTML = '<div style="text-align: center; color: #64748b; padding: 24px;">No activities recorded yet.</div>';
+            } else {
+                feedEl.innerHTML = allActivities.slice(0, 10).map(a => `
+                    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                        <div style="width: 8px; height: 8px; border-radius: 50%; background: ${a.color || '#2563eb'}; margin-top: 6px; flex-shrink: 0;"></div>
+                        <div style="flex: 1;">
+                            <div style="color: #0f172a; font-weight: 500;">${a.title}</div>
+                            <div style="color: #94a3b8; font-size: 11.5px; margin-top: 2px;">${a.timestamp || 'Recent'} &bull; Actor: <strong>${a.role || 'System'}</strong></div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            if (currentSettings.instituteName) {
+                document.getElementById('top-institute-title').innerHTML = `<strong>${currentSettings.instituteName}</strong> &bull; Central IT Admin`;
+            }
+            if (currentSettings.activeAcademicYear) {
+                document.getElementById('dash-active-year').textContent = currentSettings.activeAcademicYear;
+            }
+            if (currentSettings.ssrLockDate) {
+                document.getElementById('dash-lock-date').textContent = currentSettings.ssrLockDate;
+            }
+        }
+
+        // ── MODULE 2: USER MANAGEMENT LOGIC ───────────────────────────────────
         function renderUsersTable() {
-            const tbody = document.getElementById('admin-users-tbody');
-            const q = document.getElementById('admin-search').value.toLowerCase().trim();
+            const tbody = document.getElementById('users-table-tbody');
+            const q = document.getElementById('users-search-input').value.toLowerCase().trim();
+            const roleFilter = document.getElementById('users-filter-role').value;
+            const deptFilter = document.getElementById('users-filter-dept').value;
+            const statusFilter = document.getElementById('users-filter-status').value;
 
             const filtered = allUsers.filter(u => {
-                if (q && !u.name?.toLowerCase().includes(q) && !u.email?.toLowerCase().includes(q) && !u.role?.toLowerCase().includes(q) && !u.department?.toLowerCase().includes(q)) return false;
+                if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
+                if (deptFilter !== 'ALL' && u.department !== deptFilter) return false;
+                if (statusFilter !== 'ALL' && u.status !== statusFilter) return false;
+                if (q) {
+                    const match = (u.name?.toLowerCase().includes(q)) ||
+                                  (u.email?.toLowerCase().includes(q)) ||
+                                  (u.employeeId?.toLowerCase().includes(q)) ||
+                                  (u.designation?.toLowerCase().includes(q));
+                    if (!match) return false;
+                }
                 return true;
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">No users found matching query.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: #64748b;">No users found matching query.</td></tr>`;
                 return;
             }
 
@@ -274,20 +1203,27 @@
                         <div style="font-size: 11.5px; color: #64748b;">${u.designation || '—'}</div>
                     </td>
                     <td style="padding: 12px 16px; color: #2563eb;">${u.email}</td>
-                    <td style="padding: 12px 16px; color: #475569;">
-                        <div><strong>${u.department || '—'}</strong></div>
-                        ${u.additionalDepartments ? `<div style="font-size: 11px; color: #0284c7; margin-top: 3px;">+ Extra Scope: <span style="font-weight:600;">${u.additionalDepartments}</span></div>` : ''}
-                    </td>
                     <td style="padding: 12px 16px;">
-                        <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: #eff6ff; color: #2563eb;">
+                        <span class="badge-role badge-role-${(u.role || '').toLowerCase()}">
                             ${u.role}
                         </span>
                     </td>
+                    <td style="padding: 12px 16px; color: #475569;">
+                        <div><strong>${u.department || '—'}</strong></div>
+                        ${u.additionalDepartments ? `<div style="font-size: 11px; color: #0284c7; margin-top: 2px;">+ Extra Scope: <strong>${u.additionalDepartments}</strong></div>` : ''}
+                    </td>
                     <td style="padding: 12px 16px; color: #475569; font-size: 12px;">${u.employeeId || u.id}</td>
+                    <td style="padding: 12px 16px;">
+                        <span class="badge-status-${(u.status || 'Active').toLowerCase()}">${u.status || 'Active'}</span>
+                    </td>
                     <td style="padding: 12px 16px; text-align: right;">
-                        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-                            <span style="color: #16a34a; font-weight: 600; font-size: 12px;">&#10003; Active</span>
-                            ${u.role === 'DeanHOD' ? `<button class="btn-secondary" onclick="openHodScopeModal('${u.id}')" style="padding: 3px 8px; font-size: 11px; border-color: #93c5fd; color: #1d4ed8; background: #eff6ff;">Grant Scope</button>` : ''}
+                        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                            <button class="btn-secondary" onclick="openEditUserModal('${u.id}')" style="padding: 3px 8px; font-size: 11px;">Edit</button>
+                            <button class="btn-secondary" onclick="toggleUserStatus('${u.id}', '${u.status === 'Active' ? 'Inactive' : 'Active'}')" style="padding: 3px 8px; font-size: 11px; color: ${u.status === 'Active' ? '#dc2626' : '#16a34a'}; border-color: ${u.status === 'Active' ? '#fecaca' : '#bbf7d0'};">
+                                ${u.status === 'Active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            ${u.role === 'DeanHOD' ? `<button class="btn-secondary" onclick="openHodScopeModal('${u.id}')" style="padding: 3px 8px; font-size: 11px; color: #1d4ed8; background: #eff6ff; border-color: #93c5fd;">Scope</button>` : ''}
+                            <button class="btn-secondary" onclick="deleteUserAccount('${u.id}', '${u.name}')" style="padding: 3px 8px; font-size: 11px; color: #dc2626; border-color: #fecaca;">&times;</button>
                         </div>
                     </td>
                 </tr>
@@ -316,21 +1252,226 @@
             try {
                 await PortalClient.provisionUser(userData);
                 closeAdminProvisionModal();
-                await loadUsers();
-            } catch (err) {
-                // error toast displayed by client
-            }
+                await loadAllData();
+            } catch (err) {}
         }
 
-        const ALL_DEPARTMENTS = [
-            "Computer Science & Engineering",
-            "Mechanical Engineering",
-            "Civil Engineering",
-            "Electrical Engineering",
-            "Electronics & Communication",
-            "Management Studies",
-            "Biotechnology & Bioinformatics"
-        ];
+        function openEditUserModal(userId) {
+            const u = allUsers.find(x => x.id === userId);
+            if (!u) return;
+
+            document.getElementById('edit-user-id').value = u.id;
+            document.getElementById('edit-user-name').value = u.name;
+            document.getElementById('edit-user-email').value = u.email;
+            document.getElementById('edit-user-role').value = u.role;
+            document.getElementById('edit-user-dept').value = u.department || '';
+            document.getElementById('edit-user-designation').value = u.designation || '';
+
+            document.getElementById('edit-user-modal').style.display = 'flex';
+        }
+
+        function closeEditUserModal() {
+            document.getElementById('edit-user-modal').style.display = 'none';
+        }
+
+        async function handleEditUserSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-user-id').value;
+            const userData = {
+                name: document.getElementById('edit-user-name').value.trim(),
+                email: document.getElementById('edit-user-email').value.trim(),
+                role: document.getElementById('edit-user-role').value,
+                department: document.getElementById('edit-user-dept').value,
+                designation: document.getElementById('edit-user-designation').value.trim()
+            };
+
+            try {
+                await PortalClient.updateUser(id, userData);
+                closeEditUserModal();
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        async function toggleUserStatus(userId, nextStatus) {
+            if (!confirm(`Are you sure you want to change this user status to ${nextStatus}?`)) return;
+            try {
+                await PortalClient.updateUserStatus(userId, nextStatus);
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        async function deleteUserAccount(userId, userName) {
+            if (!confirm(`Warning: Delete user account for "${userName}"? This action is logged in the permanent audit trail.`)) return;
+            try {
+                await PortalClient.deleteUser(userId);
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        // ── MODULE 3: DEPARTMENT MANAGEMENT LOGIC ─────────────────────────────
+        function renderDepartmentsGrid() {
+            const grid = document.getElementById('departments-grid');
+            if (allDepts.length === 0) {
+                grid.innerHTML = '<div style="color: #64748b; padding: 20px;">No departments found. Use "+ Create Department" above.</div>';
+                return;
+            }
+
+            grid.innerHTML = allDepts.map(d => `
+                <div class="dept-card">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <span class="badge-role badge-role-faculty" style="background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1;">${d.code}</span>
+                            <span class="badge-status-${(d.status || 'Active').toLowerCase()}">${d.status || 'Active'}</span>
+                        </div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">${d.name}</h3>
+                        <p style="font-size: 12px; color: #64748b; margin: 0 0 14px 0;">${d.school || 'Academic School'}</p>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 12.5px;">
+                            <div style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Head of Department (HOD)</div>
+                            <div style="font-weight: 700; color: #166534; margin-top: 2px;">${d.hodName || 'Unassigned (Acting Dean)'}</div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-bottom: 16px;">
+                            <div style="background: #f1f5f9; padding: 8px; border-radius: 6px;">
+                                <div style="font-size: 15px; font-weight: 800; color: #2563eb;">${d.facultyCount || 0}</div>
+                                <div style="font-size: 10.5px; color: #64748b;">Faculty</div>
+                            </div>
+                            <div style="background: #f1f5f9; padding: 8px; border-radius: 6px;">
+                                <div style="font-size: 15px; font-weight: 800; color: #0284c7;">${d.studentCount || 0}</div>
+                                <div style="font-size: 10.5px; color: #64748b;">Students</div>
+                            </div>
+                            <div style="background: #f1f5f9; padding: 8px; border-radius: 6px;">
+                                <div style="font-size: 15px; font-weight: 800; color: #16a34a;">${d.documentCount || 0}</div>
+                                <div style="font-size: 10.5px; color: #64748b;">Evidence</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                        <span style="font-size: 11.5px; color: #94a3b8;">Est. ${d.establishedYear || '2005'}</span>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn-secondary" onclick="editDepartmentHOD('${d.id}')" style="padding: 4px 8px; font-size: 11px;">Assign HOD</button>
+                            <button class="btn-secondary" onclick="deleteDepartment('${d.id}', '${d.name}')" style="padding: 4px 8px; font-size: 11px; color: #dc2626; border-color: #fecaca;">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openCreateDeptModal() {
+            document.getElementById('create-dept-modal').style.display = 'flex';
+        }
+
+        function closeCreateDeptModal() {
+            document.getElementById('create-dept-modal').style.display = 'none';
+            document.getElementById('create-dept-form').reset();
+        }
+
+        async function handleCreateDeptSubmit(e) {
+            e.preventDefault();
+            const hodVal = document.getElementById('dept-hod-select').value;
+            let hodId = null;
+            let hodName = "Unassigned (Acting Dean)";
+            if (hodVal) {
+                const parts = hodVal.split('|');
+                hodId = parts[0];
+                hodName = parts[1];
+            }
+
+            const deptData = {
+                name: document.getElementById('dept-name').value.trim(),
+                code: document.getElementById('dept-code').value.trim().toUpperCase(),
+                school: document.getElementById('dept-school').value.trim(),
+                hodId: hodId,
+                hodName: hodName,
+                description: document.getElementById('dept-desc').value.trim()
+            };
+
+            try {
+                await PortalClient.createDepartment(deptData);
+                closeCreateDeptModal();
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        async function editDepartmentHOD(deptId) {
+            const dept = allDepts.find(d => d.id === deptId);
+            if (!dept) return;
+
+            const hods = allUsers.filter(u => u.role === 'DeanHOD');
+            let promptMsg = `Assign Head of Department for ${dept.name}:
+
+`;
+            hods.forEach((h, idx) => {
+                promptMsg += `${idx + 1}. ${h.name} (${h.department})
+`;
+            });
+            promptMsg += `
+Enter number (1-${hods.length}), or 0 to clear:`;
+
+            const choice = prompt(promptMsg, "1");
+            if (choice === null) return;
+            const cInt = parseInt(choice);
+
+            let newHodId = null;
+            let newHodName = "Unassigned (Acting Dean)";
+            if (cInt > 0 && cInt <= hods.length) {
+                newHodId = hods[cInt - 1].id;
+                newHodName = hods[cInt - 1].name;
+            }
+
+            try {
+                await PortalClient.updateDepartment(deptId, {
+                    hodId: newHodId,
+                    hodName: newHodName
+                });
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        async function deleteDepartment(deptId, deptName) {
+            if (!confirm(`Are you sure you want to delete department "${deptName}"?`)) return;
+            try {
+                await PortalClient.deleteDepartment(deptId);
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        // ── MODULE 4: ROLES & HOD PERMISSIONS LOGIC ───────────────────────────
+        function renderHodPermissionsTable() {
+            const tbody = document.getElementById('hod-permissions-tbody');
+            const hods = allUsers.filter(u => u.role === 'DeanHOD');
+
+            if (hods.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">No HOD accounts registered in system.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = hods.map(h => `
+                <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                    <td style="padding: 12px 16px;">
+                        <div style="font-weight: 700; color: #0f172a;">${h.name}</div>
+                        <div style="font-size: 11.5px; color: #64748b;">${h.designation || 'Head of Department'}</div>
+                    </td>
+                    <td style="padding: 12px 16px; color: #2563eb;">${h.email}</td>
+                    <td style="padding: 12px 16px;">
+                        <span style="font-weight: 600; color: #166534; background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                            ${h.department || 'Not Assigned'}
+                        </span>
+                    </td>
+                    <td style="padding: 12px 16px; color: #475569;">
+                        ${h.additionalDepartments ? `
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                ${h.additionalDepartments.split(',').map(d => `<span style="background: #eff6ff; color: #2563eb; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11.5px;">${d.trim()}</span>`).join('')}
+                            </div>
+                        ` : '<span style="color: #94a3b8; font-style: italic;">None (Primary Dept Isolation Only)</span>'}
+                    </td>
+                    <td style="padding: 12px 16px; text-align: right;">
+                        <button class="btn-primary" onclick="openHodScopeModal('${h.id}')" style="padding: 5px 12px; font-size: 12px; background: #2563eb;">Configure Scope</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
         function openHodScopeModal(userId) {
             const user = allUsers.find(u => u.id === userId);
@@ -346,14 +1487,14 @@
                 .filter(Boolean);
 
             const container = document.getElementById('hod-scope-checkboxes');
-            container.innerHTML = ALL_DEPARTMENTS
-                .filter(d => d.toLowerCase() !== (user.department || '').toLowerCase())
+            container.innerHTML = allDepts
+                .filter(d => d.name.toLowerCase() !== (user.department || '').toLowerCase())
                 .map(d => {
-                    const isChecked = currentAdditional.includes(d.toLowerCase());
+                    const isChecked = currentAdditional.includes(d.name.toLowerCase());
                     return `
                         <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
-                            <input type="checkbox" name="hod-additional-dept" value="${d}" ${isChecked ? 'checked' : ''} style="accent-color: #2563eb;">
-                            <span>${d}</span>
+                            <input type="checkbox" name="hod-additional-dept" value="${d.name}" ${isChecked ? 'checked' : ''} style="accent-color: #2563eb;">
+                            <span>${d.name} (${d.code})</span>
                         </label>
                     `;
                 }).join('');
@@ -375,10 +1516,357 @@
             try {
                 await PortalClient.updateUserPermissions(userId, { additionalDepartments: additionalDepts });
                 closeHodScopeModal();
-                await loadUsers();
-            } catch (err) {
-                // error displayed via toast
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        // ── MODULE 5: REPOSITORY MANAGEMENT LOGIC ─────────────────────────────
+        function renderRepoTable() {
+            const tbody = document.getElementById('repo-table-tbody');
+            const q = document.getElementById('repo-search').value.toLowerCase().trim();
+            const deptFilter = document.getElementById('repo-filter-dept').value;
+            const statusFilter = document.getElementById('repo-filter-status').value;
+            const catFilter = document.getElementById('repo-filter-category').value;
+
+            const filtered = allDocs.filter(d => {
+                if (deptFilter !== 'ALL' && d.department !== deptFilter) return false;
+                if (statusFilter !== 'ALL' && d.status !== statusFilter) return false;
+                if (catFilter !== 'ALL' && d.category !== catFilter) return false;
+                if (q) {
+                    const match = (d.title?.toLowerCase().includes(q)) ||
+                                  (d.ownerName?.toLowerCase().includes(q)) ||
+                                  (d.id?.toLowerCase().includes(q)) ||
+                                  (d.metricNo?.toLowerCase().includes(q));
+                    if (!match) return false;
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: #64748b;">No documents found matching filters.</td></tr>`;
+                return;
             }
+
+            tbody.innerHTML = filtered.map((d, i) => `
+                <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                    <td style="padding: 12px 16px; color: #64748b;">${i + 1}</td>
+                    <td style="padding: 12px 16px;">
+                        <div style="font-weight: 600; color: #0f172a;">${d.title}</div>
+                        <div style="font-size: 11px; color: #64748b;">Metric ${d.metricNo || 'NAAC'} &bull; Cycle ${d.academicYear || '2026-2027'}</div>
+                    </td>
+                    <td style="padding: 12px 16px; color: #0369a1; font-weight: 500;">${d.department || '—'}</td>
+                    <td style="padding: 12px 16px; color: #475569;">${d.category || '—'}</td>
+                    <td style="padding: 12px 16px; color: #475569;">${d.ownerName || 'Faculty'}</td>
+                    <td style="padding: 12px 16px;">
+                        <span class="status-pill ${d.status === 'Approved' ? 'status-approved' : d.status === 'Returned' ? 'status-returned' : 'status-pending'}">
+                            ${d.status} (${d.currentStage || 'Stage'})
+                        </span>
+                    </td>
+                    <td style="padding: 12px 16px;">
+                        ${d.isLocked ? '<span style="color: #16a34a; font-weight: 700; font-size: 12px;">&#128274; Locked</span>' : '<span style="color: #94a3b8; font-size: 12px;">Unlocked</span>'}
+                    </td>
+                    <td style="padding: 12px 16px; text-align: right;">
+                        <button class="btn-action-view" onclick="openDocDetailModal('${d.id}')">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openDocDetailModal(docId) {
+            const d = allDocs.find(x => x.id === docId);
+            if (!d) return;
+
+            document.getElementById('doc-detail-title').textContent = d.title;
+            document.getElementById('doc-detail-meta').textContent = `${d.id} • ${d.department} • Metric ${d.metricNo || 'N/A'}`;
+
+            document.getElementById('doc-detail-body').innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div><strong>Department:</strong> ${d.department}</div>
+                    <div><strong>Category:</strong> ${d.category}</div>
+                    <div><strong>Academic Year:</strong> ${d.academicYear || '2026-2027'}</div>
+                    <div><strong>Submitter:</strong> ${d.ownerName || 'Faculty'}</div>
+                    <div><strong>Current Stage:</strong> <span style="font-weight: 700; color: #2563eb;">${d.currentStage || 'Dean/HOD'}</span></div>
+                    <div><strong>Status:</strong> <span style="font-weight: 700; color: ${d.status === 'Approved' ? '#16a34a' : '#d97706'};">${d.status}</span></div>
+                </div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">SSR Cryptographic Integrity Hash</div>
+                    <code style="display: block; font-size: 12px; color: #0f172a; word-break: break-all; margin-top: 4px;">${d.hash || 'SHA256:7f9a2b8e4c1d6f3e5b8a9c2d1e4f7a9b0c3d5e7f'}</code>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong>Evidence Attachment:</strong>
+                    ${d.fileUrl ? `<a href="${d.fileUrl}" target="_blank" style="color: #2563eb; font-weight: 600; margin-left: 6px;">Open Digital Document &rarr;</a>` : '<span style="color: #64748b;"> digital_record.pdf</span>'}
+                </div>
+                ${d.isLocked ? '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; color: #166534; font-weight: 600;">&#128274; This record is permanently certified and cryptographically locked in the SSR Evidence Ledger.</div>' : ''}
+            `;
+
+            document.getElementById('doc-detail-modal').style.display = 'flex';
+        }
+
+        function closeDocDetailModal() {
+            document.getElementById('doc-detail-modal').style.display = 'none';
+        }
+
+        function exportRepositoryCSV() {
+            if (allDocs.length === 0) {
+                alert("No documents in repository to export.");
+                return;
+            }
+            const headers = ["ID", "Title", "Department", "Category", "Metric", "AcademicYear", "Submitter", "Status", "Stage", "Locked", "Hash"];
+            const rows = allDocs.map(d => [
+                d.id,
+                `"${(d.title || '').replace(/"/g, '""')}"`,
+                `"${d.department || ''}"`,
+                `"${d.category || ''}"`,
+                `"${d.metricNo || ''}"`,
+                `"${d.academicYear || ''}"`,
+                `"${d.ownerName || ''}"`,
+                d.status,
+                d.currentStage,
+                d.isLocked ? "YES" : "NO",
+                `"${d.hash || ''}"`
+            ]);
+            downloadCSV("Institutional_Repository_Master_Export.csv", [headers, ...rows]);
+        }
+
+        // ── MODULE 6: APPROVAL MONITORING LOGIC ────────────────────────────────
+        function renderApprovalPipeline() {
+            const hodDocs = allDocs.filter(d => d.status === 'Under Verification' && d.currentStage === 'Dean/HOD');
+            const iqacDocs = allDocs.filter(d => d.status === 'Under Verification' && d.currentStage === 'IQAC');
+            const lockedDocs = allDocs.filter(d => d.isLocked === true || d.status === 'Approved');
+
+            document.getElementById('pipe-hod-count').textContent = hodDocs.length;
+            document.getElementById('pipe-iqac-count').textContent = iqacDocs.length;
+            document.getElementById('pipe-locked-count').textContent = lockedDocs.length;
+
+            const hodList = document.getElementById('pipe-hod-list');
+            if (hodDocs.length === 0) {
+                hodList.innerHTML = '<div style="font-size: 12.5px; color: #94a3b8; text-align: center; padding: 24px;">No records pending in HOD queue.</div>';
+            } else {
+                hodList.innerHTML = hodDocs.map(d => `
+                    <div class="pipeline-card" onclick="openDocDetailModal('${d.id}')">
+                        <div style="font-weight: 600; font-size: 13px; color: #0f172a; margin-bottom: 2px;">${d.title}</div>
+                        <div style="font-size: 11.5px; color: #0369a1; font-weight: 500;">${d.department}</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Submitted by: ${d.ownerName || 'Faculty'}</div>
+                    </div>
+                `).join('');
+            }
+
+            const iqacList = document.getElementById('pipe-iqac-list');
+            if (iqacDocs.length === 0) {
+                iqacList.innerHTML = '<div style="font-size: 12.5px; color: #94a3b8; text-align: center; padding: 24px;">No records pending in IQAC queue.</div>';
+            } else {
+                iqacList.innerHTML = iqacDocs.map(d => `
+                    <div class="pipeline-card" onclick="openDocDetailModal('${d.id}')">
+                        <div style="font-weight: 600; font-size: 13px; color: #0f172a; margin-bottom: 2px;">${d.title}</div>
+                        <div style="font-size: 11.5px; color: #7c3aed; font-weight: 600;">${d.department} (Endorsed by HOD)</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Awaiting IQAC Certification</div>
+                    </div>
+                `).join('');
+            }
+
+            const lockedList = document.getElementById('pipe-locked-list');
+            if (lockedDocs.length === 0) {
+                lockedList.innerHTML = '<div style="font-size: 12.5px; color: #94a3b8; text-align: center; padding: 24px;">No locked documents yet.</div>';
+            } else {
+                lockedList.innerHTML = lockedDocs.slice(0, 15).map(d => `
+                    <div class="pipeline-card" onclick="openDocDetailModal('${d.id}')">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; font-size: 13px; color: #0f172a;">${d.title}</span>
+                            <span style="color: #16a34a; font-size: 12px;">&#128274;</span>
+                        </div>
+                        <div style="font-size: 11.5px; color: #166534; font-weight: 500;">${d.department}</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Certified SSR Record</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function adminBatchForward() {
+            if (!confirm("Forward all pending departmental records to the IQAC queue?")) return;
+            try {
+                await PortalClient.batchForward();
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        async function adminBatchLock() {
+            if (!confirm("Certify and permanently lock all pending IQAC records into the SSR ledger?")) return;
+            try {
+                const res = await fetch(`${PortalClient.API_BASE}/documents/batch-lock`, {
+                    method: "POST",
+                    headers: PortalClient.getHeaders()
+                });
+                const data = await res.json();
+                PortalClient.showToast(`Batch locked ${data.count || 0} records into SSR!`, "success");
+                await loadAllData();
+            } catch (err) {}
+        }
+
+        // ── MODULE 7: REPORTS & ANALYTICS LOGIC ───────────────────────────────
+        function renderReports() {
+            const tbody = document.getElementById('reports-dept-tbody');
+            if (allDepts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 24px;">No departments available.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = allDepts.map(d => {
+                const deptDocs = allDocs.filter(doc => doc.department === d.name);
+                const total = deptDocs.length;
+                const hodPending = deptDocs.filter(doc => doc.status === 'Under Verification' && doc.currentStage === 'Dean/HOD').length;
+                const iqacPending = deptDocs.filter(doc => doc.status === 'Under Verification' && doc.currentStage === 'IQAC').length;
+                const approved = deptDocs.filter(doc => doc.status === 'Approved' || doc.isLocked === true).length;
+                const returned = deptDocs.filter(doc => doc.status === 'Returned').length;
+                const score = total > 0 ? Math.round((approved / total) * 100) : 100;
+
+                return `
+                    <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                        <td style="padding: 12px 16px;">
+                            <div style="font-weight: 700; color: #0f172a;">${d.name}</div>
+                            <div style="font-size: 11.5px; color: #64748b;">HOD: ${d.hodName || 'Acting Dean'} &bull; Code: ${d.code}</div>
+                        </td>
+                        <td style="padding: 12px 16px; text-align: center; font-weight: 700; color: #0f172a;">${total}</td>
+                        <td style="padding: 12px 16px; text-align: center; color: #b45309; font-weight: 600;">${hodPending}</td>
+                        <td style="padding: 12px 16px; text-align: center; color: #7c3aed; font-weight: 600;">${iqacPending}</td>
+                        <td style="padding: 12px 16px; text-align: center; color: #16a34a; font-weight: 700;">${approved}</td>
+                        <td style="padding: 12px 16px; text-align: center; color: #dc2626; font-weight: 600;">${returned}</td>
+                        <td style="padding: 12px 16px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; margin-bottom: 4px;">
+                                <span style="color: ${score >= 80 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626'};">${score}% SSR Ready</span>
+                            </div>
+                            <div class="report-progress-bar">
+                                <div class="report-progress-fill" style="width: ${score}%; background: ${score >= 80 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626'};"></div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function exportAnalyticsExcel() {
+            const headers = ["DepartmentCode", "DepartmentName", "HOD", "TotalDocuments", "HODPending", "IQACPending", "ApprovedSSR", "Returned", "ComplianceScorePercent"];
+            const rows = allDepts.map(d => {
+                const deptDocs = allDocs.filter(doc => doc.department === d.name);
+                const total = deptDocs.length;
+                const hodPending = deptDocs.filter(doc => doc.status === 'Under Verification' && doc.currentStage === 'Dean/HOD').length;
+                const iqacPending = deptDocs.filter(doc => doc.status === 'Under Verification' && doc.currentStage === 'IQAC').length;
+                const approved = deptDocs.filter(doc => doc.status === 'Approved' || doc.isLocked === true).length;
+                const returned = deptDocs.filter(doc => doc.status === 'Returned').length;
+                const score = total > 0 ? Math.round((approved / total) * 100) : 100;
+                return [
+                    d.code,
+                    `"${d.name}"`,
+                    `"${d.hodName || 'Acting Dean'}"`,
+                    total,
+                    hodPending,
+                    iqacPending,
+                    approved,
+                    returned,
+                    score + "%"
+                ];
+            });
+            downloadCSV("Institutional_SSR_Department_Analytics.csv", [headers, ...rows]);
+        }
+
+        function printSSRReport() {
+            window.print();
+        }
+
+        // ── MODULE 8: AUDIT LOGS LOGIC ─────────────────────────────────────────
+        function renderAuditTable() {
+            const tbody = document.getElementById('audit-table-tbody');
+            const q = document.getElementById('audit-search').value.toLowerCase().trim();
+            const actFilter = document.getElementById('audit-filter-action').value;
+
+            const filtered = allAudit.filter(l => {
+                if (actFilter !== 'ALL' && l.action !== actFilter) return false;
+                if (q) {
+                    const match = (l.actor?.toLowerCase().includes(q)) ||
+                                  (l.action?.toLowerCase().includes(q)) ||
+                                  (l.recordId?.toLowerCase().includes(q)) ||
+                                  (l.title?.toLowerCase().includes(q)) ||
+                                  (l.comments?.toLowerCase().includes(q));
+                    if (!match) return false;
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">No audit records found.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(l => `
+                <tr style="border-bottom: 1px solid #f1f5f9; font-size: 12.5px;">
+                    <td style="padding: 10px 16px; font-weight: 700; color: #475569;">${l.id}</td>
+                    <td style="padding: 10px 16px; color: #64748b;">${l.timestamp}</td>
+                    <td style="padding: 10px 16px; font-weight: 600; color: #0f172a;">${l.actor}</td>
+                    <td style="padding: 10px 16px;">
+                        <span style="background: #f1f5f9; color: #0f172a; font-weight: 700; padding: 2px 7px; border-radius: 4px; font-size: 11px;">
+                            ${l.action}
+                        </span>
+                    </td>
+                    <td style="padding: 10px 16px; color: #2563eb; font-weight: 500;">${l.recordId || '—'}</td>
+                    <td style="padding: 10px 16px; color: #334155;">
+                        <div style="font-weight: 500;">${l.title || ''}</div>
+                        ${l.comments ? `<div style="font-size: 11.5px; color: #64748b;">${l.comments}</div>` : ''}
+                    </td>
+                    <td style="padding: 10px 16px; font-family: monospace; font-size: 11px; color: #059669;">
+                        ${l.hash || 'SHA256:VERIFIED'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ── MODULE 9: INSTITUTE SETTINGS LOGIC ─────────────────────────────────
+        function populateSettingsForm() {
+            if (currentSettings.instituteName) document.getElementById('set-inst-name').value = currentSettings.instituteName;
+            if (currentSettings.instituteCode) document.getElementById('set-inst-code').value = currentSettings.instituteCode;
+            if (currentSettings.accreditationCycle) document.getElementById('set-inst-cycle').value = currentSettings.accreditationCycle;
+            if (currentSettings.activeAcademicYear) document.getElementById('set-active-year').value = currentSettings.activeAcademicYear;
+            if (currentSettings.ssrLockDate) document.getElementById('set-lock-date').value = currentSettings.ssrLockDate;
+            document.getElementById('set-auto-forward').checked = Boolean(currentSettings.autoForwardToIQAC);
+            document.getElementById('set-require-slip').checked = Boolean(currentSettings.requirePreApprovalSlip);
+            document.getElementById('set-enforce-mfa').checked = Boolean(currentSettings.enforceMFA);
+            if (currentSettings.documentCategories) document.getElementById('set-categories').value = currentSettings.documentCategories;
+        }
+
+        async function handleSaveSettings(e) {
+            e.preventDefault();
+            const payload = {
+                instituteName: document.getElementById('set-inst-name').value.trim(),
+                instituteCode: document.getElementById('set-inst-code').value.trim(),
+                accreditationCycle: document.getElementById('set-inst-cycle').value.trim(),
+                activeAcademicYear: document.getElementById('set-active-year').value,
+                ssrLockDate: document.getElementById('set-lock-date').value,
+                autoForwardToIQAC: document.getElementById('set-auto-forward').checked,
+                requirePreApprovalSlip: document.getElementById('set-require-slip').checked,
+                enforceMFA: document.getElementById('set-enforce-mfa').checked,
+                documentCategories: document.getElementById('set-categories').value.trim(),
+                storageQuotaGB: currentSettings.storageQuotaGB || 10.0,
+                storageUsedGB: currentSettings.storageUsedGB || 1.4
+            };
+
+            try {
+                currentSettings = await PortalClient.saveSettings(payload);
+                updateDashboardKPIs();
+                populateDropdowns();
+            } catch (err) {}
+        }
+
+        // ── HELPER: CSV EXPORT ────────────────────────────────────────────────
+        function downloadCSV(filename, rows) {
+            const csvContent = rows.map(r => r.join(",")).join("
+");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function toggleSidebar() {

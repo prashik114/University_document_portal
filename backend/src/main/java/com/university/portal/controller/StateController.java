@@ -32,6 +32,7 @@ public class StateController {
     private final RecentActivityRepository activityRepository;
     private final RevisionRequestRepository revisionRepository;
     private final SystemSettingsRepository settingsRepository;
+    private final DepartmentRepository     departmentRepository;
     private final DocumentService          documentService;
 
     public StateController(DocumentRepository documentRepository,
@@ -40,6 +41,7 @@ public class StateController {
                            RecentActivityRepository activityRepository,
                            RevisionRequestRepository revisionRepository,
                            SystemSettingsRepository settingsRepository,
+                           DepartmentRepository departmentRepository,
                            DocumentService documentService) {
         this.documentRepository  = documentRepository;
         this.userRepository      = userRepository;
@@ -47,6 +49,7 @@ public class StateController {
         this.activityRepository  = activityRepository;
         this.revisionRepository  = revisionRepository;
         this.settingsRepository  = settingsRepository;
+        this.departmentRepository = departmentRepository;
         this.documentService     = documentService;
     }
 
@@ -78,13 +81,7 @@ public class StateController {
             Map.of("id","2023-2024","label","2023-2024 (01 Jul 2023 – 30 Jun 2024)","current",false)
         ));
 
-        state.put("departments", List.of(
-            Map.of("code","CSE",    "name","Computer Science & Engineering",      "school","School of Computing & IT"),
-            Map.of("code","ECE",    "name","Electronics & Communication Engineering","school","School of Electrical Sciences"),
-            Map.of("code","MECH",   "name","Mechanical Engineering",              "school","School of Mechanical Sciences"),
-            Map.of("code","MGMT",   "name","Management Studies",                  "school","School of Business"),
-            Map.of("code","BIOTECH","name","Biotechnology & Bioinformatics",      "school","School of Applied Sciences")
-        ));
+        state.put("departments", departmentRepository.findAll());
 
         state.put("naacCriteria", List.of(
             Map.of("code","1.3.2","label","1.3.2 – Experiential learning through project/field work/internship"),

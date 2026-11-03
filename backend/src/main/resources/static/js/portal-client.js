@@ -302,6 +302,179 @@ const PortalClient = {
         }
     },
 
+    async updateUser(userId, userData) {
+        try {
+            const res = await fetch(`${this.API_BASE}/users/${encodeURIComponent(userId)}`, {
+                method: "PUT",
+                headers: this.getHeaders(),
+                body: JSON.stringify(userData)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to update user.");
+            this.showToast(`User ${data.name} updated successfully!`, "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async updateUserStatus(userId, status) {
+        try {
+            const res = await fetch(`${this.API_BASE}/users/${encodeURIComponent(userId)}/status`, {
+                method: "PUT",
+                headers: this.getHeaders(),
+                body: JSON.stringify({ status })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to change user status.");
+            this.showToast(`User status set to ${status}!`, "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async deleteUser(userId) {
+        try {
+            const res = await fetch(`${this.API_BASE}/users/${encodeURIComponent(userId)}`, {
+                method: "DELETE",
+                headers: this.getHeaders()
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to delete user.");
+            }
+            this.showToast("User account deleted successfully.", "success");
+            return true;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async loadDepartments() {
+        try {
+            const res = await fetch(`${this.API_BASE}/departments`, {
+                headers: this.getHeaders()
+            });
+            if (res.ok) return await res.json();
+            return [];
+        } catch (e) {
+            console.warn("loadDepartments failed", e);
+            return [];
+        }
+    },
+
+    async createDepartment(deptData) {
+        try {
+            const res = await fetch(`${this.API_BASE}/departments`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify(deptData)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to create department.");
+            this.showToast(`Department ${data.name} created!`, "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async updateDepartment(id, deptData) {
+        try {
+            const res = await fetch(`${this.API_BASE}/departments/${encodeURIComponent(id)}`, {
+                method: "PUT",
+                headers: this.getHeaders(),
+                body: JSON.stringify(deptData)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to update department.");
+            this.showToast(`Department ${data.name} updated!`, "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async deleteDepartment(id) {
+        try {
+            const res = await fetch(`${this.API_BASE}/departments/${encodeURIComponent(id)}`, {
+                method: "DELETE",
+                headers: this.getHeaders()
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to delete department.");
+            }
+            this.showToast("Department deleted successfully.", "success");
+            return true;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async loadAuditLogs() {
+        try {
+            const res = await fetch(`${this.API_BASE}/audit-logs`, {
+                headers: this.getHeaders()
+            });
+            if (res.ok) return await res.json();
+            return [];
+        } catch (e) {
+            console.warn("loadAuditLogs failed", e);
+            return [];
+        }
+    },
+
+    async loadActivities() {
+        try {
+            const res = await fetch(`${this.API_BASE}/activities`, {
+                headers: this.getHeaders()
+            });
+            if (res.ok) return await res.json();
+            return [];
+        } catch (e) {
+            console.warn("loadActivities failed", e);
+            return [];
+        }
+    },
+
+    async loadSettings() {
+        try {
+            const res = await fetch(`${this.API_BASE}/settings`, {
+                headers: this.getHeaders()
+            });
+            if (res.ok) return await res.json();
+            return {};
+        } catch (e) {
+            console.warn("loadSettings failed", e);
+            return {};
+        }
+    },
+
+    async saveSettings(settingsData) {
+        try {
+            const res = await fetch(`${this.API_BASE}/settings`, {
+                method: "PUT",
+                headers: this.getHeaders(),
+                body: JSON.stringify(settingsData)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to save settings.");
+            this.showToast("System settings saved successfully!", "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
     async batchForward() {
         try {
             const res = await fetch(`${this.API_BASE}/documents/batch-forward`, {

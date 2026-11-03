@@ -7,37 +7,28 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * Runs once at application startup via {@link CommandLineRunner}.
- *
- * <p><strong>Strategy:</strong> seed-if-empty — data is never wiped on restart.
- * If the table already has rows (e.g. after a previous boot or a real user
- * submission), the seeder skips that table entirely. This preserves all
- * production data across server restarts.</p>
- *
- * <p>Passwords are stored as plain-text hashes only for this demo.
- * In a real deployment, replace with BCryptPasswordEncoder.</p>
- */
 @Service
 public class DataSeederService implements CommandLineRunner {
 
-    // Demo credential constants — single source of truth for the seeder.
-    // AuthController reads from the DB; these values are only written here.
     public static final String DEMO_PASSWORD_HASH = "Password@123";
     public static final String DEMO_OTP           = "1234";
 
     private final UserRepository            userRepository;
     private final SystemSettingsRepository  settingsRepository;
+    private final DepartmentRepository      departmentRepository;
 
     public DataSeederService(UserRepository userRepository,
-                             SystemSettingsRepository settingsRepository) {
+                             SystemSettingsRepository settingsRepository,
+                             DepartmentRepository departmentRepository) {
         this.userRepository   = userRepository;
         this.settingsRepository = settingsRepository;
+        this.departmentRepository = departmentRepository;
     }
 
     @Override
     public void run(String... args) {
         seedSettings();
+        seedDepartments();
         seedUsers();
     }
 
@@ -48,15 +39,50 @@ public class DataSeederService implements CommandLineRunner {
 
         SystemSettingsEntity s = new SystemSettingsEntity();
         s.setId("DEFAULT");
+        s.setInstituteName("National Institute of Science & Technology");
+        s.setInstituteCode("UNIV-2026");
+        s.setAccreditationCycle("NAAC Cycle 3 (2026-2031)");
         s.setActiveAcademicYear("2026-2027");
         s.setSsrLockDate("2026-11-30");
         s.setAutoForwardToIQAC(true);
         s.setRequirePreApprovalSlip(true);
         s.setEnforceMFA(true);
         s.setStorageQuotaGB(10.0);
-        s.setStorageUsedGB(0.0);
+        s.setStorageUsedGB(1.4);
         s.setLastBackupDate("03 Nov 2026, 12:00 AM");
         settingsRepository.save(s);
+    }
+
+    // ── Departments ──────────────────────────────────────────────────────────
+
+    private void seedDepartments() {
+        if (departmentRepository.count() > 0) return;
+
+        List<DepartmentEntity> depts = List.of(
+            new DepartmentEntity("DEPT-CSE", "CSE", "Computer Science & Engineering",
+                    "School of Computing & Information Technology", "USR-002", "Prof. A. K. Verma",
+                    "Active", "Computing, software engineering, AI/ML, and cyber security.", "2005"),
+            new DepartmentEntity("DEPT-ECE", "ECE", "Electronics & Communication Engineering",
+                    "School of Electrical Sciences", "USR-007", "Prof. R. K. Mukherjee",
+                    "Active", "VLSI design, embedded systems, communication networks, and robotics.", "2006"),
+            new DepartmentEntity("DEPT-MECH", "MECH", "Mechanical Engineering",
+                    "School of Mechanical Sciences", "USR-009", "Prof. Vivek Chawla",
+                    "Active", "Thermal dynamics, fluid mechanics, industrial automation, and CAD/CAM.", "2007"),
+            new DepartmentEntity("DEPT-MGMT", "MGMT", "Management Studies",
+                    "School of Business", null, "Unassigned (Acting Dean)",
+                    "Active", "Strategic management, financial analytics, operations, and MBA curriculum.", "2010"),
+            new DepartmentEntity("DEPT-BIOTECH", "BIOTECH", "Biotechnology & Bioinformatics",
+                    "School of Applied Sciences", null, "Unassigned (Acting Dean)",
+                    "Active", "Genetic engineering, computational biology, drug discovery, and lab trials.", "2012"),
+            new DepartmentEntity("DEPT-CIVIL", "CIVIL", "Civil Engineering",
+                    "School of Infrastructure & Environment", null, "Unassigned (Acting Dean)",
+                    "Active", "Structural analysis, geotechnical engineering, hydrology, and green architecture.", "2008"),
+            new DepartmentEntity("DEPT-EE", "EE", "Electrical Engineering",
+                    "School of Electrical Sciences", null, "Unassigned (Acting Dean)",
+                    "Active", "Power systems, renewable energy, microgrids, and electrical machines.", "2007")
+        );
+
+        departmentRepository.saveAll(depts);
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────
