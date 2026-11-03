@@ -197,6 +197,25 @@ const PortalClient = {
         }
     },
 
+    async updateUserPermissions(userId, permissions) {
+        try {
+            const res = await fetch(`${this.API_BASE}/users/${encodeURIComponent(userId)}/permissions`, {
+                method: "PUT",
+                headers: this.getHeaders(),
+                body: JSON.stringify(permissions)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to update permissions.");
+            }
+            this.showToast("User departmental access updated successfully!", "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
     async provisionUser(userData) {
         try {
             const res = await fetch(`${this.API_BASE}/users`, {

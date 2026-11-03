@@ -2,6 +2,8 @@ package com.university.portal.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Represents an institutional user in the portal.
@@ -27,6 +29,9 @@ public class UserEntity {
     private String roleTitle;
     private String designation;
     private String department;
+
+    @Column(name = "additional_departments")
+    private String additionalDepartments; // Comma-separated list of extra departments granted by IT Admin
     private String school;
     private String employeeId;
     private String avatar;
@@ -112,4 +117,33 @@ public class UserEntity {
     @JsonIgnore
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
+    public String getAdditionalDepartments() { return additionalDepartments; }
+    public void setAdditionalDepartments(String additionalDepartments) { this.additionalDepartments = additionalDepartments; }
+
+    /**
+     * Resolves all departments this user is authorized to manage:
+     * primary department + any additional departments configured by IT Admin.
+     */
+    public List<String> getAllowedDepartments() {
+        List<String> list = new ArrayList<>();
+        if (department != null && !department.isBlank()) {
+            list.add(department.trim());
+        }
+        if (additionalDepartments != null && !additionalDepartments.isBlank()) {
+            for (String d : additionalDepartments.split(",")) {
+                String trimmed = d.trim();
+                if (!trimmed.isEmpty() && !list.contains(trimmed)) {
+                    list.add(trimmed);
+                }
+            }
+        }
+        return list;
+    }
+
+    public boolean isDepartmentAuthorized(String deptName) {
+        if (deptName == null || deptName.isBlank()) return true;
+        return getAllowedDepartments().stream()
+                .anyMatch(d -> d.equalsIgnoreCase(deptName.trim()));
+    }
 }

@@ -139,6 +139,39 @@
         </div>
     </div>
 
+    <!-- CONFIGURE HOD DEPARTMENT SCOPE MODAL (RULE 3) -->
+    <div class="modal-backdrop" id="hod-scope-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 520px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Configure HOD Department Permissions</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Rule 3: IT Admin can grant an HOD access to additional departments without changing primary department.</p>
+                </div>
+                <button onclick="closeHodScopeModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <form id="hod-scope-form" onsubmit="handleHodScopeSubmit(event)" style="padding: 24px;">
+                <input type="hidden" id="hod-scope-user-id">
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">HOD Name</label>
+                    <input type="text" id="hod-scope-name" readonly style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #334155;">
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">Primary Department (Permanent)</label>
+                    <input type="text" id="hod-scope-primary-dept" readonly style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 13px; color: #166534; font-weight: 600;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 8px;">Grant Access to Additional Departments (Configurable):</label>
+                    <div id="hod-scope-checkboxes" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; background: #fafafa;">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" onclick="closeHodScopeModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: #2563eb;">Save Permissions</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- PROVISION USER MODAL (ADMIN: AUTHORIZED TO PROVISION ANY ROLE & DEPT) -->
     <div class="modal-backdrop" id="admin-provision-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
         <div style="background: #ffffff; width: 100%; max-width: 540px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
@@ -241,7 +274,10 @@
                         <div style="font-size: 11.5px; color: #64748b;">${u.designation || '—'}</div>
                     </td>
                     <td style="padding: 12px 16px; color: #2563eb;">${u.email}</td>
-                    <td style="padding: 12px 16px; color: #475569;">${u.department || '—'}</td>
+                    <td style="padding: 12px 16px; color: #475569;">
+                        <div><strong>${u.department || '—'}</strong></div>
+                        ${u.additionalDepartments ? `<div style="font-size: 11px; color: #0284c7; margin-top: 3px;">+ Extra Scope: <span style="font-weight:600;">${u.additionalDepartments}</span></div>` : ''}
+                    </td>
                     <td style="padding: 12px 16px;">
                         <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: #eff6ff; color: #2563eb;">
                             ${u.role}
@@ -249,7 +285,10 @@
                     </td>
                     <td style="padding: 12px 16px; color: #475569; font-size: 12px;">${u.employeeId || u.id}</td>
                     <td style="padding: 12px 16px; text-align: right;">
-                        <span style="color: #16a34a; font-weight: 600; font-size: 12px;">&#10003; Active</span>
+                        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                            <span style="color: #16a34a; font-weight: 600; font-size: 12px;">&#10003; Active</span>
+                            ${u.role === 'DeanHOD' ? `<button class="btn-secondary" onclick="openHodScopeModal('${u.id}')" style="padding: 3px 8px; font-size: 11px; border-color: #93c5fd; color: #1d4ed8; background: #eff6ff;">Grant Scope</button>` : ''}
+                        </div>
                     </td>
                 </tr>
             `).join('');
@@ -280,6 +319,65 @@
                 await loadUsers();
             } catch (err) {
                 // error toast displayed by client
+            }
+        }
+
+        const ALL_DEPARTMENTS = [
+            "Computer Science & Engineering",
+            "Mechanical Engineering",
+            "Civil Engineering",
+            "Electrical Engineering",
+            "Electronics & Communication",
+            "Management Studies",
+            "Biotechnology & Bioinformatics"
+        ];
+
+        function openHodScopeModal(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            document.getElementById('hod-scope-user-id').value = user.id;
+            document.getElementById('hod-scope-name').value = `${user.name} (${user.email})`;
+            document.getElementById('hod-scope-primary-dept').value = user.department || 'Not Assigned';
+
+            const currentAdditional = (user.additionalDepartments || '')
+                .split(',')
+                .map(s => s.trim().toLowerCase())
+                .filter(Boolean);
+
+            const container = document.getElementById('hod-scope-checkboxes');
+            container.innerHTML = ALL_DEPARTMENTS
+                .filter(d => d.toLowerCase() !== (user.department || '').toLowerCase())
+                .map(d => {
+                    const isChecked = currentAdditional.includes(d.toLowerCase());
+                    return `
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
+                            <input type="checkbox" name="hod-additional-dept" value="${d}" ${isChecked ? 'checked' : ''} style="accent-color: #2563eb;">
+                            <span>${d}</span>
+                        </label>
+                    `;
+                }).join('');
+
+            document.getElementById('hod-scope-modal').style.display = 'flex';
+        }
+
+        function closeHodScopeModal() {
+            document.getElementById('hod-scope-modal').style.display = 'none';
+            document.getElementById('hod-scope-form').reset();
+        }
+
+        async function handleHodScopeSubmit(e) {
+            e.preventDefault();
+            const userId = document.getElementById('hod-scope-user-id').value;
+            const checkedBoxes = document.querySelectorAll('input[name="hod-additional-dept"]:checked');
+            const additionalDepts = Array.from(checkedBoxes).map(cb => cb.value);
+
+            try {
+                await PortalClient.updateUserPermissions(userId, { additionalDepartments: additionalDepts });
+                closeHodScopeModal();
+                await loadUsers();
+            } catch (err) {
+                // error displayed via toast
             }
         }
 
