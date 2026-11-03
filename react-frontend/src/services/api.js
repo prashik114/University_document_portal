@@ -83,6 +83,12 @@ export const api = {
       body: JSON.stringify({ userId, oldPassword, newPassword }),
     }),
 
+  forgotPassword: (email) =>
+    request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
   // ── Documents ─────────────────────────────────────────────────────────────
   getDocuments: (category = 'ALL', status = 'ALL', search = '') => {
     const params = new URLSearchParams({ category, status, search });
@@ -167,9 +173,6 @@ export const api = {
   getSettings:    () => request('/settings', { headers: {} }),
   updateSettings: (s) => request('/settings', { method: 'PUT', body: JSON.stringify(s) }),
 
-  // ── Users ─────────────────────────────────────────────────────────────────
-  getUsers:    () => request('/users', { headers: {} }),
-  deleteUser:  (id) => request(`/users/${encodeURIComponent(id)}`, { method: 'DELETE', headers: {} }),
   // ── Users & Provisioning ───────────────────────────────────────────────
   getUsers: () => request('/users'),
 

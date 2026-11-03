@@ -969,6 +969,11 @@ export default function App() {
             {activeTab === 'account-settings' && (
               <AccountSettings
                 currentUser={currentUser}
+                onUpdateProfile={async (payload) => {
+                  const updated = await updateUser(currentUser.id, payload, currentUser);
+                  setCurrentUser(updated);
+                  return updated;
+                }}
                 showToast={showToast}
               />
             )}

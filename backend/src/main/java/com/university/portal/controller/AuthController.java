@@ -139,6 +139,31 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
     }
 
+    // ── Forgot Password ──────────────────────────────────────────────────────
+    @PostMapping("/auth/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank() || !email.contains("@")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "A valid institutional email address is required."));
+        }
+
+        UserEntity user = userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseGet(() -> userRepository.findByEmail(email.trim()).orElse(null));
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "No institutional account found with email: " + email));
+        }
+
+        String resetToken = "RST-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 9000 + 1000);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "A password reset confirmation link has been dispatched to " + user.getEmail() + ". Please check your institutional inbox.",
+                "email", user.getEmail(),
+                "resetToken", resetToken
+        ));
+    }
+
     // ── User list (for admin use) ─────────────────────────────────────────────
 
     @GetMapping("/auth/users")

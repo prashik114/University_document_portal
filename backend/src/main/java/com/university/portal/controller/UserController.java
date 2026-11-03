@@ -310,8 +310,29 @@ public class UserController {
                     .body(Map.of("error", "User not found with ID " + id));
         }
 
+        boolean isSelfEdit = (!callerId.isBlank() && (callerId.equalsIgnoreCase(user.getId()) || callerId.equalsIgnoreCase(user.getEmployeeId())));
+
         if ("Admin".equalsIgnoreCase(callerRole)) {
             // Admin can edit anyone
+        } else if (isSelfEdit) {
+            // Self-edit: User can update their own personal details (name, email)
+            // Strictly FORBIDDEN to alter primary department, additional departments, role, or permissions
+            if (updated.getRole() != null && !updated.getRole().isBlank() && !updated.getRole().equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: You cannot modify your assigned institutional role."));
+            }
+            if (updated.getDepartment() != null && !updated.getDepartment().isBlank() && !updated.getDepartment().equalsIgnoreCase(user.getDepartment())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: You cannot modify your assigned primary department. Department assignments are governed by Central IT Admin."));
+            }
+            if (updated.getAdditionalDepartments() != null && !updated.getAdditionalDepartments().equals(user.getAdditionalDepartments())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: You cannot modify your assigned additional department scope."));
+            }
+            if (updated.getCustomPermissions() != null && !updated.getCustomPermissions().equals(user.getCustomPermissions())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: You cannot modify your assigned permissions."));
+            }
         } else if ("DeanHOD".equalsIgnoreCase(callerRole)) {
             // HOD can edit Faculty or Student within assigned departments
             if (!"Faculty".equalsIgnoreCase(user.getRole()) && !"Student".equalsIgnoreCase(user.getRole())) {
@@ -369,32 +390,43 @@ public class UserController {
 
         if (updated.getName() != null && !updated.getName().isBlank()) {
             user.setName(updated.getName().trim());
+            user.setAvatar(user.getName().substring(0, 1).toUpperCase());
         }
         if (updated.getEmail() != null && !updated.getEmail().isBlank()) {
-            user.setEmail(updated.getEmail().trim().toLowerCase());
+            String newEmail = updated.getEmail().trim().toLowerCase();
+            if (!newEmail.equalsIgnoreCase(user.getEmail())) {
+                Optional<UserEntity> existing = userRepository.findByEmail(newEmail);
+                if (existing.isPresent() && !existing.get().getId().equalsIgnoreCase(user.getId())) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(Map.of("error", "An account with email " + newEmail + " already exists."));
+                }
+                user.setEmail(newEmail);
+            }
         }
-        if (updated.getRole() != null && !updated.getRole().isBlank()) {
-            user.setRole(updated.getRole().trim());
-        }
-        if (updated.getDepartment() != null) {
-            user.setDepartment(updated.getDepartment().trim());
-        }
-        if (updated.getDesignation() != null) {
-            user.setDesignation(updated.getDesignation().trim());
-        }
-        if (updated.getEmployeeId() != null) {
-            user.setEmployeeId(updated.getEmployeeId().trim());
-        }
-        if (updated.getStatus() != null && !updated.getStatus().isBlank()) {
-            user.setStatus(updated.getStatus().trim());
-        }
-        if (updated.getAdditionalDepartments() != null) {
-            user.setAdditionalDepartments(updated.getAdditionalDepartments().trim());
-        }
-        if (updated.getCustomPermissions() != null) {
-            user.setCustomPermissions(updated.getCustomPermissions().trim());
-        } else if (updated.getPermissions() != null && !updated.getPermissions().isEmpty()) {
-            user.setCustomPermissions(String.join(",", updated.getPermissions()));
+        if (!isSelfEdit) {
+            if (updated.getRole() != null && !updated.getRole().isBlank()) {
+                user.setRole(updated.getRole().trim());
+            }
+            if (updated.getDepartment() != null) {
+                user.setDepartment(updated.getDepartment().trim());
+            }
+            if (updated.getDesignation() != null) {
+                user.setDesignation(updated.getDesignation().trim());
+            }
+            if (updated.getEmployeeId() != null) {
+                user.setEmployeeId(updated.getEmployeeId().trim());
+            }
+            if (updated.getStatus() != null && !updated.getStatus().isBlank()) {
+                user.setStatus(updated.getStatus().trim());
+            }
+            if (updated.getAdditionalDepartments() != null) {
+                user.setAdditionalDepartments(updated.getAdditionalDepartments().trim());
+            }
+            if (updated.getCustomPermissions() != null) {
+                user.setCustomPermissions(updated.getCustomPermissions().trim());
+            } else if (updated.getPermissions() != null && !updated.getPermissions().isEmpty()) {
+                user.setCustomPermissions(String.join(",", updated.getPermissions()));
+            }
         }
         if (updated.getPasswordHash() != null && !updated.getPasswordHash().isBlank()) {
             user.setPasswordHash(updated.getPasswordHash().trim());
