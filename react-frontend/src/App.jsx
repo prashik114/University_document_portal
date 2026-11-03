@@ -8,6 +8,7 @@ import UploadModal         from './components/UploadModal';
 import DocumentDetailModal from './components/DocumentDetailModal';
 import ReturnReasonModal   from './components/ReturnReasonModal';
 import StatusBadge         from './components/StatusBadge';
+import UserAccessControl   from './components/UserAccessControl';
 import './styles.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -51,9 +52,11 @@ export default function App() {
   // ── Remote data ───────────────────────────────────────────────────────────
   const {
     documents, auditLogs, recentActivities, kpis,
+    users, departments,
     loading, backendOnline,
     submitDocument, resubmitDocument, approveDocument, returnDocument, lockDocument,
     batchForward, batchLock,
+    provisionUser, updateUser, updateUserStatus, updateUserPermissions, deleteUser,
   } = usePortalData();
 
   // ── UI state ──────────────────────────────────────────────────────────────
@@ -223,12 +226,13 @@ export default function App() {
 
   // ── Main app layout ───────────────────────────────────────────────────────
   const nav = [
-    { id: 'dashboard',  label: currentUser.role === 'Student' ? 'Student Portal' : currentUser.role === 'Inspector' ? 'Inspection Dashboard' : 'Dashboard', roles: null },
-    { id: 'documents',  label: currentUser.role === 'Student' ? 'My Certificates' : 'My Documents', roles: ['Faculty','Student','DeanHOD'] },
-    { id: 'queue',      label: 'Verification Queue', roles: ['DeanHOD','IQAC','Admin'] },
-    { id: 'repository', label: 'Document Repository', roles: ['Faculty','DeanHOD','IQAC','Inspector','Admin'] },
-    { id: 'reports',    label: 'Reports', roles: ['DeanHOD','IQAC','Inspector','Admin'] },
-    { id: 'audit',      label: 'Audit Trail', roles: ['IQAC','Inspector','Admin'] },
+    { id: 'dashboard',      label: currentUser.role === 'Student' ? 'Student Portal' : currentUser.role === 'Inspector' ? 'Inspection Dashboard' : 'Dashboard', roles: null },
+    { id: 'documents',      label: currentUser.role === 'Student' ? 'My Certificates' : 'My Documents', roles: ['Faculty','Student','DeanHOD'] },
+    { id: 'queue',          label: 'Verification Queue', roles: ['DeanHOD','IQAC','Admin'] },
+    { id: 'repository',     label: 'Document Repository', roles: ['Faculty','DeanHOD','IQAC','Inspector','Admin'] },
+    { id: 'reports',        label: 'Reports', roles: ['DeanHOD','IQAC','Inspector','Admin'] },
+    { id: 'audit',          label: 'Audit Trail', roles: ['IQAC','Inspector','Admin'] },
+    { id: 'access-control', label: 'User Access Control', roles: ['Admin'] },
   ];
 
   return (
@@ -889,6 +893,21 @@ export default function App() {
               </div>
             )}
 
+            {/* ═══ USER ACCESS CONTROL ═════════════════════════════════════════ */}
+            {activeTab === 'access-control' && currentUser.role === 'Admin' && (
+              <UserAccessControl
+                currentUser={currentUser}
+                users={users}
+                departments={departments}
+                onProvision={provisionUser}
+                onUpdate={updateUser}
+                onUpdateStatus={updateUserStatus}
+                onUpdatePermissions={updateUserPermissions}
+                onDelete={deleteUser}
+                showToast={showToast}
+              />
+            )}
+
           </main>
         </div>
       </div>
@@ -896,7 +915,6 @@ export default function App() {
   );
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function DocumentTable({ docs, onView, onResubmit, currentUser, loading }) {

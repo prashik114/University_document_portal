@@ -251,6 +251,20 @@ public class UserController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "Access Denied: HOD cannot assign Admin, IQAC, or HOD roles."));
             }
+        } else if ("Faculty".equalsIgnoreCase(callerRole)) {
+            // Faculty can edit Students within their assigned department
+            if (!"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only edit Student accounts."));
+            }
+            if (callerDept.isBlank() || !callerDept.equalsIgnoreCase(user.getDepartment())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only edit Students belonging to their own department (" + callerDept + ")."));
+            }
+            if (updated.getRole() != null && !"Student".equalsIgnoreCase(updated.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty cannot change account roles."));
+            }
         } else {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Access Denied: You do not have permission to edit user accounts."));
@@ -337,6 +351,16 @@ public class UserController {
             if (!allowedDepts.stream().anyMatch(d -> d.equalsIgnoreCase(user.getDepartment()))) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "Access Denied: You can only manage members in your assigned departments: " + allowedDepts));
+            }
+        } else if ("Faculty".equalsIgnoreCase(callerRole)) {
+            // Faculty can toggle status for Students in their assigned department
+            if (!"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only manage Student accounts."));
+            }
+            if (callerDept.isBlank() || !callerDept.equalsIgnoreCase(user.getDepartment())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only manage Students belonging to their own department (" + callerDept + ")."));
             }
         } else {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)

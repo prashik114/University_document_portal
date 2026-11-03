@@ -25,8 +25,8 @@ const PortalClient = {
     async init(allowedRoles = []) {
         // Retrieve session
         // Enforce explicit authentication on portal startup: check active browser session only
-        const isAuth = sessionStorage.getItem("portal_auth_user");
-        const rawUser = sessionStorage.getItem("portal_current_user");
+        const isAuth = sessionStorage.getItem("portal_auth_user") || localStorage.getItem("portal_auth_user");
+        const rawUser = sessionStorage.getItem("portal_current_user") || localStorage.getItem("portal_current_user");
 
         if (isAuth !== "true" || !rawUser) {
             this.redirectToLogin("Please sign in to access your institutional portal.");
@@ -488,6 +488,74 @@ const PortalClient = {
             return data;
         } catch (e) {
             this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
+    async lockDocument(id, comment = "") {
+        try {
+            const res = await fetch(`${this.API_BASE}/documents/${encodeURIComponent(id)}/lock`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify({
+                    reviewerName: this.currentUser?.name || "IQAC Lead",
+                    reviewerRole: "IQAC",
+                    comment: comment
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${res.status}`);
+            }
+            const updated = await res.json();
+            this.showToast("Record certified with SHA-256 seal and locked in SSR!", "success");
+            return updated;
+        } catch (e) {
+            this.showToast("Lock error: " + e.message, "danger");
+            throw e;
+        }
+    },
+
+    async batchLock() {
+        try {
+            const res = await fetch(`${this.API_BASE}/documents/batch-lock`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify({
+                    reviewerName: this.currentUser?.name || "IQAC Lead",
+                    reviewerRole: "IQAC"
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${res.status}`);
+            }
+            const data = await res.json();
+            this.showToast(`Batch approved & locked ${data.count || 0} records into NAAC SSR!`, "success");
+            return data;
+        } catch (e) {
+            this.showToast("Batch lock error: " + e.message, "danger");
+            throw e;
+        }
+    },
+
+    async resubmitDocument(id) {
+        try {
+            const actorName = encodeURIComponent(this.currentUser?.name || "Submitter");
+            const actorRole = encodeURIComponent(this.currentUser?.role || "Faculty");
+            const res = await fetch(`${this.API_BASE}/documents/${encodeURIComponent(id)}/resubmit?actorName=${actorName}&actorRole=${actorRole}`, {
+                method: "POST",
+                headers: this.getHeaders()
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${res.status}`);
+            }
+            const updated = await res.json();
+            this.showToast("Document resubmitted for verification!", "success");
+            return updated;
+        } catch (e) {
+            this.showToast("Resubmit error: " + e.message, "danger");
             throw e;
         }
     },

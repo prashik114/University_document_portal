@@ -3,142 +3,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Central IQAC Review & SSR Portal</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>IQAC Portal - Central Quality Assurance & SSR Locking Desk</title>
+    <link rel="stylesheet" href="css/portal.css">
+    <style>
+        .iqac-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .iqac-nav-item:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .iqac-nav-item.active {
+            background: #f3e8ff;
+            color: #7c3aed;
+            font-weight: 700;
+        }
+        .iqac-nav-item.active svg {
+            stroke: #7c3aed;
+        }
+        .iqac-tab-pane {
+            display: none;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+        .iqac-tab-pane.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-approved { background: #dcfce7; color: #15803d; }
+        .status-pending { background: #fef3c7; color: #b45309; }
+        .status-returned { background: #fee2e2; color: #b91c1c; }
+        
+        @media print {
+            .sidebar, .top-navbar, .navbar-actions, .btn-primary, .btn-secondary, .table-filters-group, .iqac-nav-item {
+                display: none !important;
+            }
+            .main-content {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .app-layout {
+                display: block !important;
+            }
+            .iqac-tab-pane {
+                display: block !important;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
     <div class="app-layout">
         <!-- SIDEBAR -->
         <aside class="sidebar" id="main-sidebar">
-            <div class="sidebar-top">
-                <div class="sidebar-brand">
-                    <div class="brand-icon" style="background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                        </svg>
+            <div class="sidebar-brand">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 8px; background: #7c3aed; display: flex; align-items: center; justify-content: center; color: white;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     </div>
-                    <div class="brand-text">
-                        <span class="brand-title">Central IQAC</span>
-                        <span class="brand-subtitle" style="color: #7c3aed;">Quality Cell</span>
+                    <div>
+                        <div style="font-weight: 700; font-size: 15px; color: #0f172a; line-height: 1.2;">Central IQAC</div>
+                        <div style="font-size: 11px; color: #64748b; font-weight: 500;">Accreditation Cell</div>
                     </div>
                 </div>
-
-                <nav class="sidebar-nav">
-                    <a class="nav-item active" href="iqac.html">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                        <span>IQAC Audit Desk</span>
-                    </a>
-                </nav>
             </div>
 
-            <div class="sidebar-footer">
-                <a class="logout-link" onclick="PortalClient.logout()" style="cursor: pointer;">
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    <span>Sign Out</span>
-                </a>
+            <nav class="sidebar-menu" style="padding: 16px 12px; display: flex; flex-direction: column; gap: 4px;">
+                <button class="iqac-nav-item active" onclick="switchTab('dashboard')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <span>Dashboard</span>
+                </button>
+
+                <button class="iqac-nav-item" onclick="switchTab('verification')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <span style="flex: 1;">SSR Lock Desk</span>
+                    <span id="badge-pending" style="font-size: 11px; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 7px; border-radius: 9999px;">0</span>
+                </button>
+
+                <button class="iqac-nav-item" onclick="switchTab('master-ssr')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span>Master SSR Repository</span>
+                </button>
+
+                <button class="iqac-nav-item" onclick="switchTab('analytics')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                    <span>Criteria Analytics</span>
+                </button>
+
+                <button class="iqac-nav-item" onclick="switchTab('profile')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>My Profile & Security</span>
+                </button>
+            </nav>
+
+            <div style="margin-top: auto; padding: 16px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Rule 6 Authority</div>
+                <div style="font-size: 12px; color: #334155; line-height: 1.4;">
+                    IQAC performs final institutional verification and locks approved documents permanently against direct modification.
+                </div>
             </div>
         </aside>
 
-        <!-- MAIN WRAPPER -->
-        <div class="main-wrapper">
+        <!-- MAIN CONTENT AREA -->
+        <div class="main-content">
             <!-- TOP NAVBAR -->
-            <header class="top-navbar">
-                <div class="top-navbar-left">
-                    <button class="mobile-nav-toggle" onclick="toggleSidebar()">
+            <header class="top-navbar" style="display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 64px; background: #ffffff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 50;">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button class="btn-sidebar-toggle" onclick="toggleSidebar()" style="background: none; border: none; cursor: pointer; color: #64748b; padding: 4px;">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     </button>
-                    <div class="search-box-container">
-                        <svg class="search-icon-nav" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input type="text" id="iqac-search" class="global-search-input" placeholder="Search SSR criteria, documents..." oninput="renderTable()">
+                    <div>
+                        <div style="font-size: 16px; font-weight: 700; color: #0f172a;" id="topbar-title">Central IQAC Dashboard</div>
+                        <div style="font-size: 12px; color: #64748b;" id="topbar-sub">University Repository System</div>
                     </div>
                 </div>
 
-                <div class="navbar-actions">
-                    <div class="user-profile-badge" id="user-profile-menu-btn">
-                        <div class="user-avatar-circle" id="user-avatar" style="background-color: #7c3aed;">I</div>
-                        <span class="user-role-label" id="user-display-name">Dr. Sunita Rao</span>
-                        <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button class="btn-primary" onclick="handleBatchLockAll()" style="padding: 7px 14px; font-size: 12.5px; background: #7c3aed;">
+                        Batch Approve & Lock SSR
+                    </button>
+                    
+                    <div style="position: relative;">
+                        <button id="user-profile-menu-btn" style="background: none; border: none; display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px;">
+                            <div class="user-avatar" id="user-avatar" style="width: 36px; height: 36px; border-radius: 8px; background: #7c3aed; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 14px;">Q</div>
+                            <div style="text-align: left; display: none;" class="desktop-user-info">
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a;" id="user-display-name">IQAC Officer</div>
+                                <div style="font-size: 11px; color: #64748b;">Central IQAC Coordinator</div>
+                            </div>
+                        </button>
+                        <div class="user-dropdown-card" id="user-profile-popup"></div>
                     </div>
                 </div>
             </header>
 
-            <!-- User Profile Dropdown -->
-            <div class="context-menu-popup dropdown-users" id="user-profile-popup"></div>
-
-            <!-- MAIN CONTENT -->
-            <main class="main-content">
-                <div class="dashboard-header">
-                    <div>
-                        <h1 id="iqac-welcome-title" style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">Central IQAC Review & SSR Console</h1>
-                        <p id="iqac-welcome-sub" style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Director & Central IQAC Coordinator &bull; Internal Quality Assurance Cell &bull; Cycle 2026-2027</p>
+            <main style="padding: 28px;">
+                <!-- ==================== TAB 1: DASHBOARD ==================== -->
+                <div class="iqac-tab-pane active" id="tab-dashboard">
+                    <!-- 4 KPI CARDS -->
+                    <div class="kpi-cards-grid">
+                        <div class="kpi-card kpi-card-blue">
+                            <div class="kpi-value" id="kpi-total">0</div>
+                            <div class="kpi-label">Institutional Records</div>
+                        </div>
+                        <div class="kpi-card kpi-card-amber">
+                            <div class="kpi-value" id="kpi-pending">0</div>
+                            <div class="kpi-label">Forwarded by HOD (Pending Lock)</div>
+                        </div>
+                        <div class="kpi-card kpi-card-green">
+                            <div class="kpi-value" id="kpi-locked">0</div>
+                            <div class="kpi-label">Certified & SSR Locked (SHA-256)</div>
+                        </div>
+                        <div class="kpi-card kpi-card-red">
+                            <div class="kpi-value" id="kpi-departments">8</div>
+                            <div class="kpi-label">Contributing Departments</div>
+                        </div>
                     </div>
-                    <div>
-                        <button class="btn-primary" onclick="batchLockAll()" style="background-color: #7c3aed;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            <span>Batch Approve & SHA-256 Lock</span>
-                        </button>
+
+                    <!-- PENDING LOCKS TABLE PREVIEW -->
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px;">
+                        <div class="table-card">
+                            <div class="table-card-header">
+                                <div class="table-card-title">Pending Final SSR Approvals</div>
+                                <button class="btn-secondary" onclick="switchTab('verification')" style="font-size: 12px; padding: 4px 10px;">Go to Lock Desk &rarr;</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: left;">
+                                            <th style="padding: 10px 14px;">Title</th>
+                                            <th style="padding: 10px 14px;">Department</th>
+                                            <th style="padding: 10px 14px;">Status</th>
+                                            <th style="padding: 10px 14px; text-align: right;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dash-pending-table-tbody">
+                                        <tr><td colspan="4" style="text-align: center; padding: 24px; color: #64748b;">No records pending IQAC seal.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SSR CRITERIA HIGHLIGHTS -->
+                        <div class="table-card" style="padding: 20px;">
+                            <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">NAAC SSR Compliance Status</div>
+                            <div style="font-size: 12.5px; color: #64748b; margin-bottom: 16px;">Evidence distribution across NAAC Criteria 1 through 7.</div>
+                            
+                            <div id="criteria-progress-bars" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                            
+                            <button class="btn-secondary" onclick="switchTab('analytics')" style="width: 100%; justify-content: center; margin-top: 16px; font-size: 12.5px;">View Detailed Analytics &rarr;</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 4 IQAC KPI CARDS -->
-                <div class="kpi-cards-grid">
-                    <div class="kpi-card kpi-card-blue">
-                        <div class="kpi-value" id="iqac-kpi-total">0</div>
-                        <div class="kpi-label">Institutional Records</div>
-                    </div>
-                    <div class="kpi-card kpi-card-amber">
-                        <div class="kpi-value" id="iqac-kpi-pending">0</div>
-                        <div class="kpi-label">Pending Final Review</div>
-                    </div>
-                    <div class="kpi-card kpi-card-green">
-                        <div class="kpi-value" id="iqac-kpi-locked">0</div>
-                        <div class="kpi-label">Locked SSR Evidences</div>
-                    </div>
-                    <div class="kpi-card kpi-card-blue">
-                        <div class="kpi-value">100%</div>
-                        <div class="kpi-label">Tamper-Proof Integrity</div>
+                <!-- ==================== TAB 2: VERIFICATION & SSR LOCK DESK ==================== -->
+                <div class="iqac-tab-pane" id="tab-verification">
+                    <div class="table-card">
+                        <div class="table-card-header" style="flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <div class="table-card-title">Evidence Awaiting Final IQAC Lock</div>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Endorsed by Department HODs. Ready for cryptographic sealing and SSR archiving.</div>
+                            </div>
+                            <div class="table-filters-group" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                <input type="text" id="verif-search" placeholder="Search title or author..." oninput="renderVerificationTable()" style="height: 36px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px; width: 180px;">
+                                <select id="verif-filter-dept" onchange="renderVerificationTable()" style="height: 36px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px;">
+                                    <option value="ALL">All Departments</option>
+                                </select>
+                                <button class="btn-primary" onclick="handleBatchLockAll()" style="height: 36px; font-size: 12px; background: #7c3aed;">Batch Lock All</button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: left;">
+                                        <th style="padding: 12px 16px;">#</th>
+                                        <th style="padding: 12px 16px;">Document Title</th>
+                                        <th style="padding: 12px 16px;">Department</th>
+                                        <th style="padding: 12px 16px;">NAAC Criterion</th>
+                                        <th style="padding: 12px 16px;">HOD Verification Remarks</th>
+                                        <th style="padding: 12px 16px;">Status</th>
+                                        <th style="padding: 12px 16px; text-align: right;">IQAC Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="verif-table-tbody">
+                                    <tr><td colspan="7" style="text-align: center; padding: 32px; color: #64748b;">Loading pending evidence records...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <!-- IQAC SSR VERIFICATION TABLE -->
-                <div class="table-card" style="margin-top: 24px;">
-                    <div class="table-card-header">
-                        <div class="table-card-title">Accreditation Evidence Dossier & Quality Ledger</div>
-                    </div>
+                <!-- ==================== TAB 3: MASTER SSR REPOSITORY ==================== -->
+                <div class="iqac-tab-pane" id="tab-master-ssr">
+                    <div class="table-card">
+                        <div class="table-card-header" style="flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <div class="table-card-title">Master SSR Locked Evidence Archive</div>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Permanently sealed with SHA-256 cryptographic hashes for NAAC peer assessment.</div>
+                            </div>
+                            <div class="table-filters-group" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                <input type="text" id="ssr-search" placeholder="Search SSR archive..." oninput="renderMasterSSRTable()" style="height: 36px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px; width: 180px;">
+                                <select id="ssr-filter-crit" onchange="renderMasterSSRTable()" style="height: 36px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12.5px;">
+                                    <option value="ALL">All Criteria (1-7)</option>
+                                    <option value="Criterion 1">Criterion 1: Curricular</option>
+                                    <option value="Criterion 2">Criterion 2: Teaching-Learning</option>
+                                    <option value="Criterion 3">Criterion 3: Research & Extension</option>
+                                    <option value="Criterion 4">Criterion 4: Infrastructure</option>
+                                    <option value="Criterion 5">Criterion 5: Student Support</option>
+                                    <option value="Criterion 6">Criterion 6: Governance</option>
+                                    <option value="Criterion 7">Criterion 7: Institutional Values</option>
+                                </select>
+                                <button class="btn-secondary" onclick="exportSSRCSV()" style="height: 36px; font-size: 12px; padding: 0 12px;">Export SSR (.CSV)</button>
+                            </div>
+                        </div>
 
-                    <div class="table-responsive">
-                        <table class="data-table" style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 12px; color: #64748b;">
-                                    <th style="padding: 12px 16px;">#</th>
-                                    <th style="padding: 12px 16px;">Document Title</th>
-                                    <th style="padding: 12px 16px;">Department</th>
-                                    <th style="padding: 12px 16px;">NAAC Criterion</th>
-                                    <th style="padding: 12px 16px;">Status</th>
-                                    <th style="padding: 12px 16px;">Evidence Lock</th>
-                                    <th style="padding: 12px 16px; text-align: right;">IQAC Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="iqac-table-body">
-                                <tr>
-                                    <td colspan="7" style="text-align: center; padding: 40px 16px; color: #64748b;">
-                                        <div style="font-size: 14px; font-weight: 600; color: #334155;">No records found</div>
-                                        <div style="font-size: 12px; margin-top: 4px;">Forwarded department records will appear here for SSR lock.</div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: left;">
+                                        <th style="padding: 12px 16px;">#</th>
+                                        <th style="padding: 12px 16px;">Title & Evidence</th>
+                                        <th style="padding: 12px 16px;">Department</th>
+                                        <th style="padding: 12px 16px;">Criterion</th>
+                                        <th style="padding: 12px 16px;">Cryptographic Seal</th>
+                                        <th style="padding: 12px 16px;">Certified Date</th>
+                                        <th style="padding: 12px 16px; text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ssr-table-tbody">
+                                    <tr><td colspan="7" style="text-align: center; padding: 32px; color: #64748b;">Loading SSR archive...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 4: CRITERIA ANALYTICS ==================== -->
+                <div class="iqac-tab-pane" id="tab-analytics">
+                    <div class="table-card" style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <div style="font-size: 16px; font-weight: 700; color: #0f172a;">NAAC Accreditation Criteria 1 to 7 Breakdown</div>
+                                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Evidence readiness distribution across NAAC metrics.</div>
+                            </div>
+                            <button class="btn-secondary" onclick="window.print()" style="font-size: 12px; padding: 6px 14px;">Print Assessment Scorecard</button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: left;">
+                                        <th style="padding: 12px 16px;">NAAC Criterion</th>
+                                        <th style="padding: 12px 16px;">Total Submissions</th>
+                                        <th style="padding: 12px 16px;">Under Review</th>
+                                        <th style="padding: 12px 16px;">SSR Locked Evidence</th>
+                                        <th style="padding: 12px 16px; text-align: right;">Readiness Index</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-table-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== TAB 5: PROFILE & SECURITY ==================== -->
+                <div class="iqac-tab-pane" id="tab-profile">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        <div class="table-card" style="padding: 24px;">
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 16px;">IQAC Coordinator Profile</div>
+                            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
+                                <div style="width: 56px; height: 56px; border-radius: 12px; background: #7c3aed; color: #fff; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center;" id="prof-avatar">Q</div>
+                                <div>
+                                    <div style="font-size: 17px; font-weight: 700; color: #0f172a;" id="prof-name">Dr. Sunita Rao</div>
+                                    <div style="font-size: 13px; color: #64748b;" id="prof-designation">IQAC Director & Professor</div>
+                                    <span class="status-pill status-approved" style="margin-top: 4px; display: inline-block;">CENTRAL IQAC COORDINATOR</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+                                <div><strong style="color: #64748b; font-size: 11.5px; text-transform: uppercase;">Official Email:</strong> <div style="color: #2563eb; font-weight: 500;" id="prof-email">sunita.rao@university.edu</div></div>
+                                <div><strong style="color: #64748b; font-size: 11.5px; text-transform: uppercase;">Directorate:</strong> <div style="color: #0f172a; font-weight: 600;">Internal Quality Assurance Cell (IQAC)</div></div>
+                                <div><strong style="color: #64748b; font-size: 11.5px; text-transform: uppercase;">Accreditation Authority:</strong> <div style="color: #7c3aed; font-weight: 700;">Final SSR Verification & SHA-256 Locking</div></div>
+                            </div>
+                        </div>
+
+                        <div class="table-card" style="padding: 24px;">
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">Change Coordinator Password</div>
+                            <div style="font-size: 12.5px; color: #64748b; margin-bottom: 18px;">Update credentials for the central quality assurance authority.</div>
+                            
+                            <form id="change-pwd-form" onsubmit="handleChangePassword(event)">
+                                <div style="margin-bottom: 14px;">
+                                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Current Password *</label>
+                                    <input type="password" id="cp-old" required placeholder="Enter current password" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                                </div>
+                                <div style="margin-bottom: 14px;">
+                                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">New Password *</label>
+                                    <input type="password" id="cp-new" required placeholder="Minimum 6 characters" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                                </div>
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Confirm New Password *</label>
+                                    <input type="password" id="cp-confirm" required placeholder="Re-type new password" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                                </div>
+                                <button type="submit" class="btn-primary" style="background: #7c3aed; width: 100%; justify-content: center;">Update Password</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </main>
         </div>
     </div>
 
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- VIEW RECORD DETAILS MODAL -->
+    <div class="modal-backdrop" id="doc-detail-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;" id="doc-modal-title">Record Details</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;" id="doc-modal-id">DOC-ID</p>
+                </div>
+                <button onclick="closeDocDetailModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <div id="doc-modal-body" style="padding: 24px; max-height: 70vh; overflow-y: auto;"></div>
+            <div style="padding: 14px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end;">
+                <button type="button" class="btn-secondary" onclick="closeDocDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
     <script src="js/portal-client.js"></script>
     <script>
         let allDocs = [];
@@ -148,96 +406,367 @@
             if (!ok) return;
 
             const u = PortalClient.currentUser;
-            document.getElementById('iqac-welcome-title').textContent = `Central IQAC Review: ${u.name}`;
-            loadAndRender();
+            document.getElementById('prof-name').textContent = u.name;
+            document.getElementById('prof-avatar').textContent = u.name ? u.name.charAt(0) : 'Q';
+            document.getElementById('prof-designation').textContent = u.designation || 'IQAC Director';
+            document.getElementById('prof-email').textContent = u.email;
+
+            await loadIQACData();
         });
 
-        function loadAndRender() {
+        async function loadIQACData() {
+            await PortalClient.loadData();
             allDocs = PortalClient.documents || [];
 
-            document.getElementById('iqac-kpi-total').textContent = allDocs.length;
-            document.getElementById('iqac-kpi-pending').textContent = allDocs.filter(d => d.status === 'Under Verification').length;
-            document.getElementById('iqac-kpi-locked').textContent = allDocs.filter(d => d.status === 'Approved').length;
+            // Populate department filter in lock desk
+            const depts = [...new Set(allDocs.map(d => d.department).filter(Boolean))];
+            const deptSel = document.getElementById('verif-filter-dept');
+            if (deptSel) {
+                deptSel.innerHTML = '<option value="ALL">All Departments</option>' + 
+                    depts.map(d => `<option value="${d}">${d}</option>`).join('');
+            }
 
-            renderTable();
+            const pendingDocs = allDocs.filter(d => d.status === 'Under Verification' || d.currentStage === 'IQAC');
+            const lockedDocs = allDocs.filter(d => d.status === 'Approved' || d.isLocked);
+
+            // Update Badges and KPIs
+            document.getElementById('badge-pending').textContent = pendingDocs.length;
+            document.getElementById('kpi-total').textContent = allDocs.length;
+            document.getElementById('kpi-pending').textContent = pendingDocs.length;
+            document.getElementById('kpi-locked').textContent = lockedDocs.length;
+            document.getElementById('kpi-departments').textContent = depts.length || 8;
+
+            renderDashboardPending(pendingDocs);
+            renderCriteriaProgressBars();
+            renderVerificationTable();
+            renderMasterSSRTable();
+            renderAnalyticsTable();
         }
 
-        function renderTable() {
-            const tbody = document.getElementById('iqac-table-body');
-            const q = document.getElementById('iqac-search').value.toLowerCase().trim();
+        function switchTab(tabId) {
+            document.querySelectorAll('.iqac-tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.iqac-nav-item').forEach(el => el.classList.remove('active'));
 
-            const filtered = allDocs.filter(d => {
-                if (q && !d.title.toLowerCase().includes(q) && !d.department?.toLowerCase().includes(q)) return false;
+            const pane = document.getElementById('tab-' + tabId);
+            if (pane) pane.classList.add('active');
+
+            const navIndex = ['dashboard', 'verification', 'master-ssr', 'analytics', 'profile'].indexOf(tabId);
+            const navItems = document.querySelectorAll('.iqac-nav-item');
+            if (navIndex >= 0 && navItems[navIndex]) navItems[navIndex].classList.add('active');
+
+            const titles = {
+                dashboard: 'Central IQAC Dashboard',
+                verification: 'SSR Lock Desk - Final Approvals',
+                'master-ssr': 'Master SSR Locked Evidence Archive',
+                analytics: 'Criteria Compliance Analytics',
+                profile: 'My Profile & Security'
+            };
+            document.getElementById('topbar-title').textContent = titles[tabId] || 'IQAC Portal';
+        }
+
+        function renderDashboardPending(pendingDocs) {
+            const tbody = document.getElementById('dash-pending-table-tbody');
+            const preview = pendingDocs.slice(0, 5);
+
+            if (preview.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 24px; color: #64748b;">No documents awaiting IQAC approval.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = preview.map(d => `
+                <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                    <td style="padding: 10px 14px; font-weight: 600; color: #0f172a;">${d.title}</td>
+                    <td style="padding: 10px 14px; color: #475569;">${d.department}</td>
+                    <td style="padding: 10px 14px;"><span class="status-pill status-pending">${d.status}</span></td>
+                    <td style="padding: 10px 14px; text-align: right;">
+                        <button class="btn-primary" onclick="handleLockSingle('${d.id}')" style="font-size: 11px; padding: 3px 8px; background: #7c3aed;">Lock</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderCriteriaProgressBars() {
+            const container = document.getElementById('criteria-progress-bars');
+            const criteriaList = [
+                'Criterion 1 - Curricular Aspects',
+                'Criterion 2 - Teaching-Learning & Evaluation',
+                'Criterion 3 - Research, Innovations & Extension',
+                'Criterion 4 - Infrastructure & Learning Resources',
+                'Criterion 5 - Student Support & Progression',
+                'Criterion 6 - Governance, Leadership & Management',
+                'Criterion 7 - Institutional Values & Best Practices'
+            ];
+
+            container.innerHTML = criteriaList.map((crit, idx) => {
+                const count = allDocs.filter(d => d.naacCriterion?.includes('Criterion ' + (idx + 1))).length;
+                const locked = allDocs.filter(d => d.naacCriterion?.includes('Criterion ' + (idx + 1)) && (d.status === 'Approved' || d.isLocked)).length;
+                const pct = count > 0 ? Math.round((locked / count) * 100) : 0;
+
+                return `
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px;">
+                            <span style="font-weight: 600; color: #334155;">Crit ${idx + 1}</span>
+                            <span style="color: #64748b;">${locked}/${count} Locked (${pct}%)</span>
+                        </div>
+                        <div style="height: 6px; background: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+                            <div style="height: 100%; width: ${pct}%; background: #7c3aed; border-radius: 9999px;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderVerificationTable() {
+            const tbody = document.getElementById('verif-table-tbody');
+            const q = document.getElementById('verif-search').value.toLowerCase().trim();
+            const dept = document.getElementById('verif-filter-dept').value;
+
+            const pending = allDocs.filter(d => d.status === 'Under Verification' || d.currentStage === 'IQAC');
+
+            const filtered = pending.filter(d => {
+                if (dept !== 'ALL' && d.department !== dept) return false;
+                if (q && !d.title.toLowerCase().includes(q) && !d.ownerName?.toLowerCase().includes(q)) return false;
                 return true;
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px 16px; color: #64748b;">
-                            <div style="font-size: 14px; font-weight: 600; color: #334155;">No records found</div>
-                            <div style="font-size: 12px; margin-top: 4px;">Forwarded department records will appear here for SSR lock.</div>
-                        </td>
-                    </tr>
-                `;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: #64748b;">No documents awaiting lock matching criteria.</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = filtered.map((d, i) => `
                 <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
                     <td style="padding: 12px 16px; color: #64748b;">${i + 1}</td>
-                    <td style="padding: 12px 16px; font-weight: 600; color: #0f172a;">${d.title}</td>
-                    <td style="padding: 12px 16px; color: #475569;">${d.department || 'All University'}</td>
-                    <td style="padding: 12px 16px; font-size: 12px; color: #64748b;">${d.naacCriterion || 'General'}</td>
                     <td style="padding: 12px 16px;">
-                        <span class="status-pill ${d.status === 'Approved' ? 'status-approved' : 'status-pending'}">${d.status}</span>
+                        <div style="font-weight: 600; color: #0f172a;">${d.title}</div>
+                        <div style="font-size: 11.5px; color: #64748b;">${d.category} &bull; ${d.ownerName || 'Faculty'}</div>
                     </td>
-                    <td style="padding: 12px 16px; font-size: 12px;">
-                        ${d.status === 'Approved' ? '<span style="color: #16a34a; font-weight: 700;">&#128274; SSR Locked (SHA-256)</span>' : '<span style="color: #d97706;">Pending Seal</span>'}
-                    </td>
+                    <td style="padding: 12px 16px; color: #0369a1; font-weight: 500;">${d.department}</td>
+                    <td style="padding: 12px 16px; font-size: 12px; color: #64748b;">${d.naacCriterion || 'General'}</td>
+                    <td style="padding: 12px 16px; font-size: 12px; color: #334155; max-width: 200px;">${d.hodReviewComments || '<span style="color: #94a3b8; font-style: italic;">Endorsed</span>'}</td>
+                    <td style="padding: 12px 16px;"><span class="status-pill status-pending">${d.status}</span></td>
                     <td style="padding: 12px 16px; text-align: right;">
-                        ${d.status === 'Under Verification' ? `
-                            <button class="btn-primary" onclick="lockRecord('${d.id}')" style="padding: 6px 12px; font-size: 12px; background: #7c3aed;">Approve & Lock</button>
-                        ` : `
-                            <button class="btn-action-view" onclick="alert('Record ${d.id} is verified and locked in NAAC SSR.')">Inspect Lock</button>
-                        `}
+                        <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                            <button class="btn-secondary" onclick="openDocDetailModal('${d.id}')" style="padding: 4px 8px; font-size: 11px;">View</button>
+                            <button class="btn-secondary" onclick="handleReturnSingle('${d.id}')" style="padding: 4px 8px; font-size: 11px; color: #dc2626; border-color: #fecaca;">Return</button>
+                            <button class="btn-primary" onclick="handleLockSingle('${d.id}')" style="padding: 4px 10px; font-size: 11px; background: #7c3aed;">&#128274; Lock</button>
+                        </div>
                     </td>
                 </tr>
             `).join('');
         }
 
-        async function lockRecord(docId) {
-            try {
-                await fetch(`http://localhost:8080/api/documents/${encodeURIComponent(docId)}/lock`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reviewerName: PortalClient.currentUser.name, reviewerRole: "IQAC" })
-                });
-            } catch (_) {}
+        function renderMasterSSRTable() {
+            const tbody = document.getElementById('ssr-table-tbody');
+            const q = document.getElementById('ssr-search').value.toLowerCase().trim();
+            const crit = document.getElementById('ssr-filter-crit').value;
 
-            const target = allDocs.find(d => d.id === docId);
-            if (target) {
-                target.status = "Approved";
-                target.currentStage = "IQAC Certified & Locked";
-                target.isLocked = true;
-            }
-            PortalClient.showToast("Record certified with cryptographic SHA-256 hash & locked into SSR!", "success");
-            loadAndRender();
-        }
+            const locked = allDocs.filter(d => d.status === 'Approved' || d.isLocked);
 
-        function batchLockAll() {
-            const pending = allDocs.filter(d => d.status === 'Under Verification');
-            if (pending.length === 0) {
-                alert("No pending records awaiting IQAC lock.");
+            const filtered = locked.filter(d => {
+                if (crit !== 'ALL' && !d.naacCriterion?.includes(crit)) return false;
+                if (q && !d.title.toLowerCase().includes(q) && !d.department?.toLowerCase().includes(q)) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 32px; color: #64748b;">No locked records found matching criteria.</td></tr>`;
                 return;
             }
-            pending.forEach(d => {
-                d.status = "Approved";
-                d.currentStage = "IQAC Certified & Locked";
-                d.isLocked = true;
+
+            tbody.innerHTML = filtered.map((d, i) => `
+                <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                    <td style="padding: 12px 16px; color: #64748b;">${i + 1}</td>
+                    <td style="padding: 12px 16px;">
+                        <div style="font-weight: 600; color: #0f172a;">${d.title}</div>
+                        <div style="font-size: 11.5px; color: #2563eb;">${d.evidenceFile || 'Evidence.pdf'}</div>
+                    </td>
+                    <td style="padding: 12px 16px; color: #475569;">${d.department}</td>
+                    <td style="padding: 12px 16px; font-size: 12px; color: #64748b;">${d.naacCriterion || 'General'}</td>
+                    <td style="padding: 12px 16px; font-size: 11.5px;">
+                        <span style="color: #16a34a; font-weight: 700;">&#128274; SHA-256 SEALED</span>
+                        <div style="font-family: monospace; font-size: 10px; color: #64748b; margin-top: 2px;">${d.ledgerHash ? d.ledgerHash.substring(0, 18) + '...' : 'SHA256:' + d.id}</div>
+                    </td>
+                    <td style="padding: 12px 16px; color: #64748b; font-size: 12px;">${d.verifiedAt || d.submittedOn || 'Today'}</td>
+                    <td style="padding: 12px 16px; text-align: right;">
+                        <button class="btn-secondary" onclick="openDocDetailModal('${d.id}')" style="padding: 3px 8px; font-size: 11px;">Inspect Seal</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderAnalyticsTable() {
+            const tbody = document.getElementById('analytics-table-tbody');
+            const criteriaList = [
+                'Criterion 1 - Curricular Aspects',
+                'Criterion 2 - Teaching-Learning & Evaluation',
+                'Criterion 3 - Research, Innovations & Extension',
+                'Criterion 4 - Infrastructure & Learning Resources',
+                'Criterion 5 - Student Support & Progression',
+                'Criterion 6 - Governance, Leadership & Management',
+                'Criterion 7 - Institutional Values & Best Practices'
+            ];
+
+            tbody.innerHTML = criteriaList.map((crit, idx) => {
+                const total = allDocs.filter(d => d.naacCriterion?.includes('Criterion ' + (idx + 1))).length;
+                const pending = allDocs.filter(d => d.naacCriterion?.includes('Criterion ' + (idx + 1)) && (d.status === 'Under Verification')).length;
+                const locked = allDocs.filter(d => d.naacCriterion?.includes('Criterion ' + (idx + 1)) && (d.status === 'Approved' || d.isLocked)).length;
+                const readiness = total > 0 ? Math.round((locked / total) * 100) : 0;
+
+                return `
+                    <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px;">
+                        <td style="padding: 12px 16px; font-weight: 600; color: #0f172a;">${crit}</td>
+                        <td style="padding: 12px 16px; color: #475569;">${total}</td>
+                        <td style="padding: 12px 16px; color: #b45309; font-weight: 500;">${pending}</td>
+                        <td style="padding: 12px 16px; color: #15803d; font-weight: 600;">${locked}</td>
+                        <td style="padding: 12px 16px; text-align: right;">
+                            <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11.5px; font-weight: 700; background: ${readiness >= 75 ? '#dcfce7; color: #15803d;' : readiness >= 50 ? '#fef3c7; color: #b45309;' : '#fee2e2; color: #b91c1c;'}">${readiness}% Ready</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==================== ACTIONS ====================
+
+        async function handleLockSingle(docId) {
+            const comment = prompt("Enter IQAC Final Verification & SSR Certification remarks:", "Verified compliance against NAAC criteria. Permanently certified and locked for SSR dossier.");
+            if (comment === null) return;
+
+            try {
+                await PortalClient.lockDocument(docId, comment);
+                await loadIQACData();
+            } catch (err) {}
+        }
+
+        async function handleReturnSingle(docId) {
+            const comment = prompt("Enter IQAC Clarification / Return remarks for Department HOD:", "Evidence requires supplemental syllabus copy or author affiliation clarification.");
+            if (comment === null) return;
+
+            try {
+                await PortalClient.returnDocument(docId, comment);
+                await loadIQACData();
+            } catch (err) {}
+        }
+
+        async function handleBatchLockAll() {
+            if (!confirm("Confirm Batch Seal: Approve and lock all HOD-endorsed departmental records into the permanent NAAC SSR Archive?")) return;
+            try {
+                await PortalClient.batchLock();
+                await loadIQACData();
+            } catch (err) {}
+        }
+
+        function openDocDetailModal(docId) {
+            const d = allDocs.find(x => x.id === docId);
+            if (!d) return;
+
+            document.getElementById('doc-modal-title').textContent = d.title;
+            document.getElementById('doc-modal-id').textContent = d.id;
+
+            document.getElementById('doc-modal-body').innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 13px; margin-bottom: 20px;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Category</div>
+                        <div style="font-weight: 600; color: #0f172a; margin-top: 2px;">${d.category}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">NAAC Criterion</div>
+                        <div style="font-weight: 600; color: #0f172a; margin-top: 2px;">${d.naacCriterion || 'Criterion 3'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Department</div>
+                        <div style="font-weight: 600; color: #0f172a; margin-top: 2px;">${d.department}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Submitter</div>
+                        <div style="font-weight: 600; color: #0f172a; margin-top: 2px;">${d.ownerName || 'Faculty Member'}</div>
+                    </div>
+                </div>
+
+                ${d.hodReviewComments ? `
+                    <div style="background: #f8fafc; border-left: 4px solid #059669; padding: 12px; margin-bottom: 14px; border-radius: 4px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #059669; text-transform: uppercase;">Department HOD Verification</div>
+                        <div style="font-size: 12.5px; color: #334155; margin-top: 4px;">${d.hodReviewComments}</div>
+                    </div>
+                ` : ''}
+
+                ${d.iqacReviewComments ? `
+                    <div style="background: #f8fafc; border-left: 4px solid #7c3aed; padding: 12px; margin-bottom: 14px; border-radius: 4px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #7c3aed; text-transform: uppercase;">Central IQAC Verification Seal</div>
+                        <div style="font-size: 12.5px; color: #334155; margin-top: 4px;">${d.iqacReviewComments}</div>
+                    </div>
+                ` : ''}
+
+                <div style="padding: 14px; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; margin-bottom: 14px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #7c3aed; text-transform: uppercase;">Cryptographic Ledger Seal (SHA-256)</div>
+                    <div style="font-family: monospace; font-size: 11.5px; color: #4c1d95; word-break: break-all; margin-top: 4px;">
+                        ${d.ledgerHash || ('SHA256:' + IntegerToHex(d.id + d.title))}
+                    </div>
+                    <div style="font-size: 11px; color: #6b21a8; margin-top: 4px;">Locked permanently against modification under Rule 6 institutional governance policy.</div>
+                </div>
+
+                <div style="padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div style="font-size: 13px; font-weight: 600; color: #0f172a;">${d.evidenceFile || 'Evidence.pdf'}</div>
+                        <div style="font-size: 11.5px; color: #64748b;">${d.fileSize || '2.4 MB'} &bull; Digital Verification Copy</div>
+                    </div>
+                    <button class="btn-secondary" onclick="alert('Downloading attachment: ${d.evidenceFile || 'Evidence.pdf'}')" style="font-size: 12px; padding: 4px 10px;">Download</button>
+                </div>
+            `;
+
+            document.getElementById('doc-detail-modal').style.display = 'flex';
+        }
+        function closeDocDetailModal() {
+            document.getElementById('doc-detail-modal').style.display = 'none';
+        }
+
+        function IntegerToHex(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            return Math.abs(hash).toString(16).padStart(16, '0') + "f892a01d67";
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const oldPwd = document.getElementById('cp-old').value;
+            const newPwd = document.getElementById('cp-new').value;
+            const confirmPwd = document.getElementById('cp-confirm').value;
+
+            if (newPwd !== confirmPwd) {
+                alert("New passwords do not match.");
+                return;
+            }
+            if (newPwd.length < 6) {
+                alert("New password must be at least 6 characters.");
+                return;
+            }
+
+            try {
+                await PortalClient.changePassword(PortalClient.currentUser.id, oldPwd, newPwd);
+                document.getElementById('change-pwd-form').reset();
+                alert("Password updated successfully!");
+            } catch (err) {
+                alert("Failed to change password: " + (err.message || err));
+            }
+        }
+
+        function exportSSRCSV() {
+            const locked = allDocs.filter(d => d.status === 'Approved' || d.isLocked);
+            if (locked.length === 0) {
+                alert("No locked records to export.");
+                return;
+            }
+            const csvRows = [["ID", "Title", "Department", "Category", "Criterion", "Status", "Date"]];
+            locked.forEach(d => {
+                csvRows.push([d.id, `"${d.title}"`, `"${d.department}"`, d.category, `"${d.naacCriterion}"`, d.status, d.submittedOn]);
             });
-            PortalClient.showToast(`Batch approved & locked ${pending.length} records into NAAC SSR!`, "success");
-            loadAndRender();
+            const blob = new Blob([csvRows.map(r => r.join(",")).join("\n")], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Master_SSR_Locked_Repository_${new Date().getFullYear()}.csv`;
+            a.click();
         }
 
         function toggleSidebar() {

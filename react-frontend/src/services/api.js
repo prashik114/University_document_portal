@@ -134,11 +134,40 @@ export const api = {
   deleteUser:  (id) => request(`/users/${encodeURIComponent(id)}`, { method: 'DELETE', headers: {} }),
   // ── Users & Provisioning ───────────────────────────────────────────────
   getUsers: () => request('/users'),
+
   provisionUser: (user) =>
-    request('/users', {
-      method: 'POST',
-      body: JSON.stringify(user),
+    request('/users', { method: 'POST', body: JSON.stringify(user) }),
+
+  updateUser: (id, data) =>
+    request(`/users/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     }),
+
+  updateUserStatus: (id, status) =>
+    request(`/users/${encodeURIComponent(id)}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+
+  updateUserPermissions: (id, perms) =>
+    request(`/users/${encodeURIComponent(id)}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify(perms),
+    }),
+
   deleteUser: (id) =>
     request(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  // ── Departments ───────────────────────────────────────────────────────────
+  getDepartments: () => request('/departments'),
+
+  createDepartment: (dept) =>
+    request('/departments', { method: 'POST', body: JSON.stringify(dept) }),
+
+  updateDepartment: (id, dept) =>
+    request(`/departments/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dept),
+    }),
 };

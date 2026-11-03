@@ -440,18 +440,18 @@ public class DocumentController {
     // ── Helper methods for role and department authorization ──────────────────
 
     private String resolveRole(String r1, String r2, String h1, String h2) {
-        if (r1 != null && !r1.isBlank()) return r1.trim();
-        if (r2 != null && !r2.isBlank()) return r2.trim();
         if (h1 != null && !h1.isBlank()) return h1.trim();
         if (h2 != null && !h2.isBlank()) return h2.trim();
+        if (r1 != null && !r1.isBlank()) return r1.trim();
+        if (r2 != null && !r2.isBlank()) return r2.trim();
         return "";
     }
 
     private String resolveDept(String d1, String d2, String h1, String h2) {
-        if (d1 != null && !d1.isBlank()) return d1.trim();
-        if (d2 != null && !d2.isBlank()) return d2.trim();
         if (h1 != null && !h1.isBlank()) return h1.trim();
         if (h2 != null && !h2.isBlank()) return h2.trim();
+        if (d1 != null && !d1.isBlank()) return d1.trim();
+        if (d2 != null && !d2.isBlank()) return d2.trim();
         return "";
     }
 
