@@ -100,16 +100,17 @@ public class StateController {
 
     /**
      * Deletes all transactional data (documents, audit logs, activities,
-     * revision requests). Users and settings are preserved.
-     *
-     * <p>Requires the {@code X-Admin-Token} header to match
-     * {@code PORTAL-ADMIN-RESET-2026} to prevent accidental or malicious
-     * invocation.</p>
+     * revision requests). When purgeUsers=true, resets all department
+     * HOD assignments to unassigned and deletes all users except:
+     * - 1 Main Admin (admin@university.edu)
+     * - 1 IQAC Officer (sunita.rao@university.edu)
+     * - 1 NAAC Inspector (naac.evaluator@naac.gov.in)
      */
     @PostMapping("/reset")
     @Transactional
-    public ResponseEntity<Map<String, String>> resetData(
-            @RequestHeader(value = "X-Admin-Token", required = false) String token) {
+    public ResponseEntity<Map<String, Object>> resetData(
+            @RequestHeader(value = "X-Admin-Token", required = false) String token,
+            @RequestParam(value = "purgeUsers", defaultValue = "false") boolean purgeUsers) {
 
         if (!ADMIN_RESET_TOKEN.equals(token)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -121,7 +122,46 @@ public class StateController {
         activityRepository.deleteAllInBatch();
         revisionRepository.deleteAllInBatch();
 
-        return ResponseEntity.ok(Map.of("message",
-                "Database reset to clean state. Users and settings preserved."));
+        int deletedUsersCount = 0;
+        if (purgeUsers) {
+            // Unassign HODs from all departments
+            List<com.university.portal.entity.DepartmentEntity> depts = departmentRepository.findAll();
+            for (com.university.portal.entity.DepartmentEntity d : depts) {
+                d.setHodId(null);
+                d.setHodName("Unassigned");
+            }
+            departmentRepository.saveAll(depts);
+
+            // Keep strictly 1 Admin, 1 IQAC officer, 1 Inspector
+            List<com.university.portal.entity.UserEntity> allUsers = userRepository.findAll();
+            for (com.university.portal.entity.UserEntity u : allUsers) {
+                boolean keep = "admin@university.edu".equalsIgnoreCase(u.getEmail())
+                        || "sunita.rao@university.edu".equalsIgnoreCase(u.getEmail())
+                        || "naac.evaluator@naac.gov.in".equalsIgnoreCase(u.getEmail())
+                        || "USR-004".equals(u.getId())
+                        || "USR-003".equals(u.getId())
+                        || "USR-005".equals(u.getId());
+                if (!keep) {
+                    userRepository.delete(u);
+                    deletedUsersCount++;
+                } else {
+                    u.setStatus("Active");
+                    if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) {
+                        u.setPasswordHash(com.university.portal.service.DataSeederService.DEMO_PASSWORD_HASH);
+                    }
+                    userRepository.save(u);
+                }
+            }
+        }
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("message", purgeUsers 
+                ? "Full database purge complete. Kept 1 Admin, 1 IQAC Officer, and 1 NAAC Inspector; cleared all other users and documents."
+                : "Database reset to clean state. Users and settings preserved.");
+        resp.put("documentsCount", documentRepository.count());
+        resp.put("usersRemaining", userRepository.count());
+        resp.put("usersDeleted", deletedUsersCount);
+
+        return ResponseEntity.ok(resp);
     }
 }

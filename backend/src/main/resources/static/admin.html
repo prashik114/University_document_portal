@@ -806,6 +806,19 @@
                                 <button type="submit" class="btn-primary" style="background: #2563eb; padding: 10px 24px;">Save Institutional Settings</button>
                             </div>
                         </form>
+
+                        <hr style="border: 0; border-top: 1px solid #fee2e2; margin: 30px 0 20px 0;">
+
+                        <div style="border: 1px solid #fecaca; background: #fff5f5; border-radius: 8px; padding: 18px;">
+                            <h3 style="font-size: 15px; font-weight: 700; color: #991b1b; margin: 0 0 6px 0;">5. Maintenance & Database Purge</h3>
+                            <p style="font-size: 12.5px; color: #7f1d1d; margin: 0 0 14px 0; line-height: 1.5;">
+                                Purge all transactional documents, revisions, logs, and user accounts. Preserves strictly the <strong>1 Admin</strong>, <strong>1 IQAC Officer</strong>, and <strong>1 NAAC Inspector</strong> accounts, resetting all departments to unassigned so you can provision fresh departments, HODs, faculty, and students.
+                            </p>
+                            <button type="button" onclick="handlePurgeDatabase()" class="btn-primary" style="background: #dc2626; padding: 9px 18px; font-size: 13px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                Clear Full Database (Keep 1 Admin, 1 IQAC, 1 Inspector)
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1920,6 +1933,27 @@ Enter number (1-${hods.length}), or 0 to clear:`;
                 updateDashboardKPIs();
                 populateDropdowns();
             } catch (err) {}
+        }
+
+        async function handlePurgeDatabase() {
+            if (!confirm("CAUTION: This will delete all documents, revisions, logs, and all user accounts EXCEPT the 1 Admin, 1 IQAC Officer, and 1 NAAC Inspector.\n\nDepartments will be reset to unassigned so you can create new users.\n\nAre you sure you want to proceed?")) {
+                return;
+            }
+            try {
+                const res = await fetch('/api/state/reset?purgeUsers=true', {
+                    method: 'POST',
+                    headers: { 'X-Admin-Token': 'PORTAL-ADMIN-RESET-2026' }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Database successfully purged.');
+                    window.location.reload();
+                } else {
+                    alert('Purge failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Purge request failed: ' + err.message);
+            }
         }
 
         // ── HELPER: CSV EXPORT ────────────────────────────────────────────────
