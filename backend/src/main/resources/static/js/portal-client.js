@@ -24,8 +24,9 @@ const PortalClient = {
     // Initialize session and verify portal authorization
     async init(allowedRoles = []) {
         // Retrieve session
-        const rawUser = localStorage.getItem("portal_current_user") || sessionStorage.getItem("portal_current_user");
-        const isAuth = localStorage.getItem("portal_auth_user") || sessionStorage.getItem("portal_auth_user");
+        // Enforce explicit authentication on portal startup: check active browser session only
+        const isAuth = sessionStorage.getItem("portal_auth_user");
+        const rawUser = sessionStorage.getItem("portal_current_user");
 
         if (isAuth !== "true" || !rawUser) {
             this.redirectToLogin("Please sign in to access your institutional portal.");

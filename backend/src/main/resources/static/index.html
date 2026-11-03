@@ -11,8 +11,9 @@
     <script>
         // Automatic Gateway Dispatcher
         (function() {
-            var isAuth = localStorage.getItem("portal_auth_user") || sessionStorage.getItem("portal_auth_user");
-            var rawUser = localStorage.getItem("portal_current_user") || sessionStorage.getItem("portal_current_user");
+            // Enforce explicit authentication on portal startup: check active browser session only
+            var isAuth = sessionStorage.getItem("portal_auth_user");
+            var rawUser = sessionStorage.getItem("portal_current_user");
 
             if (isAuth !== "true" || !rawUser) {
                 window.location.replace("login.html");

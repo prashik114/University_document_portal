@@ -35,12 +35,17 @@ function exportCSV(records, filename = 'Records_Export.csv') {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function App() {
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth: Always require sign-in on fresh portal start ───────────────────
   const [currentUser, setCurrentUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('portal_user_profile')); } catch { return null; }
+    try {
+      const raw = sessionStorage.getItem('portal_user_profile');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   });
   const [isAuthenticated, setIsAuthenticated] = useState(
-    () => localStorage.getItem('portal_auth_user') === 'true'
+    () => sessionStorage.getItem('portal_auth_user') === 'true'
   );
 
   // ── Remote data ───────────────────────────────────────────────────────────
@@ -104,7 +109,9 @@ export default function App() {
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
-    localStorage.setItem('portal_auth_user',    'true');
+    sessionStorage.setItem('portal_auth_user', 'true');
+    sessionStorage.setItem('portal_user_profile', JSON.stringify(user));
+    localStorage.setItem('portal_auth_user', 'true');
     localStorage.setItem('portal_user_profile', JSON.stringify(user));
   };
 
@@ -112,6 +119,8 @@ export default function App() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setUserMenuOpen(false);
+    sessionStorage.removeItem('portal_auth_user');
+    sessionStorage.removeItem('portal_user_profile');
     localStorage.removeItem('portal_auth_user');
     localStorage.removeItem('portal_user_profile');
     showToast('Logged out successfully.', 'info');
