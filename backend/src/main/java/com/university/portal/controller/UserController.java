@@ -182,6 +182,15 @@ public class UserController {
             user.setPasswordHash(com.university.portal.service.DataSeederService.DEMO_PASSWORD_HASH);
         }
 
+        // Governance roles: Admin, IQAC Officer, and Inspector must NOT have any institute department
+        if ("Admin".equalsIgnoreCase(user.getRole()) ||
+            "IQAC".equalsIgnoreCase(user.getRole()) ||
+            "Inspector".equalsIgnoreCase(user.getRole())) {
+            user.setDepartment(null);
+            user.setAdditionalDepartments(null);
+            user.setSchool("Central Administration");
+        }
+
         UserEntity saved = userRepository.save(user);
 
         // Record audit trail and recent activity
@@ -293,6 +302,14 @@ public class UserController {
         }
         if (updated.getAdditionalDepartments() != null) {
             user.setAdditionalDepartments(updated.getAdditionalDepartments().trim());
+        }
+
+        // Governance roles: Admin, IQAC Officer, and Inspector must NOT have any institute department
+        if ("Admin".equalsIgnoreCase(user.getRole()) ||
+            "IQAC".equalsIgnoreCase(user.getRole()) ||
+            "Inspector".equalsIgnoreCase(user.getRole())) {
+            user.setDepartment(null);
+            user.setAdditionalDepartments(null);
         }
 
         UserEntity saved = userRepository.save(user);

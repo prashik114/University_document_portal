@@ -106,19 +106,19 @@ public class DataSeederService implements CommandLineRunner {
         List<UserEntity> users = List.of(
             user("USR-004", "Er. Vikram Mehta",      "admin@university.edu",
                  "Admin",     "Repository Administrator",
-                 "Chief Systems & Governance Administrator", "Central IT & Institutional Governance",
-                 "University Administration", "ADM-SYS-001", "A", "badge-admin",
+                 "Chief Systems & Governance Administrator", null,
+                 "Central Administration", "ADM-SYS-001", "A", "badge-admin",
                  "Manage academic cycles, authorize post-approval revisions, govern user directory"),
 
             user("USR-003", "Dr. Sunita Rao",        "sunita.rao@university.edu",
                  "IQAC",      "Director & Central IQAC Coordinator",
-                 "Director & Central IQAC Coordinator", "Internal Quality Assurance Cell",
-                 "Central University Administration", "IQAC-DIR-004", "I", "badge-pdf",
+                 "Director & Central IQAC Coordinator", null,
+                 "Central Administration", "IQAC-DIR-004", "I", "badge-pdf",
                  "Audit NAAC criteria compliance, generate tamper-evident hashes & lock evidence"),
 
             user("USR-005", "Dr. M. S. Swaminathan", "naac.evaluator@naac.gov.in",
                  "Inspector", "NAAC Peer Team Lead Assessor",
-                 "External Peer Review Team Assessor", "NAAC Peer Review Committee",
+                 "External Peer Review Team Assessor", null,
                  "External Assessment & Accreditation Council", "EXT-NAAC-881", "E", "badge-inspector",
                  "Read-only access to accredited evidence registers and institutional SSR reports")
         );

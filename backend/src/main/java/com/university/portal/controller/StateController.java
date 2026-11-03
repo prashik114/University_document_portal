@@ -146,6 +146,8 @@ public class StateController {
                     deletedUsersCount++;
                 } else {
                     u.setStatus("Active");
+                    u.setDepartment(null);
+                    u.setAdditionalDepartments(null);
                     if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) {
                         u.setPasswordHash(com.university.portal.service.DataSeederService.DEMO_PASSWORD_HASH);
                     }

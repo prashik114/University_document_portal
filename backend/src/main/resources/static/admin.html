@@ -852,7 +852,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                     <div>
                         <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Institutional Role *</label>
-                        <select id="adm-prov-role" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                        <select id="adm-prov-role" required onchange="handleProvisionRoleChange()" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
                             <option value="DeanHOD">Dean / HOD</option>
                             <option value="IQAC">IQAC Coordinator</option>
                             <option value="Faculty">Faculty Member</option>
@@ -861,10 +861,14 @@
                             <option value="Admin">Central IT Administrator</option>
                         </select>
                     </div>
-                    <div>
+                    <div id="adm-prov-dept-container">
                         <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Department / School *</label>
                         <select id="adm-prov-dept" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;"></select>
                     </div>
+                </div>
+                <div id="adm-prov-dept-notice" style="display: none; padding: 9px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534; margin-bottom: 14px;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <strong>Institutional Governance / External Role:</strong> This role operates at the university/external accreditation level and does not belong to any institute department.
                 </div>
                 <div style="margin-bottom: 14px;">
                     <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Academic Designation / Title</label>
@@ -906,7 +910,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                     <div>
                         <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Role *</label>
-                        <select id="edit-user-role" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                        <select id="edit-user-role" required onchange="handleEditRoleChange()" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
                             <option value="Admin">Admin</option>
                             <option value="DeanHOD">Dean / HOD</option>
                             <option value="Faculty">Faculty</option>
@@ -915,10 +919,14 @@
                             <option value="Inspector">NAAC Inspector</option>
                         </select>
                     </div>
-                    <div>
+                    <div id="edit-user-dept-container">
                         <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Primary Department *</label>
                         <select id="edit-user-dept" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;"></select>
                     </div>
+                </div>
+                <div id="edit-user-dept-notice" style="display: none; padding: 9px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 12px; color: #166534; margin-bottom: 14px;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <strong>Institutional Governance / External Role:</strong> This role operates at the university/external accreditation level and does not belong to any institute department.
                 </div>
                 <div style="margin-bottom: 14px;">
                     <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Designation</label>
@@ -1232,7 +1240,7 @@
                         </span>
                     </td>
                     <td style="padding: 12px 16px; color: #475569;">
-                        <div><strong>${u.department || '—'}</strong></div>
+                        <div>${(u.role === 'Admin' || u.role === 'IQAC' || u.role === 'Inspector') ? '<span style="color: #64748b; font-size: 11.5px; font-style: italic;">Institutional / Central Scope</span>' : `<strong>${u.department || '—'}</strong>`}</div>
                         ${u.additionalDepartments ? `<div style="font-size: 11px; color: #0284c7; margin-top: 2px;">+ Extra Scope: <strong>${u.additionalDepartments}</strong></div>` : ''}
                     </td>
                     <td style="padding: 12px 16px; color: #475569; font-size: 12px;">${u.employeeId || u.id}</td>
@@ -1254,8 +1262,67 @@
             `).join('');
         }
 
+        function handleProvisionRoleChange() {
+            const roleEl = document.getElementById('adm-prov-role');
+            if (!roleEl) return;
+            const role = roleEl.value;
+            const deptContainer = document.getElementById('adm-prov-dept-container');
+            const deptNotice = document.getElementById('adm-prov-dept-notice');
+            const deptSelect = document.getElementById('adm-prov-dept');
+            const extraContainer = document.getElementById('adm-prov-extra-depts-container');
+
+            const isInstitutional = (role === 'Admin' || role === 'IQAC' || role === 'Inspector');
+
+            if (isInstitutional) {
+                if (deptContainer) deptContainer.style.display = 'none';
+                if (deptNotice) deptNotice.style.display = 'block';
+                if (deptSelect) {
+                    deptSelect.removeAttribute('required');
+                    deptSelect.value = '';
+                }
+                if (extraContainer) extraContainer.style.display = 'none';
+            } else {
+                if (deptContainer) deptContainer.style.display = 'block';
+                if (deptNotice) deptNotice.style.display = 'none';
+                if (deptSelect) deptSelect.setAttribute('required', 'required');
+                if (extraContainer) {
+                    extraContainer.style.display = (role === 'DeanHOD') ? 'block' : 'none';
+                }
+            }
+        }
+
+        function handleEditRoleChange() {
+            const roleEl = document.getElementById('edit-user-role');
+            if (!roleEl) return;
+            const role = roleEl.value;
+            const deptContainer = document.getElementById('edit-user-dept-container');
+            const deptNotice = document.getElementById('edit-user-dept-notice');
+            const deptSelect = document.getElementById('edit-user-dept');
+            const extraContainer = document.getElementById('edit-user-extra-depts-container');
+
+            const isInstitutional = (role === 'Admin' || role === 'IQAC' || role === 'Inspector');
+
+            if (isInstitutional) {
+                if (deptContainer) deptContainer.style.display = 'none';
+                if (deptNotice) deptNotice.style.display = 'block';
+                if (deptSelect) {
+                    deptSelect.removeAttribute('required');
+                    deptSelect.value = '';
+                }
+                if (extraContainer) extraContainer.style.display = 'none';
+            } else {
+                if (deptContainer) deptContainer.style.display = 'block';
+                if (deptNotice) deptNotice.style.display = 'none';
+                if (deptSelect) deptSelect.setAttribute('required', 'required');
+                if (extraContainer) {
+                    extraContainer.style.display = (role === 'DeanHOD') ? 'block' : 'none';
+                }
+            }
+        }
+
         function openAdminProvisionModal() {
             document.getElementById('admin-provision-modal').style.display = 'flex';
+            handleProvisionRoleChange();
         }
 
         function closeAdminProvisionModal() {
@@ -1265,12 +1332,16 @@
 
         async function handleAdminProvisionSubmit(e) {
             e.preventDefault();
-            const extra = document.getElementById('adm-prov-extra-depts') ? document.getElementById('adm-prov-extra-depts').value.trim() : '';
+            const role = document.getElementById('adm-prov-role').value;
+            const isInstitutional = (role === 'Admin' || role === 'IQAC' || role === 'Inspector');
+            const dept = isInstitutional ? '' : (document.getElementById('adm-prov-dept') ? document.getElementById('adm-prov-dept').value : '');
+            const extra = (!isInstitutional && role === 'DeanHOD' && document.getElementById('adm-prov-extra-depts')) 
+                ? document.getElementById('adm-prov-extra-depts').value.trim() : '';
             const userData = {
                 name: document.getElementById('adm-prov-name').value.trim(),
                 email: document.getElementById('adm-prov-email').value.trim(),
-                role: document.getElementById('adm-prov-role').value,
-                department: document.getElementById('adm-prov-dept').value,
+                role: role,
+                department: dept,
                 designation: document.getElementById('adm-prov-designation').value.trim(),
                 additionalDepartments: extra
             };
@@ -1298,6 +1369,7 @@
                 document.getElementById('edit-user-extra-depts').value = u.additionalDepartments || '';
             }
 
+            handleEditRoleChange();
             document.getElementById('edit-user-modal').style.display = 'flex';
         }
 
@@ -1308,12 +1380,16 @@
         async function handleEditUserSubmit(e) {
             e.preventDefault();
             const id = document.getElementById('edit-user-id').value;
-            const extra = document.getElementById('edit-user-extra-depts') ? document.getElementById('edit-user-extra-depts').value.trim() : '';
+            const role = document.getElementById('edit-user-role').value;
+            const isInstitutional = (role === 'Admin' || role === 'IQAC' || role === 'Inspector');
+            const dept = isInstitutional ? '' : (document.getElementById('edit-user-dept') ? document.getElementById('edit-user-dept').value : '');
+            const extra = (!isInstitutional && role === 'DeanHOD' && document.getElementById('edit-user-extra-depts')) 
+                ? document.getElementById('edit-user-extra-depts').value.trim() : '';
             const userData = {
                 name: document.getElementById('edit-user-name').value.trim(),
                 email: document.getElementById('edit-user-email').value.trim(),
-                role: document.getElementById('edit-user-role').value,
-                department: document.getElementById('edit-user-dept').value,
+                role: role,
+                department: dept,
                 designation: document.getElementById('edit-user-designation').value.trim(),
                 additionalDepartments: extra
             };
@@ -1330,6 +1406,11 @@
         function openViewUserModal(userId) {
             const u = allUsers.find(x => x.id === userId);
             if (!u) return;
+
+            const isInst = (u.role === 'Admin' || u.role === 'IQAC' || u.role === 'Inspector');
+            const deptDisplay = isInst 
+                ? '<span style="color: #64748b; font-style: italic;">Not Applicable (Institutional / External Scope)</span>'
+                : `<strong style="color: #0f172a;">${u.department || '—'}</strong>`;
 
             const extraDepts = u.additionalDepartments ? u.additionalDepartments.split(',').map(d => `<span style="display: inline-block; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 2px;">${d.trim()}</span>`).join(' ') : '<span style="color: #94a3b8; font-style: italic;">None (Default department only)</span>';
 
@@ -1357,13 +1438,14 @@
                         <div style="color: #0f172a; font-weight: 600; margin-top: 2px;">${u.employeeId || u.id}</div>
                     </div>
                     <div style="grid-column: span 2;">
-                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Primary Department</div>
-                        <div style="color: #0f172a; font-weight: 600; margin-top: 2px;">${u.department || 'All University'}</div>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Department Scope</div>
+                        <div style="margin-top: 2px;">${deptDisplay}</div>
                     </div>
+                    ${!isInst ? `
                     <div style="grid-column: span 2;">
                         <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;">Additional Department Clearances</div>
                         <div style="margin-top: 4px;">${extraDepts}</div>
-                    </div>
+                    </div>` : ''}
                 </div>
             `;
             document.getElementById('view-user-modal').style.display = 'flex';
