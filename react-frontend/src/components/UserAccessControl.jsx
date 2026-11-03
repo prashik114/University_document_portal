@@ -162,6 +162,16 @@ export default function UserAccessControl({
     setFormBusy(true);
     try {
       const isInstitutional = ['Admin', 'IQAC', 'Inspector'].includes(form.role);
+
+      if (form.role === 'DeanHOD' && form.department) {
+        const existingHod = users.find(u => u.role === 'DeanHOD' && u.status === 'Active' && (!editUser || u.id !== editUser.id) && u.department && u.department.trim().toLowerCase() === form.department.trim().toLowerCase());
+        if (existingHod) {
+          showToast(`Department '${form.department}' already has an assigned Head of Department (${existingHod.name}). Each department can only have a single HOD.`, 'error');
+          setFormBusy(false);
+          return;
+        }
+      }
+
       const payload = {
         name:        form.name.trim(),
         email:       form.email.trim().toLowerCase(),
@@ -426,7 +436,9 @@ export default function UserAccessControl({
           form={form}
           setForm={setForm}
           isEdit={!!editUser}
+          editUserId={editUser?.id}
           departments={departments}
+          users={users}
           onSubmit={handleFormSubmit}
           onClose={() => setShowCreateModal(false)}
           busy={formBusy}
@@ -457,7 +469,7 @@ export default function UserAccessControl({
 
 // ── UserFormModal ──────────────────────────────────────────────────────────────
 
-function UserFormModal({ form, setForm, isEdit, departments, onSubmit, onClose, busy }) {
+function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, onSubmit, onClose, busy }) {
   const f = (field, val) => setForm(prev => ({ ...prev, [field]: val }));
   const deptOptions = departments.map(d => d.name).filter(Boolean);
 
@@ -517,11 +529,30 @@ function UserFormModal({ form, setForm, isEdit, departments, onSubmit, onClose, 
             </div>
           ) : (
             <div>
-              <label style={labelStyle}>Primary Department *</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Primary Department *</label>
+                {form.role === 'DeanHOD' && (
+                  <span style={{ fontSize: 11, color: '#0284c7', fontWeight: 600 }}>Rule: Single HOD per department</span>
+                )}
+              </div>
               <select value={form.department} onChange={e => f('department', e.target.value)} style={selectStyle} required>
                 <option value="">— Select Department —</option>
-                {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                {deptOptions.map(d => {
+                  const existingHod = (form.role === 'DeanHOD' && users)
+                    ? users.find(u => u.role === 'DeanHOD' && (u.status || 'Active') === 'Active' && (!isEdit || u.id !== editUserId) && u.department && u.department.trim().toLowerCase() === d.trim().toLowerCase())
+                    : null;
+                  return (
+                    <option key={d} value={d} disabled={Boolean(existingHod)}>
+                      {d} {existingHod ? `(HOD: ${existingHod.name} - Occupied)` : ' (Available)'}
+                    </option>
+                  );
+                })}
               </select>
+              {form.role === 'DeanHOD' && form.department && users && users.find(u => u.role === 'DeanHOD' && (u.status || 'Active') === 'Active' && (!isEdit || u.id !== editUserId) && u.department && u.department.trim().toLowerCase() === form.department.trim().toLowerCase()) && (
+                <div style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>
+                  ⚠️ This department already has an assigned HOD. Each department can only have a single HOD.
+                </div>
+              )}
             </div>
           )}
 

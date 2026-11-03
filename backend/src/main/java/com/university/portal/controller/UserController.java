@@ -1,9 +1,11 @@
 package com.university.portal.controller;
 
 import com.university.portal.entity.AuditLogEntity;
+import com.university.portal.entity.DepartmentEntity;
 import com.university.portal.entity.RecentActivityEntity;
 import com.university.portal.entity.UserEntity;
 import com.university.portal.repository.AuditLogRepository;
+import com.university.portal.repository.DepartmentRepository;
 import com.university.portal.repository.RecentActivityRepository;
 import com.university.portal.repository.UserRepository;
 import com.university.portal.util.IdGenerator;
@@ -16,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Controller enforcing role-based access control, account provisioning hierarchy,
@@ -36,13 +39,16 @@ public class UserController {
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
     private final RecentActivityRepository activityRepository;
+    private final DepartmentRepository departmentRepository;
 
     public UserController(UserRepository userRepository,
                           AuditLogRepository auditLogRepository,
-                          RecentActivityRepository activityRepository) {
+                          RecentActivityRepository activityRepository,
+                          DepartmentRepository departmentRepository) {
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.activityRepository = activityRepository;
+        this.departmentRepository = departmentRepository;
     }
 
     @GetMapping
@@ -191,7 +197,28 @@ public class UserController {
             user.setSchool("Central Administration");
         }
 
+        // Rule: Each department can have at most ONE active Head of Department (HOD)
+        if ("DeanHOD".equalsIgnoreCase(user.getRole())) {
+            if (user.getDepartment() == null || user.getDepartment().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Primary department is required for Head of Department (HOD)."));
+            }
+            String targetDept = user.getDepartment().trim();
+            Optional<UserEntity> existingHod = findExistingActiveHod(targetDept, null);
+            if (existingHod.isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "Department '" + targetDept + "' already has an assigned Head of Department: " 
+                             + existingHod.get().getName() + " (" + existingHod.get().getEmail() + "). "
+                             + "Each department can only have a single HOD."
+                ));
+            }
+        }
+
         UserEntity saved = userRepository.save(user);
+
+        // Sync department HOD info
+        if ("DeanHOD".equalsIgnoreCase(saved.getRole()) && saved.getDepartment() != null) {
+            syncDepartmentHod(null, saved.getDepartment(), saved.getId(), saved.getName());
+        }
 
         // Record audit trail and recent activity
         String nowStr = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").format(LocalDateTime.now());
@@ -279,6 +306,27 @@ public class UserController {
                     .body(Map.of("error", "Access Denied: You do not have permission to edit user accounts."));
         }
 
+        String oldRole = user.getRole();
+        String oldDept = user.getDepartment();
+
+        String targetRole = updated.getRole() != null && !updated.getRole().isBlank() ? updated.getRole().trim() : user.getRole();
+        String targetDept = updated.getDepartment() != null ? updated.getDepartment().trim() : user.getDepartment();
+
+        // Rule: Each department can have at most ONE active Head of Department (HOD)
+        if ("DeanHOD".equalsIgnoreCase(targetRole)) {
+            if (targetDept == null || targetDept.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Primary department is required for Head of Department (HOD)."));
+            }
+            Optional<UserEntity> existingHod = findExistingActiveHod(targetDept, user.getId());
+            if (existingHod.isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "Department '" + targetDept + "' already has an assigned Head of Department: " 
+                             + existingHod.get().getName() + " (" + existingHod.get().getEmail() + "). "
+                             + "Each department can only have a single HOD."
+                ));
+            }
+        }
+
         if (updated.getName() != null && !updated.getName().isBlank()) {
             user.setName(updated.getName().trim());
         }
@@ -313,6 +361,13 @@ public class UserController {
         }
 
         UserEntity saved = userRepository.save(user);
+
+        // Sync department HOD info
+        if ("DeanHOD".equalsIgnoreCase(saved.getRole())) {
+            syncDepartmentHod(oldDept, saved.getDepartment(), saved.getId(), saved.getName());
+        } else if ("DeanHOD".equalsIgnoreCase(oldRole)) {
+            clearDepartmentHod(saved.getId());
+        }
 
         String nowStr = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").format(LocalDateTime.now());
         auditLogRepository.save(new AuditLogEntity(
@@ -393,6 +448,21 @@ public class UserController {
             newStatus = activeParam ? "Active" : "Inactive";
         }
         String oldStatus = user.getStatus();
+        if ("DeanHOD".equalsIgnoreCase(user.getRole())) {
+            if ("Active".equalsIgnoreCase(newStatus)) {
+                Optional<UserEntity> existingHod = findExistingActiveHod(user.getDepartment(), user.getId());
+                if (existingHod.isPresent()) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                        "error", "Cannot activate HOD: Department '" + user.getDepartment() + "' already has an active Head of Department: " 
+                                 + existingHod.get().getName() + " (" + existingHod.get().getEmail() + "). "
+                                 + "Each department can only have a single HOD."
+                    ));
+                }
+                syncDepartmentHod(null, user.getDepartment(), user.getId(), user.getName());
+            } else {
+                clearDepartmentHod(user.getId());
+            }
+        }
         user.setStatus(newStatus);
         UserEntity saved = userRepository.save(user);
 
@@ -498,8 +568,12 @@ public class UserController {
                     .body(Map.of("error", "Access Denied: Only Central IT Administrators can delete institutional user accounts."));
         }
 
-        if (!userRepository.existsById(id)) {
+        UserEntity toDelete = userRepository.findById(id).orElse(null);
+        if (toDelete == null) {
             return ResponseEntity.notFound().build();
+        }
+        if ("DeanHOD".equalsIgnoreCase(toDelete.getRole())) {
+            clearDepartmentHod(toDelete.getId());
         }
         userRepository.deleteById(id);
 
@@ -559,5 +633,56 @@ public class UserController {
             allowed.add(fallbackDept.trim());
         }
         return allowed;
+    }
+
+    private Optional<UserEntity> findExistingActiveHod(String department, String excludeUserId) {
+        if (department == null || department.isBlank()) return Optional.empty();
+        String deptNorm = department.trim();
+        return userRepository.findAll().stream()
+                .filter(u -> "DeanHOD".equalsIgnoreCase(u.getRole()))
+                .filter(u -> "Active".equalsIgnoreCase(u.getStatus()))
+                .filter(u -> excludeUserId == null || !u.getId().equalsIgnoreCase(excludeUserId))
+                .filter(u -> u.getDepartment() != null && u.getDepartment().trim().equalsIgnoreCase(deptNorm))
+                .findFirst();
+    }
+
+    private void syncDepartmentHod(String oldDept, String newDept, String hodId, String hodName) {
+        try {
+            if (oldDept != null && !oldDept.isBlank() && !oldDept.equalsIgnoreCase(newDept)) {
+                String oldNorm = oldDept.trim();
+                departmentRepository.findAll().stream()
+                        .filter(d -> oldNorm.equalsIgnoreCase(d.getName().trim()) || oldNorm.equalsIgnoreCase(d.getCode().trim()))
+                        .forEach(d -> {
+                            if (hodId != null && hodId.equals(d.getHodId())) {
+                                d.setHodId(null);
+                                d.setHodName("Unassigned");
+                                departmentRepository.save(d);
+                            }
+                        });
+            }
+            if (newDept != null && !newDept.isBlank()) {
+                String newNorm = newDept.trim();
+                departmentRepository.findAll().stream()
+                        .filter(d -> newNorm.equalsIgnoreCase(d.getName().trim()) || newNorm.equalsIgnoreCase(d.getCode().trim()))
+                        .forEach(d -> {
+                            d.setHodId(hodId);
+                            d.setHodName(hodName);
+                            departmentRepository.save(d);
+                        });
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void clearDepartmentHod(String hodId) {
+        try {
+            if (hodId == null || hodId.isBlank()) return;
+            departmentRepository.findAll().stream()
+                    .filter(d -> hodId.equals(d.getHodId()))
+                    .forEach(d -> {
+                        d.setHodId(null);
+                        d.setHodName("Unassigned");
+                        departmentRepository.save(d);
+                    });
+        } catch (Exception ignored) {}
     }
 }
