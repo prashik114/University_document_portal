@@ -415,19 +415,11 @@ export default function UserAccessControl({
                         >
                           Edit
                         </button>
-                        {(user.role === 'DeanHOD') && (
-                          <button
-                            onClick={() => setPermUser(user)}
-                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #7c3aed', background: '#f5f3ff', color: '#7c3aed', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                          >
-                            Permissions
-                          </button>
-                        )}
                         <button
                           onClick={() => setPermUser(user)}
-                          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #7c3aed', background: '#f5f3ff', color: '#7c3aed', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                         >
-                          Access
+                          Permissions
                         </button>
                         {user.id !== currentUser.id && (
                           <button
