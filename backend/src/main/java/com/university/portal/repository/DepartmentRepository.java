@@ -11,3 +11,4 @@ public interface DepartmentRepository extends JpaRepository<DepartmentEntity, St
     Optional<DepartmentEntity> findByCode(String code);
     Optional<DepartmentEntity> findByName(String name);
 }
+

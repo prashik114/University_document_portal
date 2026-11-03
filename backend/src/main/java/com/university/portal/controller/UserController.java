@@ -218,18 +218,42 @@ public class UserController {
             @PathVariable String id,
             @RequestBody UserEntity updated,
             @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
-            @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader) {
+            @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader,
+            @RequestHeader(value = "X-Actor-Department", required = false) String actorDeptHeader,
+            @RequestHeader(value = "X-User-Dept", required = false) String userDeptHeader,
+            @RequestHeader(value = "X-Actor-Id", required = false) String actorIdHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
 
         String callerRole = resolveRole(null, null, actorRoleHeader, userRoleHeader);
-        if (!"Admin".equalsIgnoreCase(callerRole)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Access Denied: Only Central IT Admin can edit institutional user accounts."));
-        }
+        String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
+        String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
 
         UserEntity user = userRepository.findById(id).orElse(null);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "User not found with ID " + id));
+        }
+
+        if ("Admin".equalsIgnoreCase(callerRole)) {
+            // Admin can edit anyone
+        } else if ("DeanHOD".equalsIgnoreCase(callerRole)) {
+            // HOD can edit Faculty or Student within assigned departments
+            if (!"Faculty".equalsIgnoreCase(user.getRole()) && !"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: HOD can only manage Faculty and Student accounts."));
+            }
+            List<String> allowedDepts = resolveAllowedDepartments(callerId, callerDept);
+            if (!allowedDepts.stream().anyMatch(d -> d.equalsIgnoreCase(user.getDepartment()))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: You can only edit members belonging to your assigned departments: " + allowedDepts));
+            }
+            if (updated.getRole() != null && ("Admin".equalsIgnoreCase(updated.getRole()) || "IQAC".equalsIgnoreCase(updated.getRole()) || "DeanHOD".equalsIgnoreCase(updated.getRole()))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: HOD cannot assign Admin, IQAC, or HOD roles."));
+            }
+        } else {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access Denied: You do not have permission to edit user accounts."));
         }
 
         if (updated.getName() != null && !updated.getName().isBlank()) {
@@ -282,15 +306,19 @@ public class UserController {
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(
             @PathVariable String id,
-            @RequestBody Map<String, String> body,
+            @RequestBody(required = false) Map<String, String> body,
+            @RequestParam(value = "status", required = false) String statusParam,
+            @RequestParam(value = "active", required = false) Boolean activeParam,
             @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
-            @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader) {
+            @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader,
+            @RequestHeader(value = "X-Actor-Department", required = false) String actorDeptHeader,
+            @RequestHeader(value = "X-User-Dept", required = false) String userDeptHeader,
+            @RequestHeader(value = "X-Actor-Id", required = false) String actorIdHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
 
         String callerRole = resolveRole(null, null, actorRoleHeader, userRoleHeader);
-        if (!"Admin".equalsIgnoreCase(callerRole)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Access Denied: Only Central IT Admin can activate/deactivate accounts."));
-        }
+        String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
+        String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
 
         UserEntity user = userRepository.findById(id).orElse(null);
         if (user == null) {
@@ -298,7 +326,31 @@ public class UserController {
                     .body(Map.of("error", "User not found with ID " + id));
         }
 
-        String newStatus = body.getOrDefault("status", "Active");
+        if ("Admin".equalsIgnoreCase(callerRole)) {
+            // Admin can change status of anyone
+        } else if ("DeanHOD".equalsIgnoreCase(callerRole)) {
+            if (!"Faculty".equalsIgnoreCase(user.getRole()) && !"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: HOD can only change status for Faculty and Student accounts."));
+            }
+            List<String> allowedDepts = resolveAllowedDepartments(callerId, callerDept);
+            if (!allowedDepts.stream().anyMatch(d -> d.equalsIgnoreCase(user.getDepartment()))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: You can only manage members in your assigned departments: " + allowedDepts));
+            }
+        } else {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access Denied: You do not have permission to change user status."));
+        }
+
+        String newStatus = "Active";
+        if (body != null && body.containsKey("status")) {
+            newStatus = body.get("status");
+        } else if (statusParam != null && !statusParam.isBlank()) {
+            newStatus = statusParam;
+        } else if (activeParam != null) {
+            newStatus = activeParam ? "Active" : "Inactive";
+        }
         String oldStatus = user.getStatus();
         user.setStatus(newStatus);
         UserEntity saved = userRepository.save(user);

@@ -81,6 +81,9 @@ public class UserEntity {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
+    public String getFullName() { return this.name; }
+    public void setFullName(String fullName) { if (this.name == null || this.name.isBlank()) this.name = fullName; }
+
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 

@@ -102,6 +102,41 @@ public class AuthController {
                 "Signed in successfully as " + user.getName()));
     }
 
+    // ── Change Password ──────────────────────────────────────────────────────
+    @PostMapping("/auth/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "X-Actor-Id", required = false) String actorIdHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader) {
+
+        String userId = body.get("userId");
+        if (userId == null || userId.isBlank()) {
+            userId = actorIdHeader != null && !actorIdHeader.isBlank() ? actorIdHeader : userIdHeader;
+        }
+        String oldPassword = body.get("oldPassword");
+        String newPassword = body.get("newPassword");
+
+        if (userId == null || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "User ID and new password are required."));
+        }
+
+        final String lookupId = userId;
+        UserEntity user = userRepository.findById(lookupId)
+                .orElseGet(() -> userRepository.findByEmployeeId(lookupId).orElse(null));
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "User account not found."));
+        }
+
+        String current = user.getPasswordHash() != null ? user.getPasswordHash() : DataSeederService.DEMO_PASSWORD_HASH;
+        if (oldPassword != null && !oldPassword.isBlank() && !oldPassword.equals(current)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Current password does not match."));
+        }
+
+        user.setPasswordHash(newPassword.trim());
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
+    }
+
     // ── User list (for admin use) ─────────────────────────────────────────────
 
     @GetMapping("/auth/users")

@@ -458,6 +458,23 @@ const PortalClient = {
         }
     },
 
+    async changePassword(userId, oldPassword, newPassword) {
+        try {
+            const res = await fetch(`${this.API_BASE}/auth/change-password`, {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify({ userId, oldPassword, newPassword })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to update password.");
+            this.showToast("Password updated successfully!", "success");
+            return data;
+        } catch (e) {
+            this.showToast(e.message, "danger");
+            throw e;
+        }
+    },
+
     async saveSettings(settingsData) {
         try {
             const res = await fetch(`${this.API_BASE}/settings`, {

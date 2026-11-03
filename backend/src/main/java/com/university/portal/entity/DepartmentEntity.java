@@ -63,3 +63,4 @@ public class DepartmentEntity {
     public String getEstablishedYear() { return establishedYear; }
     public void setEstablishedYear(String establishedYear) { this.establishedYear = establishedYear; }
 }
+
