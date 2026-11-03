@@ -122,7 +122,9 @@ public class AuthController {
 
         final String lookupId = userId;
         UserEntity user = userRepository.findById(lookupId)
-                .orElseGet(() -> userRepository.findByEmployeeId(lookupId).orElse(null));
+                .or(() -> userRepository.findByEmployeeId(lookupId))
+                .or(() -> userRepository.findByEmail(lookupId.toLowerCase().trim()))
+                .orElse(null);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "User account not found."));
         }

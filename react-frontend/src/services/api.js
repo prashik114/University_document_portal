@@ -77,6 +77,12 @@ export const api = {
       body: JSON.stringify({ email, password, otp, method }),
     }),
 
+  changePassword: (userId, oldPassword, newPassword) =>
+    request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ userId, oldPassword, newPassword }),
+    }),
+
   // ── Documents ─────────────────────────────────────────────────────────────
   getDocuments: (category = 'ALL', status = 'ALL', search = '') => {
     const params = new URLSearchParams({ category, status, search });

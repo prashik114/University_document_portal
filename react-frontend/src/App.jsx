@@ -9,6 +9,7 @@ import DocumentDetailModal from './components/DocumentDetailModal';
 import ReturnReasonModal   from './components/ReturnReasonModal';
 import StatusBadge         from './components/StatusBadge';
 import UserAccessControl   from './components/UserAccessControl';
+import AccountSettings     from './components/AccountSettings';
 import './styles.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -253,6 +254,7 @@ export default function App() {
     { id: 'reports',        label: 'Reports', roles: ['DeanHOD','IQAC','Inspector','Admin'] },
     { id: 'audit',          label: 'Audit Trail', roles: ['IQAC','Inspector','Admin'] },
     { id: 'access-control', label: 'User Access Control', roles: ['Admin'] },
+    { id: 'account-settings', label: 'Account Settings', roles: null },
   ];
 
   return (
@@ -453,6 +455,31 @@ export default function App() {
                     <strong>Department:</strong> {currentUser.department}<br />
                     <strong>Email:</strong> <span style={{ color:'#2563eb' }}>{currentUser.email}</span><br />
                     <strong>Clearance:</strong> {clearanceDesc}
+                  </div>
+                  <div style={{ borderTop: '1px solid #e2e8f0' }}>
+                    <button
+                      onClick={() => {
+                        setActiveTab('account-settings');
+                        setUserMenuOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '10px 16px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563eb',
+                        fontWeight: 600,
+                        fontSize: 12.5,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <span>⚙️</span>
+                      <span>Account Settings</span>
+                    </button>
                   </div>
                   <div style={{ padding:'8px 16px', background:'#f8fafc', display:'flex', justifyContent:'flex-end' }}>
                     <button onClick={handleLogout}
@@ -924,6 +951,14 @@ export default function App() {
                 onUpdateStatus={updateUserStatus}
                 onUpdatePermissions={updateUserPermissions}
                 onDelete={deleteUser}
+                showToast={showToast}
+              />
+            )}
+
+            {/* ═══ ACCOUNT SETTINGS (ALL USERS) ══════════════════════════════ */}
+            {activeTab === 'account-settings' && (
+              <AccountSettings
+                currentUser={currentUser}
                 showToast={showToast}
               />
             )}
