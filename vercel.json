@@ -1,8 +1,7 @@
 {
-  "cleanUrls": true,
+  "buildCommand": "npm run build --prefix react-frontend",
+  "outputDirectory": "react-frontend/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
-
