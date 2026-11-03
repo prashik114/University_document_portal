@@ -161,15 +161,16 @@ export default function UserAccessControl({
     }
     setFormBusy(true);
     try {
+      const isInstitutional = ['Admin', 'IQAC', 'Inspector'].includes(form.role);
       const payload = {
         name:        form.name.trim(),
         email:       form.email.trim().toLowerCase(),
         role:        form.role,
         designation: form.designation.trim(),
-        department:  form.department.trim(),
+        department:  isInstitutional ? '' : form.department.trim(),
         employeeId:  form.employeeId.trim(),
         status:      form.status,
-        additionalDepartments: form.additionalDepartments.trim(),
+        additionalDepartments: (!isInstitutional && form.role === 'DeanHOD') ? form.additionalDepartments.trim() : '',
         ...(form.password.trim() ? { passwordHash: form.password.trim() } : {}),
       };
 
@@ -346,11 +347,17 @@ export default function UserAccessControl({
                     </td>
                     {/* Department */}
                     <td style={{ padding: '12px 16px', color: '#475569', fontSize: 12.5 }}>
-                      <div>{user.department || '—'}</div>
-                      {user.additionalDepartments && (
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                          +{user.additionalDepartments.split(',').length} additional
-                        </div>
+                      {['Admin', 'IQAC', 'Inspector'].includes(user.role) ? (
+                        <div style={{ color: '#64748b', fontSize: 11.5, fontStyle: 'italic' }}>Institutional Scope</div>
+                      ) : (
+                        <>
+                          <div>{user.department || '—'}</div>
+                          {user.additionalDepartments && (
+                            <div style={{ fontSize: 11, color: '#0284c7', marginTop: 2 }}>
+                              +{user.additionalDepartments.split(',').length} additional
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
                     {/* Employee ID */}
@@ -503,14 +510,20 @@ function UserFormModal({ form, setForm, isEdit, departments, onSubmit, onClose, 
             <Field label="Employee / Roll ID" value={form.employeeId} onChange={v => f('employeeId', v)} placeholder="e.g. FAC-CSE-0123" />
           </div>
 
-          {/* Primary Department */}
-          <div>
-            <label style={labelStyle}>Primary Department</label>
-            <select value={form.department} onChange={e => f('department', e.target.value)} style={selectStyle}>
-              <option value="">— Select Department —</option>
-              {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
+          {/* Primary Department (Excluded for Admin, IQAC, Inspector) */}
+          {['Admin', 'IQAC', 'Inspector'].includes(form.role) ? (
+            <div style={{ padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12, color: '#166534' }}>
+              <strong>Institutional Governance / External Role:</strong> This account operates at the central university or external accreditation level and does not belong to any institute department.
+            </div>
+          ) : (
+            <div>
+              <label style={labelStyle}>Primary Department *</label>
+              <select value={form.department} onChange={e => f('department', e.target.value)} style={selectStyle} required>
+                <option value="">— Select Department —</option>
+                {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          )}
 
           {/* Additional Departments (HOD only) */}
           {form.role === 'DeanHOD' && (

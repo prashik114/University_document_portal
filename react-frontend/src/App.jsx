@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { usePortalData } from './hooks/usePortalData';
 import { useToast }      from './hooks/useToast';
 import { ROLE_COLORS, ROLE_CLEARANCE, NAAC_CRITERIA } from './constants/users';
@@ -114,8 +114,10 @@ export default function App() {
     setIsAuthenticated(true);
     sessionStorage.setItem('portal_auth_user', 'true');
     sessionStorage.setItem('portal_user_profile', JSON.stringify(user));
+    sessionStorage.setItem('portal_current_user', JSON.stringify(user));
     localStorage.setItem('portal_auth_user', 'true');
     localStorage.setItem('portal_user_profile', JSON.stringify(user));
+    localStorage.setItem('portal_current_user', JSON.stringify(user));
   };
 
   const handleLogout = () => {
@@ -124,8 +126,10 @@ export default function App() {
     setUserMenuOpen(false);
     sessionStorage.removeItem('portal_auth_user');
     sessionStorage.removeItem('portal_user_profile');
+    sessionStorage.removeItem('portal_current_user');
     localStorage.removeItem('portal_auth_user');
     localStorage.removeItem('portal_user_profile');
+    localStorage.removeItem('portal_current_user');
     showToast('Logged out successfully.', 'info');
   };
 

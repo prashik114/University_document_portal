@@ -8,7 +8,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 function getActorHeaders() {
   try {
-    const raw = localStorage.getItem('portal_current_user') || sessionStorage.getItem('portal_current_user');
+    const raw = localStorage.getItem('portal_user_profile')
+      || sessionStorage.getItem('portal_user_profile')
+      || localStorage.getItem('portal_current_user')
+      || sessionStorage.getItem('portal_current_user');
     if (raw) {
       const u = JSON.parse(raw);
       return {
