@@ -40,16 +40,30 @@ function getActorHeaders(explicitActor) {
 }
 
 async function request(path, options = {}) {
+  const { headers: optHeaders = {}, isMultipart = false, ...restOptions } = options;
   const actorHeaders = getActorHeaders();
+
+  const finalHeaders = {
+    ...actorHeaders,
+    ...optHeaders,
+  };
+
+  if (!isMultipart && !(restOptions.body instanceof FormData)) {
+    if (!finalHeaders['Content-Type']) {
+      finalHeaders['Content-Type'] = 'application/json';
+    }
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...actorHeaders, ...options.headers },
-    ...options,
+    ...restOptions,
+    headers: finalHeaders,
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Request failed: ${res.status} ${res.statusText}`);
   }
-  return res.json();
+  if (res.status === 204) return null;
+  return res.json().catch(() => ({}));
 }
 
 export const api = {
