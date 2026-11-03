@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { usePortalData } from './hooks/usePortalData';
 import { useToast }      from './hooks/useToast';
 import { ROLE_COLORS, ROLE_CLEARANCE, NAAC_CRITERIA } from './constants/users';
@@ -39,15 +39,19 @@ export default function App() {
   // ── Auth: Always require sign-in on fresh portal start ───────────────────
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const raw = sessionStorage.getItem('portal_user_profile');
+      const raw = sessionStorage.getItem('portal_user_profile')
+        || localStorage.getItem('portal_user_profile')
+        || sessionStorage.getItem('portal_current_user')
+        || localStorage.getItem('portal_current_user');
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
     }
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => sessionStorage.getItem('portal_auth_user') === 'true'
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('portal_auth_user') === 'true' ||
+           localStorage.getItem('portal_auth_user') === 'true';
+  });
 
   // ── Remote data ───────────────────────────────────────────────────────────
   const {
@@ -132,6 +136,18 @@ export default function App() {
     localStorage.removeItem('portal_current_user');
     showToast('Logged out successfully.', 'info');
   };
+
+  useEffect(() => {
+    if (currentUser && isAuthenticated) {
+      const serialized = JSON.stringify(currentUser);
+      sessionStorage.setItem('portal_auth_user', 'true');
+      sessionStorage.setItem('portal_user_profile', serialized);
+      sessionStorage.setItem('portal_current_user', serialized);
+      localStorage.setItem('portal_auth_user', 'true');
+      localStorage.setItem('portal_user_profile', serialized);
+      localStorage.setItem('portal_current_user', serialized);
+    }
+  }, [currentUser, isAuthenticated]);
 
   // ── Document action handlers ───────────────────────────────────────────────
   const handleSubmitDocument = async (docPayload, isDraft) => {

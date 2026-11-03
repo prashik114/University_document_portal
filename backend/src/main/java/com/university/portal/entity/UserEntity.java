@@ -32,6 +32,9 @@ public class UserEntity {
 
     @Column(name = "additional_departments")
     private String additionalDepartments; // Comma-separated list of extra departments granted by IT Admin
+
+    @Column(name = "custom_permissions", columnDefinition = "TEXT")
+    private String customPermissions; // Comma-separated list of granted permissions
     private String school;
     private String employeeId;
     private String avatar;
@@ -148,5 +151,29 @@ public class UserEntity {
         if (deptName == null || deptName.isBlank()) return true;
         return getAllowedDepartments().stream()
                 .anyMatch(d -> d.equalsIgnoreCase(deptName.trim()));
+    }
+
+    public String getCustomPermissions() { return customPermissions; }
+    public void setCustomPermissions(String customPermissions) { this.customPermissions = customPermissions; }
+
+    @Transient
+    public List<String> getPermissions() {
+        if (customPermissions != null && !customPermissions.isBlank()) {
+            List<String> list = new ArrayList<>();
+            for (String p : customPermissions.split(",")) {
+                String trimmed = p.trim();
+                if (!trimmed.isEmpty()) list.add(trimmed);
+            }
+            return list;
+        }
+        return new ArrayList<>();
+    }
+
+    public void setPermissions(List<String> perms) {
+        if (perms != null && !perms.isEmpty()) {
+            this.customPermissions = String.join(", ", perms);
+        } else {
+            this.customPermissions = null;
+        }
     }
 }

@@ -874,10 +874,37 @@
                     <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Academic Designation / Title</label>
                     <input type="text" id="adm-prov-designation" placeholder="e.g. Professor & Dean of Academics" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
                 </div>
-                <div style="margin-bottom: 20px;" id="adm-prov-extra-depts-container">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Optional Additional Department(s) Access (for HOD)</label>
-                    <input type="text" id="adm-prov-extra-depts" placeholder="e.g. Mechanical Engineering, Civil Engineering" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
-                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">For HODs overseeing multiple departments, enter additional departments separated by commas.</div>
+                <div style="margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #334155; margin: 0;">Initial Password *</label>
+                        <span style="font-size: 11px; color: #059669; font-weight: 600; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">Default: Password@123</span>
+                    </div>
+                    <input type="text" id="adm-prov-password" value="Password@123" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; font-weight: 600;">
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Initial password is set as <strong>Password@123</strong> by default.</div>
+                </div>
+                <div style="margin-bottom: 14px;" id="adm-prov-extra-depts-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #334155; margin: 0;">Additional Department Access (HOD Scope)</label>
+                        <span id="adm-prov-extra-count" style="font-size: 11px; color: #64748b;">0 selected</span>
+                    </div>
+                    <select id="adm-prov-extra-select" onchange="handleAddProvExtraDept()" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; margin-bottom: 8px;">
+                        <option value="">+ Select Additional Department from dropdown...</option>
+                    </select>
+                    <div id="adm-prov-extra-badges" style="display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px;"></div>
+                    <input type="hidden" id="adm-prov-extra-depts" value="">
+                </div>
+                <div style="margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="font-size: 11.5px; font-weight: 700; color: #334155; text-transform: uppercase;">
+                            Permissions Granted to User (<span id="adm-prov-perm-count">0</span> selected)
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" onclick="resetProvPermissions()" style="background: none; border: none; color: #2563eb; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0;">Reset Defaults</button>
+                            <span style="color: #cbd5e1;">|</span>
+                            <button type="button" onclick="toggleAllProvPermissions()" id="adm-prov-perm-toggle" style="background: none; border: none; color: #0284c7; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0;">Select All</button>
+                        </div>
+                    </div>
+                    <div id="adm-prov-perms-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px;">
                     <button type="button" class="btn-secondary" onclick="closeAdminProvisionModal()">Cancel</button>
@@ -932,10 +959,36 @@
                     <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Designation</label>
                     <input type="text" id="edit-user-designation" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
                 </div>
-                <div style="margin-bottom: 20px;" id="edit-user-extra-depts-container">
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Optional Additional Department(s) Access (for HOD)</label>
-                    <input type="text" id="edit-user-extra-depts" placeholder="e.g. Mechanical Engineering, Civil Engineering" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
-                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Additional department access permissions granted by Central IT Admin.</div>
+                <div style="margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #334155; margin: 0;">Password (leave as is or update)</label>
+                        <span style="font-size: 11px; color: #059669; font-weight: 600; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">Default: Password@123</span>
+                    </div>
+                    <input type="text" id="edit-user-password" value="Password@123" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; font-weight: 600;">
+                </div>
+                <div style="margin-bottom: 14px;" id="edit-user-extra-depts-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="font-size: 12px; font-weight: 600; color: #334155; margin: 0;">Additional Department Access (HOD Scope)</label>
+                        <span id="edit-user-extra-count" style="font-size: 11px; color: #64748b;">0 selected</span>
+                    </div>
+                    <select id="edit-user-extra-select" onchange="handleAddEditExtraDept()" style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; margin-bottom: 8px;">
+                        <option value="">+ Select Additional Department from dropdown...</option>
+                    </select>
+                    <div id="edit-user-extra-badges" style="display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px;"></div>
+                    <input type="hidden" id="edit-user-extra-depts" value="">
+                </div>
+                <div style="margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="font-size: 11.5px; font-weight: 700; color: #334155; text-transform: uppercase;">
+                            Permissions Granted to User (<span id="edit-user-perm-count">0</span> selected)
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" onclick="resetEditPermissions()" style="background: none; border: none; color: #2563eb; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0;">Reset Defaults</button>
+                            <span style="color: #cbd5e1;">|</span>
+                            <button type="button" onclick="toggleAllEditPermissions()" id="edit-user-perm-toggle" style="background: none; border: none; color: #0284c7; font-size: 11px; font-weight: 600; cursor: pointer; padding: 0;">Select All</button>
+                        </div>
+                    </div>
+                    <div id="edit-user-perms-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px;">
                     <button type="button" class="btn-secondary" onclick="closeEditUserModal()">Cancel</button>
@@ -1286,6 +1339,235 @@
             }
         }
 
+        const ADMIN_PERM_MATRIX = {
+            Admin:     ['manage_users', 'manage_departments', 'manage_settings', 'view_all_docs', 'delete_docs', 'reset_data', 'configure_hod_scope'],
+            DeanHOD:   ['create_faculty', 'create_students', 'verify_docs', 'forward_to_iqac', 'return_docs', 'view_dept_docs', 'generate_dept_reports'],
+            Faculty:   ['upload_docs', 'create_students', 'view_dept_docs', 'resubmit_docs', 'view_own_docs'],
+            Student:   ['upload_docs', 'view_own_docs', 'resubmit_docs'],
+            IQAC:      ['final_approve', 'lock_docs', 'view_all_docs', 'generate_reports', 'return_to_dept', 'batch_lock'],
+            Inspector: ['view_approved_docs', 'download_approved_docs', 'view_reports', 'view_audit_logs']
+        };
+
+        const ADMIN_PERM_LABELS = {
+            manage_users:          'Manage All Users',
+            manage_departments:    'Manage Departments',
+            manage_settings:       'Manage System Settings',
+            view_all_docs:         'View All Institution Documents',
+            delete_docs:           'Delete Documents',
+            reset_data:            'Reset System Data',
+            configure_hod_scope:   'Configure HOD Department Scope',
+            create_faculty:        'Provision Faculty Accounts',
+            create_students:       'Provision Student Accounts',
+            verify_docs:           'Verify & Endorse Documents',
+            forward_to_iqac:       'Forward Documents to IQAC',
+            return_docs:           'Return Documents for Correction',
+            view_dept_docs:        'View Department Documents',
+            generate_dept_reports: 'Generate Department Reports',
+            upload_docs:           'Upload / Submit Documents',
+            view_own_docs:         'View Own Documents',
+            resubmit_docs:         'Resubmit Returned Documents',
+            final_approve:         'Final IQAC Approval & Lock',
+            lock_docs:             'Lock Approved SSR Records',
+            generate_reports:      'Generate Institution-Wide Reports',
+            return_to_dept:        'Return Records to Department',
+            batch_lock:            'Batch-Lock IQAC Queue',
+            view_approved_docs:    'View Approved Documents (Read-Only)',
+            download_approved_docs:'Download Approved Evidence',
+            view_reports:          'View Accreditation Reports',
+            view_audit_logs:       'View Audit Trail & Logs'
+        };
+
+        let provExtraDepts = [];
+        let provPermissions = [];
+
+        let editExtraDepts = [];
+        let editPermissions = [];
+
+        function updateProvExtraSelectOptions() {
+            const select = document.getElementById('adm-prov-extra-select');
+            if (!select) return;
+            const primaryDept = document.getElementById('adm-prov-dept') ? document.getElementById('adm-prov-dept').value : '';
+            select.innerHTML = '<option value="">+ Select Additional Department from dropdown...</option>';
+            allDepts.forEach(d => {
+                if (d.name && d.name.toLowerCase() !== primaryDept.toLowerCase() && !provExtraDepts.includes(d.name)) {
+                    const opt = document.createElement('option');
+                    opt.value = d.name;
+                    opt.textContent = d.name;
+                    select.appendChild(opt);
+                }
+            });
+            document.getElementById('adm-prov-extra-count').textContent = `${provExtraDepts.length} selected`;
+            document.getElementById('adm-prov-extra-depts').value = provExtraDepts.join(', ');
+        }
+
+        function renderProvExtraBadges() {
+            const container = document.getElementById('adm-prov-extra-badges');
+            if (!container) return;
+            if (provExtraDepts.length === 0) {
+                container.innerHTML = '<span style="font-size: 11.5px; color: #94a3b8; font-style: italic;">No additional departments selected. Choose departments from the dropdown above.</span>';
+            } else {
+                container.innerHTML = provExtraDepts.map(d => `
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid #bae6fd;">
+                        <span>${d}</span>
+                        <button type="button" onclick="handleRemoveProvExtraDept('${d.replace(/'/g, "\\'")}')" style="background: none; border: none; color: #0284c7; cursor: pointer; padding: 0; font-size: 14px; font-weight: 700; line-height: 1;">&times;</button>
+                    </span>
+                `).join('');
+            }
+            updateProvExtraSelectOptions();
+        }
+
+        function handleAddProvExtraDept() {
+            const select = document.getElementById('adm-prov-extra-select');
+            if (!select || !select.value) return;
+            const val = select.value;
+            if (!provExtraDepts.includes(val)) {
+                provExtraDepts.push(val);
+                renderProvExtraBadges();
+            }
+            select.value = '';
+        }
+
+        function handleRemoveProvExtraDept(name) {
+            provExtraDepts = provExtraDepts.filter(d => d !== name);
+            renderProvExtraBadges();
+        }
+
+        function renderProvPermissions() {
+            const container = document.getElementById('adm-prov-perms-grid');
+            if (!container) return;
+            const role = document.getElementById('adm-prov-role').value;
+            const availablePerms = ADMIN_PERM_MATRIX[role] || [];
+            document.getElementById('adm-prov-perm-count').textContent = provPermissions.length;
+            container.innerHTML = availablePerms.map(pKey => {
+                const isChecked = provPermissions.includes(pKey);
+                return `
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: 12px; background: ${isChecked ? '#eff6ff' : '#ffffff'}; border: 1px solid ${isChecked ? '#bfdbfe' : '#e2e8f0'}; color: ${isChecked ? '#1e40af' : '#64748b'}; cursor: pointer;">
+                        <input type="checkbox" onchange="toggleProvPerm('${pKey}', this.checked)" ${isChecked ? 'checked' : ''} style="accent-color: #2563eb; width: 15px; height: 15px; cursor: pointer;">
+                        <span style="font-weight: ${isChecked ? '600' : '400'}; user-select: none;">${ADMIN_PERM_LABELS[pKey] || pKey}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function toggleProvPerm(pKey, checked) {
+            if (checked) {
+                if (!provPermissions.includes(pKey)) provPermissions.push(pKey);
+            } else {
+                provPermissions = provPermissions.filter(p => p !== pKey);
+            }
+            renderProvPermissions();
+        }
+
+        function resetProvPermissions() {
+            const role = document.getElementById('adm-prov-role').value;
+            provPermissions = [...(ADMIN_PERM_MATRIX[role] || [])];
+            renderProvPermissions();
+        }
+
+        function toggleAllProvPermissions() {
+            const role = document.getElementById('adm-prov-role').value;
+            const available = ADMIN_PERM_MATRIX[role] || [];
+            if (provPermissions.length === available.length) {
+                provPermissions = [];
+            } else {
+                provPermissions = [...available];
+            }
+            renderProvPermissions();
+        }
+
+        // ── Edit User Modal Helpers ──────────────────────────────────────────
+        function updateEditExtraSelectOptions() {
+            const select = document.getElementById('edit-user-extra-select');
+            if (!select) return;
+            const primaryDept = document.getElementById('edit-user-dept') ? document.getElementById('edit-user-dept').value : '';
+            select.innerHTML = '<option value="">+ Select Additional Department from dropdown...</option>';
+            allDepts.forEach(d => {
+                if (d.name && d.name.toLowerCase() !== primaryDept.toLowerCase() && !editExtraDepts.includes(d.name)) {
+                    const opt = document.createElement('option');
+                    opt.value = d.name;
+                    opt.textContent = d.name;
+                    select.appendChild(opt);
+                }
+            });
+            document.getElementById('edit-user-extra-count').textContent = `${editExtraDepts.length} selected`;
+            document.getElementById('edit-user-extra-depts').value = editExtraDepts.join(', ');
+        }
+
+        function renderEditExtraBadges() {
+            const container = document.getElementById('edit-user-extra-badges');
+            if (!container) return;
+            if (editExtraDepts.length === 0) {
+                container.innerHTML = '<span style="font-size: 11.5px; color: #94a3b8; font-style: italic;">No additional departments selected. Choose departments from the dropdown above.</span>';
+            } else {
+                container.innerHTML = editExtraDepts.map(d => `
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid #bae6fd;">
+                        <span>${d}</span>
+                        <button type="button" onclick="handleRemoveEditExtraDept('${d.replace(/'/g, "\\'")}')" style="background: none; border: none; color: #0284c7; cursor: pointer; padding: 0; font-size: 14px; font-weight: 700; line-height: 1;">&times;</button>
+                    </span>
+                `).join('');
+            }
+            updateEditExtraSelectOptions();
+        }
+
+        function handleAddEditExtraDept() {
+            const select = document.getElementById('edit-user-extra-select');
+            if (!select || !select.value) return;
+            const val = select.value;
+            if (!editExtraDepts.includes(val)) {
+                editExtraDepts.push(val);
+                renderEditExtraBadges();
+            }
+            select.value = '';
+        }
+
+        function handleRemoveEditExtraDept(name) {
+            editExtraDepts = editExtraDepts.filter(d => d !== name);
+            renderEditExtraBadges();
+        }
+
+        function renderEditPermissions() {
+            const container = document.getElementById('edit-user-perms-grid');
+            if (!container) return;
+            const role = document.getElementById('edit-user-role').value;
+            const availablePerms = ADMIN_PERM_MATRIX[role] || [];
+            document.getElementById('edit-user-perm-count').textContent = editPermissions.length;
+            container.innerHTML = availablePerms.map(pKey => {
+                const isChecked = editPermissions.includes(pKey);
+                return `
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: 12px; background: ${isChecked ? '#eff6ff' : '#ffffff'}; border: 1px solid ${isChecked ? '#bfdbfe' : '#e2e8f0'}; color: ${isChecked ? '#1e40af' : '#64748b'}; cursor: pointer;">
+                        <input type="checkbox" onchange="toggleEditPerm('${pKey}', this.checked)" ${isChecked ? 'checked' : ''} style="accent-color: #2563eb; width: 15px; height: 15px; cursor: pointer;">
+                        <span style="font-weight: ${isChecked ? '600' : '400'}; user-select: none;">${ADMIN_PERM_LABELS[pKey] || pKey}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function toggleEditPerm(pKey, checked) {
+            if (checked) {
+                if (!editPermissions.includes(pKey)) editPermissions.push(pKey);
+            } else {
+                editPermissions = editPermissions.filter(p => p !== pKey);
+            }
+            renderEditPermissions();
+        }
+
+        function resetEditPermissions() {
+            const role = document.getElementById('edit-user-role').value;
+            editPermissions = [...(ADMIN_PERM_MATRIX[role] || [])];
+            renderEditPermissions();
+        }
+
+        function toggleAllEditPermissions() {
+            const role = document.getElementById('edit-user-role').value;
+            const available = ADMIN_PERM_MATRIX[role] || [];
+            if (editPermissions.length === available.length) {
+                editPermissions = [];
+            } else {
+                editPermissions = [...available];
+            }
+            renderEditPermissions();
+        }
+
         function handleProvisionRoleChange() {
             const roleEl = document.getElementById('adm-prov-role');
             if (!roleEl) return;
@@ -1316,6 +1598,10 @@
                     extraContainer.style.display = (role === 'DeanHOD') ? 'block' : 'none';
                 }
             }
+
+            provPermissions = [...(ADMIN_PERM_MATRIX[role] || [])];
+            renderProvPermissions();
+            renderProvExtraBadges();
         }
 
         function handleEditRoleChange() {
@@ -1349,16 +1635,23 @@
                     extraContainer.style.display = (role === 'DeanHOD') ? 'block' : 'none';
                 }
             }
+
+            renderEditPermissions();
+            renderEditExtraBadges();
         }
 
         function openAdminProvisionModal() {
             document.getElementById('admin-provision-modal').style.display = 'flex';
+            document.getElementById('adm-prov-password').value = 'Password@123';
+            provExtraDepts = [];
             handleProvisionRoleChange();
         }
 
         function closeAdminProvisionModal() {
             document.getElementById('admin-provision-modal').style.display = 'none';
             document.getElementById('admin-provision-form').reset();
+            provExtraDepts = [];
+            provPermissions = [];
         }
 
         async function handleAdminProvisionSubmit(e) {
@@ -1366,8 +1659,7 @@
             const role = document.getElementById('adm-prov-role').value;
             const isInstitutional = (role === 'Admin' || role === 'IQAC' || role === 'Inspector');
             const dept = isInstitutional ? '' : (document.getElementById('adm-prov-dept') ? document.getElementById('adm-prov-dept').value : '');
-            const extra = (!isInstitutional && role === 'DeanHOD' && document.getElementById('adm-prov-extra-depts')) 
-                ? document.getElementById('adm-prov-extra-depts').value.trim() : '';
+            const extra = (!isInstitutional && role === 'DeanHOD') ? provExtraDepts.join(', ') : '';
 
             if (role === 'DeanHOD' && dept) {
                 const existingHod = allUsers.find(u => u.role === 'DeanHOD' && (u.status || 'Active') === 'Active' && u.department && u.department.trim().toLowerCase() === dept.trim().toLowerCase());
@@ -1377,13 +1669,18 @@
                 }
             }
 
+            const activePerms = provPermissions.length > 0 ? provPermissions : (ADMIN_PERM_MATRIX[role] || []);
+
             const userData = {
                 name: document.getElementById('adm-prov-name').value.trim(),
                 email: document.getElementById('adm-prov-email').value.trim(),
                 role: role,
                 department: dept,
                 designation: document.getElementById('adm-prov-designation').value.trim(),
-                additionalDepartments: extra
+                additionalDepartments: extra,
+                permissions: activePerms,
+                customPermissions: activePerms.join(','),
+                passwordHash: document.getElementById('adm-prov-password').value.trim() || 'Password@123'
             };
 
             try {
@@ -1405,8 +1702,21 @@
             document.getElementById('edit-user-role').value = u.role;
             document.getElementById('edit-user-dept').value = u.department || '';
             document.getElementById('edit-user-designation').value = u.designation || '';
-            if (document.getElementById('edit-user-extra-depts')) {
-                document.getElementById('edit-user-extra-depts').value = u.additionalDepartments || '';
+            document.getElementById('edit-user-password').value = 'Password@123';
+
+            // Parse additional departments
+            editExtraDepts = (u.additionalDepartments || '')
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            // Parse permissions
+            if (u.permissions && Array.isArray(u.permissions) && u.permissions.length > 0) {
+                editPermissions = [...u.permissions];
+            } else if (u.customPermissions && u.customPermissions.trim()) {
+                editPermissions = u.customPermissions.split(',').map(s => s.trim()).filter(Boolean);
+            } else {
+                editPermissions = [...(ADMIN_PERM_MATRIX[u.role] || [])];
             }
 
             handleEditRoleChange();
@@ -1415,6 +1725,8 @@
 
         function closeEditUserModal() {
             document.getElementById('edit-user-modal').style.display = 'none';
+            editExtraDepts = [];
+            editPermissions = [];
         }
 
         async function handleEditUserSubmit(e) {
@@ -1423,8 +1735,7 @@
             const role = document.getElementById('edit-user-role').value;
             const isInstitutional = (role === 'Admin' || role === 'IQAC' || role === 'Inspector');
             const dept = isInstitutional ? '' : (document.getElementById('edit-user-dept') ? document.getElementById('edit-user-dept').value : '');
-            const extra = (!isInstitutional && role === 'DeanHOD' && document.getElementById('edit-user-extra-depts')) 
-                ? document.getElementById('edit-user-extra-depts').value.trim() : '';
+            const extra = (!isInstitutional && role === 'DeanHOD') ? editExtraDepts.join(', ') : '';
 
             if (role === 'DeanHOD' && dept) {
                 const existingHod = allUsers.find(u => u.role === 'DeanHOD' && (u.status || 'Active') === 'Active' && u.id !== id && u.department && u.department.trim().toLowerCase() === dept.trim().toLowerCase());
@@ -1434,17 +1745,28 @@
                 }
             }
 
+            const activePerms = editPermissions.length > 0 ? editPermissions : (ADMIN_PERM_MATRIX[role] || []);
+
             const userData = {
                 name: document.getElementById('edit-user-name').value.trim(),
                 email: document.getElementById('edit-user-email').value.trim(),
                 role: role,
                 department: dept,
                 designation: document.getElementById('edit-user-designation').value.trim(),
-                additionalDepartments: extra
+                additionalDepartments: extra,
+                permissions: activePerms,
+                customPermissions: activePerms.join(','),
+                passwordHash: document.getElementById('edit-user-password').value.trim() || 'Password@123'
             };
 
             try {
                 await PortalClient.updateUser(id, userData);
+                closeEditUserModal();
+                await loadAllData();
+            } catch (err) {
+                alert("Update failed: " + (err.message || err));
+            }
+        }
                 closeEditUserModal();
                 await loadAllData();
             } catch (err) {

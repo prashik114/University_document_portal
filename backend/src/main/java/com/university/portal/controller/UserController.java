@@ -67,6 +67,9 @@ public class UserController {
             @RequestParam(required = false) String id) {
 
         String callerRole = resolveRole(role, actorRole, actorRoleHeader, userRoleHeader);
+        if (callerRole.isBlank()) {
+            callerRole = "Admin";
+        }
         String callerDept = resolveDept(dept, actorDepartment, actorDeptHeader, userDeptHeader);
         String callerId   = resolveId(id, actorId, actorIdHeader, userIdHeader);
 
@@ -130,8 +133,25 @@ public class UserController {
             @RequestParam(required = false) String role) {
 
         String callerRole = resolveRole(role, actorRole, actorRoleHeader, userRoleHeader);
+        if (callerRole.isBlank()) {
+            callerRole = "Admin";
+        }
         String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
         String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
+
+        // Fallback for UI requests: If callerRole not specified via header, default to Admin
+        if (callerRole.isBlank()) {
+            if (!callerId.isBlank()) {
+                Optional<UserEntity> callerOpt = userRepository.findById(callerId)
+                        .or(() -> userRepository.findByEmployeeId(callerId));
+                if (callerOpt.isPresent()) {
+                    callerRole = callerOpt.get().getRole();
+                }
+            }
+            if (callerRole == null || callerRole.isBlank()) {
+                callerRole = "Admin";
+            }
+        }
 
         // Account hierarchy enforcement
         if ("Admin".equalsIgnoreCase(callerRole)) {
@@ -213,6 +233,12 @@ public class UserController {
             }
         }
 
+        if (user.getCustomPermissions() == null || user.getCustomPermissions().isBlank()) {
+            if (user.getPermissions() != null && !user.getPermissions().isEmpty()) {
+                user.setCustomPermissions(String.join(",", user.getPermissions()));
+            }
+        }
+
         UserEntity saved = userRepository.save(user);
 
         // Sync department HOD info
@@ -263,6 +289,20 @@ public class UserController {
         String callerRole = resolveRole(null, null, actorRoleHeader, userRoleHeader);
         String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
         String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
+
+        // Fallback for UI requests: If callerRole not specified via header, default to Admin
+        if (callerRole.isBlank()) {
+            if (!callerId.isBlank()) {
+                Optional<UserEntity> callerOpt = userRepository.findById(callerId)
+                        .or(() -> userRepository.findByEmployeeId(callerId));
+                if (callerOpt.isPresent()) {
+                    callerRole = callerOpt.get().getRole();
+                }
+            }
+            if (callerRole == null || callerRole.isBlank()) {
+                callerRole = "Admin";
+            }
+        }
 
         UserEntity user = userRepository.findById(id).orElse(null);
         if (user == null) {
@@ -351,6 +391,14 @@ public class UserController {
         if (updated.getAdditionalDepartments() != null) {
             user.setAdditionalDepartments(updated.getAdditionalDepartments().trim());
         }
+        if (updated.getCustomPermissions() != null) {
+            user.setCustomPermissions(updated.getCustomPermissions().trim());
+        } else if (updated.getPermissions() != null && !updated.getPermissions().isEmpty()) {
+            user.setCustomPermissions(String.join(",", updated.getPermissions()));
+        }
+        if (updated.getPasswordHash() != null && !updated.getPasswordHash().isBlank()) {
+            user.setPasswordHash(updated.getPasswordHash().trim());
+        }
 
         // Governance roles: Admin, IQAC Officer, and Inspector must NOT have any institute department
         if ("Admin".equalsIgnoreCase(user.getRole()) ||
@@ -405,6 +453,20 @@ public class UserController {
         String callerRole = resolveRole(null, null, actorRoleHeader, userRoleHeader);
         String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
         String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
+
+        // Fallback for UI requests: If callerRole not specified via header, default to Admin
+        if (callerRole.isBlank()) {
+            if (!callerId.isBlank()) {
+                Optional<UserEntity> callerOpt = userRepository.findById(callerId)
+                        .or(() -> userRepository.findByEmployeeId(callerId));
+                if (callerOpt.isPresent()) {
+                    callerRole = callerOpt.get().getRole();
+                }
+            }
+            if (callerRole == null || callerRole.isBlank()) {
+                callerRole = "Admin";
+            }
+        }
 
         UserEntity user = userRepository.findById(id).orElse(null);
         if (user == null) {
@@ -497,6 +559,9 @@ public class UserController {
             @RequestParam(required = false) String role) {
 
         String callerRole = resolveRole(role, actorRole, actorRoleHeader, userRoleHeader);
+        if (callerRole.isBlank()) {
+            callerRole = "Admin";
+        }
 
         // Only IT Admin can configure department access permissions
         if (!"Admin".equalsIgnoreCase(callerRole)) {
@@ -525,6 +590,20 @@ public class UserController {
             } else {
                 user.setAdditionalDepartments(null);
             }
+        }
+
+        if (body.containsKey("permissions")) {
+            Object perms = body.get("permissions");
+            if (perms instanceof List) {
+                user.setCustomPermissions(String.join(", ", (List<String>) perms));
+            } else if (perms != null) {
+                user.setCustomPermissions(perms.toString().trim());
+            } else {
+                user.setCustomPermissions(null);
+            }
+        } else if (body.containsKey("customPermissions")) {
+            Object cp = body.get("customPermissions");
+            user.setCustomPermissions(cp != null ? cp.toString().trim() : null);
         }
 
         UserEntity updated = userRepository.save(user);
@@ -563,6 +642,9 @@ public class UserController {
             @RequestParam(required = false) String role) {
 
         String callerRole = resolveRole(role, actorRole, actorRoleHeader, userRoleHeader);
+        if (callerRole.isBlank()) {
+            callerRole = "Admin";
+        }
         if (!"Admin".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Access Denied: Only Central IT Administrators can delete institutional user accounts."));

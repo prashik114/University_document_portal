@@ -6,22 +6,37 @@
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
-function getActorHeaders() {
-  try {
-    const raw = localStorage.getItem('portal_user_profile')
-      || sessionStorage.getItem('portal_user_profile')
-      || localStorage.getItem('portal_current_user')
-      || sessionStorage.getItem('portal_current_user');
-    if (raw) {
-      const u = JSON.parse(raw);
-      return {
-        'X-Actor-Role': u.role || '',
-        'X-Actor-Department': u.department || '',
-        'X-Actor-Id': u.employeeId || u.id || '',
-      };
-    }
-  } catch (_) {}
-  return {};
+function getActorHeaders(explicitActor) {
+  let role = '';
+  let dept = '';
+  let id = '';
+
+  if (explicitActor && (explicitActor.role || explicitActor.email)) {
+    role = explicitActor.role || '';
+    dept = explicitActor.department || '';
+    id   = explicitActor.employeeId || explicitActor.id || '';
+  }
+
+  if (!role) {
+    try {
+      const raw = localStorage.getItem('portal_user_profile')
+        || sessionStorage.getItem('portal_user_profile')
+        || localStorage.getItem('portal_current_user')
+        || sessionStorage.getItem('portal_current_user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        role = u.role || '';
+        dept = u.department || '';
+        id   = u.employeeId || u.id || '';
+      }
+    } catch (_) {}
+  }
+
+  const headers = {};
+  if (role) headers['X-Actor-Role'] = role;
+  if (dept) headers['X-Actor-Department'] = dept;
+  if (id)   headers['X-Actor-Id'] = id;
+  return headers;
 }
 
 async function request(path, options = {}) {
@@ -138,14 +153,23 @@ export const api = {
   // ── Users & Provisioning ───────────────────────────────────────────────
   getUsers: () => request('/users'),
 
-  provisionUser: (user) =>
-    request('/users', { method: 'POST', body: JSON.stringify(user) }),
+  provisionUser: (user, actor) => {
+    const actorHeaders = getActorHeaders(actor);
+    return request('/users', {
+      method: 'POST',
+      headers: actorHeaders,
+      body: JSON.stringify(user),
+    });
+  },
 
-  updateUser: (id, data) =>
-    request(`/users/${encodeURIComponent(id)}`, {
+  updateUser: (id, data, actor) => {
+    const actorHeaders = getActorHeaders(actor);
+    return request(`/users/${encodeURIComponent(id)}`, {
       method: 'PUT',
+      headers: actorHeaders,
       body: JSON.stringify(data),
-    }),
+    });
+  },
 
   updateUserStatus: (id, status) =>
     request(`/users/${encodeURIComponent(id)}/status`, {

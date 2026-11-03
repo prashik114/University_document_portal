@@ -65,7 +65,8 @@ const PERM_LABELS = {
 
 const EMPTY_FORM = {
   name: '', email: '', role: 'Faculty', designation: '', department: '',
-  employeeId: '', status: 'Active', additionalDepartments: '', password: '',
+  employeeId: '', status: 'Active', additionalDepartments: '', password: 'Password@123',
+  permissions: PERMISSIONS_MATRIX['Faculty'] || [],
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -128,12 +129,25 @@ export default function UserAccessControl({
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const openCreate = () => {
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+      password: 'Password@123',
+      permissions: [...(PERMISSIONS_MATRIX['Faculty'] || [])],
+    });
     setEditUser(null);
     setShowCreateModal(true);
   };
 
   const openEdit = (user) => {
+    let perms = [];
+    if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
+      perms = [...user.permissions];
+    } else if (user.customPermissions && user.customPermissions.trim()) {
+      perms = user.customPermissions.split(',').map(s => s.trim()).filter(Boolean);
+    } else {
+      perms = [...(PERMISSIONS_MATRIX[user.role] || [])];
+    }
+
     setForm({
       name:                  user.name || '',
       email:                 user.email || '',
@@ -143,7 +157,8 @@ export default function UserAccessControl({
       employeeId:            user.employeeId || '',
       status:                user.status || 'Active',
       additionalDepartments: user.additionalDepartments || '',
-      password:              '',
+      password:              'Password@123',
+      permissions:           perms,
     });
     setEditUser(user);
     setShowCreateModal(true);
@@ -153,10 +168,6 @@ export default function UserAccessControl({
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim()) {
       showToast('Name and email are required.', 'warning');
-      return;
-    }
-    if (!editUser && !form.password.trim()) {
-      showToast('Password is required when creating a new user.', 'warning');
       return;
     }
     setFormBusy(true);
@@ -172,6 +183,10 @@ export default function UserAccessControl({
         }
       }
 
+      const activePerms = form.permissions && form.permissions.length > 0
+        ? form.permissions
+        : (PERMISSIONS_MATRIX[form.role] || []);
+
       const payload = {
         name:        form.name.trim(),
         email:       form.email.trim().toLowerCase(),
@@ -181,14 +196,16 @@ export default function UserAccessControl({
         employeeId:  form.employeeId.trim(),
         status:      form.status,
         additionalDepartments: (!isInstitutional && form.role === 'DeanHOD') ? form.additionalDepartments.trim() : '',
-        ...(form.password.trim() ? { passwordHash: form.password.trim() } : {}),
+        permissions: activePerms,
+        customPermissions: activePerms.join(','),
+        passwordHash: form.password && form.password.trim() ? form.password.trim() : 'Password@123',
       };
 
       if (editUser) {
-        await onUpdate(editUser.id, payload);
+        await onUpdate(editUser.id, payload, currentUser);
         showToast(`${payload.name}'s account updated successfully.`, 'success');
       } else {
-        await onProvision(payload);
+        await onProvision(payload, currentUser);
         showToast(`${payload.name} provisioned as ${payload.role}.`, 'success');
       }
       setShowCreateModal(false);
@@ -209,10 +226,10 @@ export default function UserAccessControl({
     }
   };
 
-  const handleSavePermissions = async (userId, additionalDepts) => {
+  const handleSavePermissions = async (userId, payload) => {
     try {
-      await onUpdatePermissions(userId, { additionalDepartments: additionalDepts });
-      showToast('Department permissions updated.', 'success');
+      await onUpdatePermissions(userId, payload);
+      showToast('Permissions and department access updated successfully.', 'success');
       setPermUser(null);
     } catch (err) {
       showToast(err.message || 'Permission update failed.', 'error');
@@ -503,7 +520,16 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label style={labelStyle}>Role *</label>
-              <select value={form.role} onChange={e => f('role', e.target.value)} style={selectStyle} required>
+              <select
+                value={form.role}
+                onChange={e => {
+                  const newRole = e.target.value;
+                  f('role', newRole);
+                  f('permissions', PERMISSIONS_MATRIX[newRole] || []);
+                }}
+                style={selectStyle}
+                required
+              >
                 {ALL_ROLES.map(r => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
               </select>
             </div>
@@ -535,7 +561,20 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
                   <span style={{ fontSize: 11, color: '#0284c7', fontWeight: 600 }}>Rule: Single HOD per department</span>
                 )}
               </div>
-              <select value={form.department} onChange={e => f('department', e.target.value)} style={selectStyle} required>
+              <select
+                value={form.department}
+                onChange={e => {
+                  const newDept = e.target.value;
+                  f('department', newDept);
+                  // Remove from additional departments if it was there
+                  if (form.additionalDepartments) {
+                    const filtered = form.additionalDepartments.split(',').map(d => d.trim()).filter(d => d && d.toLowerCase() !== newDept.toLowerCase());
+                    f('additionalDepartments', filtered.join(', '));
+                  }
+                }}
+                style={selectStyle}
+                required
+              >
                 <option value="">— Select Department —</option>
                 {deptOptions.map(d => {
                   const existingHod = (form.role === 'DeanHOD' && users)
@@ -556,48 +595,182 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
             </div>
           )}
 
-          {/* Additional Departments (HOD only) */}
-          {form.role === 'DeanHOD' && (
-            <div>
-              <label style={labelStyle}>Additional Departments (HOD Scope)</label>
-              <input
-                type="text"
-                value={form.additionalDepartments}
-                onChange={e => f('additionalDepartments', e.target.value)}
-                placeholder="e.g. Electronics & Communication Engineering, Mechanical Engineering"
-                style={inputStyle}
-              />
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                Comma-separated. HOD will have verification authority over these departments in addition to their primary.
-              </div>
-            </div>
-          )}
+          {/* Additional Departments Dropdown (HOD only) */}
+          {form.role === 'DeanHOD' && (() => {
+            const currentSelected = form.additionalDepartments
+              ? form.additionalDepartments.split(',').map(d => d.trim()).filter(Boolean)
+              : [];
+            const availableDepts = deptOptions.filter(d => 
+              d.toLowerCase() !== (form.department || '').toLowerCase() && !currentSelected.some(s => s.toLowerCase() === d.toLowerCase())
+            );
 
-          {/* Password */}
+            return (
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Additional Department Access (HOD Scope)</label>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>{currentSelected.length} granted</span>
+                </div>
+                
+                {/* Dropdown list to add department */}
+                <select
+                  value=""
+                  onChange={e => {
+                    const toAdd = e.target.value;
+                    if (!toAdd) return;
+                    const next = [...currentSelected, toAdd];
+                    f('additionalDepartments', next.join(', '));
+                  }}
+                  style={selectStyle}
+                >
+                  <option value="">+ Select Additional Department from dropdown...</option>
+                  {availableDepts.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+
+                {/* Display selected badges with remove action */}
+                {currentSelected.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                    {currentSelected.map(dName => (
+                      <span
+                        key={dName}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: '#e0f2fe',
+                          color: '#0369a1',
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          border: '1px solid #bae6fd'
+                        }}
+                      >
+                        <span>{dName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = currentSelected.filter(x => x.toLowerCase() !== dName.toLowerCase());
+                            f('additionalDepartments', next.join(', '));
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#0284c7',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: 14,
+                            lineHeight: 1,
+                            fontWeight: 700
+                          }}
+                          title="Remove clearance"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic', marginTop: 6 }}>
+                    No additional departments selected. Choose departments from the dropdown above to grant multi-department verification access.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Password - Always defaults to Password@123 */}
           <div>
-            <label style={labelStyle}>{isEdit ? 'New Password (leave blank to keep current)' : 'Initial Password *'}</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>
+                {isEdit ? 'Account Password' : 'Initial Password *'}
+              </label>
+              <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>
+                Default: Password@123
+              </span>
+            </div>
             <input
-              type="password"
-              value={form.password}
+              type="text"
+              value={form.password !== undefined && form.password !== '' ? form.password : 'Password@123'}
               onChange={e => f('password', e.target.value)}
-              placeholder={isEdit ? 'Leave blank to keep unchanged' : 'Set initial password'}
+              placeholder="Password@123"
               required={!isEdit}
-              style={inputStyle}
+              style={{ ...inputStyle, fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}
               autoComplete="new-password"
             />
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+              System default initial password is pre-filled as <strong>Password@123</strong>.
+            </div>
           </div>
 
-          {/* Role permissions preview */}
-          <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .4 }}>
-              Permissions granted to {ROLE_META[form.role]?.label || form.role}
+          {/* Permissions Granted (Interactive Checkbox List) */}
+          <div style={{ background: '#f8fafc', borderRadius: 8, padding: 14, border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Permissions Granted to User ({(form.permissions || []).length} selected)
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => f('permissions', PERMISSIONS_MATRIX[form.role] || [])}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  Reset Defaults
+                </button>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allRolePerms = PERMISSIONS_MATRIX[form.role] || [];
+                    const isAll = (form.permissions || []).length === allRolePerms.length;
+                    f('permissions', isAll ? [] : allRolePerms);
+                  }}
+                  style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  {(form.permissions || []).length === (PERMISSIONS_MATRIX[form.role] || []).length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {(PERMISSIONS_MATRIX[form.role] || []).map(p => (
-                <span key={p} style={{ padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600, background: '#e0f2fe', color: '#075985' }}>
-                  {PERM_LABELS[p] || p}
-                </span>
-              ))}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {(PERMISSIONS_MATRIX[form.role] || []).map(pKey => {
+                const checked = (form.permissions || []).includes(pKey);
+                return (
+                  <label
+                    key={pKey}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '7px 10px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      background: checked ? '#eff6ff' : '#ffffff',
+                      border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`,
+                      color: checked ? '#1e40af' : '#64748b',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => {
+                        const cur = form.permissions || [];
+                        const next = e.target.checked
+                          ? [...cur, pKey]
+                          : cur.filter(x => x !== pKey);
+                        f('permissions', next);
+                      }}
+                      style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: checked ? 600 : 400, userSelect: 'none' }}>
+                      {PERM_LABELS[pKey] || pKey}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -623,19 +796,50 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
 function PermissionsModal({ user, departments, onSave, onClose }) {
   const meta = ROLE_META[user.role] || { color: '#475569', bg: '#f1f5f9', label: user.role };
   const rolePerms = PERMISSIONS_MATRIX[user.role] || [];
+  const deptOptions = departments.map(d => d.name).filter(Boolean);
+
+  // Initialize permissions
+  const initialPerms = useMemo(() => {
+    if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
+      return [...user.permissions];
+    }
+    if (user.customPermissions && user.customPermissions.trim()) {
+      return user.customPermissions.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [...rolePerms];
+  }, [user, rolePerms]);
+
+  const [selectedPerms, setSelectedPerms] = useState(initialPerms);
   const [additionalDepts, setAdditionalDepts] = useState(user.additionalDepartments || '');
   const [saving, setSaving] = useState(false);
 
+  const currentSelectedDepts = useMemo(() => {
+    return additionalDepts
+      ? additionalDepts.split(',').map(d => d.trim()).filter(Boolean)
+      : [];
+  }, [additionalDepts]);
+
+  const availableDepts = useMemo(() => {
+    return deptOptions.filter(d =>
+      d.toLowerCase() !== (user.department || '').toLowerCase() &&
+      !currentSelectedDepts.some(s => s.toLowerCase() === d.toLowerCase())
+    );
+  }, [deptOptions, user.department, currentSelectedDepts]);
+
   const handleSave = async () => {
     setSaving(true);
-    await onSave(user.id, additionalDepts);
+    await onSave(user.id, {
+      additionalDepartments: user.role === 'DeanHOD' ? additionalDepts.trim() : '',
+      permissions: selectedPerms,
+      customPermissions: selectedPerms.join(','),
+    });
     setSaving(false);
   };
 
   return (
     <div className="modal-overlay active" role="dialog" aria-modal="true"
       style={{ display: 'flex', zIndex: 99999 }}>
-      <div className="modal-dialog" style={{ maxWidth: 560, width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}>
+      <div className="modal-dialog" style={{ maxWidth: 580, width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #e2e8f0' }}>
           <div>
@@ -653,27 +857,158 @@ function PermissionsModal({ user, departments, onSave, onClose }) {
             </div>
             <div>
               <div style={{ fontWeight: 700, color: '#0f172a' }}>{user.name}</div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>{user.email} · {user.employeeId}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{user.email} · {user.employeeId || 'No ID'}</div>
             </div>
             <span style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700, background: meta.bg, color: meta.color, border: `1px solid ${meta.color}44` }}>
               {meta.label}
             </span>
           </div>
 
-          {/* Role permissions (read-only) */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 10, textTransform: 'uppercase', letterSpacing: .5 }}>
-              Role-Based Permissions ({rolePerms.length} granted)
+          {/* Interactive Checkbox List for Permissions */}
+          <div style={{ background: '#f8fafc', borderRadius: 8, padding: 14, border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: .5 }}>
+                Permissions Granted ({selectedPerms.length} of {rolePerms.length} selected)
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPerms([...rolePerms])}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  Reset Defaults
+                </button>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isAll = selectedPerms.length === rolePerms.length;
+                    setSelectedPerms(isAll ? [] : [...rolePerms]);
+                  }}
+                  style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  {selectedPerms.length === rolePerms.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {rolePerms.map(p => (
-                <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 6, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span style={{ fontSize: 11.5, color: '#15803d', fontWeight: 600 }}>{PERM_LABELS[p] || p}</span>
-                </div>
-              ))}
+              {rolePerms.map(pKey => {
+                const checked = selectedPerms.includes(pKey);
+                return (
+                  <label
+                    key={pKey}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '7px 10px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      background: checked ? '#eff6ff' : '#ffffff',
+                      border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`,
+                      color: checked ? '#1e40af' : '#64748b',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => {
+                        setSelectedPerms(prev =>
+                          e.target.checked ? [...prev, pKey] : prev.filter(x => x !== pKey)
+                        );
+                      }}
+                      style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: checked ? 600 : 400, userSelect: 'none' }}>
+                      {PERM_LABELS[pKey] || pKey}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
+
+          {/* HOD: Additional department scope (Dropdown list + Removable tags) */}
+          {user.role === 'DeanHOD' && (
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Additional Department Access (HOD Scope)</label>
+                <span style={{ fontSize: 11, color: '#64748b' }}>{currentSelectedDepts.length} granted</span>
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+                Primary department: <strong style={{ color: '#0f172a' }}>{user.department || '—'}</strong>
+              </div>
+
+              {/* Dropdown list to add department */}
+              <select
+                value=""
+                onChange={e => {
+                  const toAdd = e.target.value;
+                  if (!toAdd) return;
+                  const next = [...currentSelectedDepts, toAdd];
+                  setAdditionalDepts(next.join(', '));
+                }}
+                style={selectStyle}
+              >
+                <option value="">+ Select Additional Department from dropdown...</option>
+                {availableDepts.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              {/* Display selected badges with remove action */}
+              {currentSelectedDepts.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                  {currentSelectedDepts.map(dName => (
+                    <span
+                      key={dName}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        padding: '4px 10px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        border: '1px solid #bae6fd'
+                      }}
+                    >
+                      <span>{dName}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = currentSelectedDepts.filter(x => x.toLowerCase() !== dName.toLowerCase());
+                          setAdditionalDepts(next.join(', '));
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#0284c7',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontSize: 14,
+                          lineHeight: 1,
+                          fontWeight: 700
+                        }}
+                        title="Remove clearance"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic', marginTop: 6 }}>
+                  No additional departments selected. Choose departments from the dropdown above to grant multi-department verification access.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Restrictions (read-only display) */}
           <div>
@@ -683,40 +1018,25 @@ function PermissionsModal({ user, departments, onSave, onClose }) {
             <RestrictionsList role={user.role} />
           </div>
 
-          {/* HOD: Additional department scope (editable by Admin) */}
-          {user.role === 'DeanHOD' && (
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6, textTransform: 'uppercase', letterSpacing: .5 }}>
-                Additional Department Scope
-              </div>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-                Primary department: <strong style={{ color: '#0f172a' }}>{user.department || '—'}</strong>
-              </div>
-              <input
-                type="text"
-                value={additionalDepts}
-                onChange={e => setAdditionalDepts(e.target.value)}
-                placeholder="e.g. Mechanical Engineering, Management Studies"
-                style={inputStyle}
-              />
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                Comma-separated department names. HOD will have verification authority over these departments.
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-                <button onClick={onClose} style={{ padding: '7px 14px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
-                <button onClick={handleSave} disabled={saving}
-                  style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
-                  {saving ? 'Saving…' : 'Save Scope'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {user.role !== 'DeanHOD' && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={onClose} style={{ padding: '8px 20px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Close</button>
-            </div>
-          )}
+          {/* Action buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 6 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}
+            >
+              {saving ? 'Saving…' : 'Save Permissions'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

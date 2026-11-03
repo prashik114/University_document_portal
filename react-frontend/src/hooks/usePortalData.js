@@ -89,14 +89,14 @@ export function usePortalData() {
 
   // ── User mutations ────────────────────────────────────────────────────────
 
-  const provisionUser = useCallback(async (userData) => {
-    const saved = await api.provisionUser(userData);
+  const provisionUser = useCallback(async (userData, actor) => {
+    const saved = await api.provisionUser(userData, actor);
     setUsers(prev => [...prev, saved]);
     return saved;
   }, []);
 
-  const updateUser = useCallback(async (id, data) => {
-    const updated = await api.updateUser(id, data);
+  const updateUser = useCallback(async (id, data, actor) => {
+    const updated = await api.updateUser(id, data, actor);
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
     return updated;
   }, []);
