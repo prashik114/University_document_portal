@@ -10,3 +10,4 @@ import java.util.Optional;
 public interface StoredFileRepository extends JpaRepository<StoredFileEntity, String> {
     Optional<StoredFileEntity> findByFileName(String fileName);
 }
+

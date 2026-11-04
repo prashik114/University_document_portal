@@ -40,7 +40,35 @@ export default function DocumentDetailModal({
     return false;
   })();
 
-  const canResubmit  = ['Faculty', 'Student', 'DeanHOD', 'Admin'].includes(currentUser.role) && doc.status === 'Returned';
+  const isDocOwner = (() => {
+    if (!doc || !currentUser) return false;
+    const uid = (currentUser.id || '').trim().toLowerCase();
+    const emp = (currentUser.employeeId || '').trim().toLowerCase();
+    const docOwnerId = (doc.ownerId || '').trim().toLowerCase();
+    const docOwnerName = (doc.ownerName || '').trim().toLowerCase();
+    const docRecordedBy = (doc.recordedByFaculty || '').trim().toLowerCase();
+    const userName = (currentUser.name || '').trim().toLowerCase();
+    const userEmail = (currentUser.email || '').trim().toLowerCase();
+    const docEmail = (doc.ownerEmail || '').trim().toLowerCase();
+
+    const matchId = Boolean(uid && docOwnerId && (docOwnerId === uid || docOwnerId === emp));
+    const matchEmp = Boolean(emp && docOwnerId && (docOwnerId === emp || docOwnerId === uid));
+    const matchName = Boolean(userName && docOwnerName && docOwnerName === userName);
+    const matchFaculty = Boolean(userName && docRecordedBy && docRecordedBy === userName);
+    const matchEmail = Boolean(userEmail && docEmail && docEmail === userEmail);
+
+    return matchId || matchEmp || matchName || matchFaculty || matchEmail;
+  })();
+
+  // Resubmission is strictly for the SUBMITTER / OWNER of the returned document:
+  // - Students can ONLY re-upload and resubmit their own student records when Returned.
+  // - Faculty can ONLY re-upload and resubmit their own faculty records when Returned by HOD.
+  // - Faculty examining a student's document can NEVER re-upload/resubmit it!
+  // - When a document is re-submitted, its status becomes 'Under Verification', so re-upload is disabled.
+  const canResubmit = doc.status === 'Returned' && isDocOwner && (
+    (currentUser.role === 'Student' && isStudentDoc) ||
+    (currentUser.role === 'Faculty' && !isStudentDoc)
+  );
   const isLocked     = doc.status === 'Approved';
 
   return (

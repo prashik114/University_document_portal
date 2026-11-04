@@ -37,6 +37,27 @@ function exportCSV(records, filename = 'Records_Export.csv') {
 
 const normalizeDept = (dept) => (dept || '').replace(/&/g, 'and').replace(/\s+/g, ' ').trim().toLowerCase();
 
+// ── Document ownership check (survives user rename & employee ID updates) ──
+const isDocOwnedByUser = (doc, user) => {
+  if (!doc || !user) return false;
+  const uid = (user.id || '').trim().toLowerCase();
+  const emp = (user.employeeId || '').trim().toLowerCase();
+  const docOwnerId = (doc.ownerId || '').trim().toLowerCase();
+  const docOwnerName = (doc.ownerName || '').trim().toLowerCase();
+  const docRecordedBy = (doc.recordedByFaculty || '').trim().toLowerCase();
+  const userName = (user.name || '').trim().toLowerCase();
+  const userEmail = (user.email || '').trim().toLowerCase();
+  const docEmail = (doc.ownerEmail || '').trim().toLowerCase();
+
+  const matchId = Boolean(uid && docOwnerId && (docOwnerId === uid || docOwnerId === emp));
+  const matchEmp = Boolean(emp && docOwnerId && (docOwnerId === emp || docOwnerId === uid));
+  const matchName = Boolean(userName && docOwnerName && docOwnerName === userName);
+  const matchFaculty = Boolean(userName && docRecordedBy && docRecordedBy === userName);
+  const matchEmail = Boolean(userEmail && docEmail && docEmail === userEmail);
+
+  return matchId || matchEmp || matchName || matchFaculty || matchEmail;
+};
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -85,26 +106,7 @@ export default function App() {
   const [returnDoc,            setReturnDoc]          = useState(null);
   const [resubmitDoc,          setResubmitDoc]        = useState(null);
 
-  // ── Document ownership check (survives user rename & employee ID updates) ──
-  const isDocOwnedByUser = (doc, user) => {
-    if (!doc || !user) return false;
-    const uid = (user.id || '').trim().toLowerCase();
-    const emp = (user.employeeId || '').trim().toLowerCase();
-    const docOwnerId = (doc.ownerId || '').trim().toLowerCase();
-    const docOwnerName = (doc.ownerName || '').trim().toLowerCase();
-    const docRecordedBy = (doc.recordedByFaculty || '').trim().toLowerCase();
-    const userName = (user.name || '').trim().toLowerCase();
-    const userEmail = (user.email || '').trim().toLowerCase();
-    const docEmail = (doc.ownerEmail || '').trim().toLowerCase();
 
-    const matchId = Boolean(uid && docOwnerId && (docOwnerId === uid || docOwnerId === emp));
-    const matchEmp = Boolean(emp && docOwnerId && (docOwnerId === emp || docOwnerId === uid));
-    const matchName = Boolean(userName && docOwnerName && docOwnerName === userName);
-    const matchFaculty = Boolean(userName && docRecordedBy && docRecordedBy === userName);
-    const matchEmail = Boolean(userEmail && docEmail && docEmail === userEmail);
-
-    return matchId || matchEmp || matchName || matchFaculty || matchEmail;
-  };
 
   // ── Derived values ────────────────────────────────────────────────────────
   const roleColor    = ROLE_COLORS[currentUser?.role]    || '#2563eb';
@@ -1225,14 +1227,27 @@ function DocumentTable({ docs, onView, onApprove, onReturn, onResubmit, currentU
                       style={{ padding:'5px 12px', borderRadius:6, border:'1px solid #cbd5e1', background:'#fff', color:'#2563eb', fontWeight:600, fontSize:12, cursor:'pointer' }}>
                       {currentUser.role === 'Inspector' ? 'Inspect' : 'View'}
                     </button>
-                    {doc.status === 'Returned' && ['Faculty','Student'].includes(currentUser.role) && onResubmit && (
-                      <button onClick={() => onResubmit(doc)}
-                        title="Re-upload corrected document and restart verification workflow"
-                        style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:6, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span>Re-upload & Resubmit</span>
-                      </button>
-                    )}
+                    {(() => {
+                      const isOwner = isDocOwnedByUser(doc, currentUser);
+                      // Resubmission is strictly for the submitter/owner:
+                      // - Students can ONLY re-upload their own returned student certificate.
+                      // - Faculty can ONLY re-upload their own returned faculty doc.
+                      // - Faculty examining a student doc can NEVER re-upload/resubmit it!
+                      // - When a document is re-submitted, its status is 'Under Verification' so re-upload is hidden.
+                      const canResubmit = doc.status === 'Returned' && isOwner && (
+                        (currentUser.role === 'Student' && isDocStudent) ||
+                        (currentUser.role === 'Faculty' && !isDocStudent)
+                      );
+                      if (!canResubmit || !onResubmit) return null;
+                      return (
+                        <button onClick={() => onResubmit(doc)}
+                          title="Re-upload corrected document and restart verification workflow"
+                          style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:6, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <span>Re-upload & Resubmit</span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 </td>
               </tr>

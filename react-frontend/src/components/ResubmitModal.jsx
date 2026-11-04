@@ -9,7 +9,13 @@ import { api } from '../services/api';
 export default function ResubmitModal({ doc, currentUser, onConfirm, onClose, showToast }) {
   if (!doc) return null;
 
-  const isStudent = currentUser.role === 'Student' || doc.category === 'Student' || doc.ownerType === 'Student';
+  const isStudentDoc = doc.category === 'Student' || doc.ownerType === 'Student';
+  // Faculty examining a student document can NEVER re-upload/resubmit it
+  if (currentUser?.role === 'Faculty' && isStudentDoc) return null;
+  // If document is not in Returned status, resubmission is prohibited
+  if (doc.status !== 'Returned') return null;
+
+  const isStudent = currentUser?.role === 'Student' || isStudentDoc;
   const [title, setTitle] = useState(doc.title || '');
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
