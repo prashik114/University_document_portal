@@ -24,7 +24,7 @@ const ROLE_META = {
 const PERMISSIONS_MATRIX = {
   Admin:     ['manage_users', 'manage_departments', 'manage_settings', 'view_all_docs', 'delete_docs', 'reset_data', 'configure_hod_scope'],
   DeanHOD:   ['create_faculty', 'create_students', 'verify_docs', 'forward_to_iqac', 'return_docs', 'view_dept_docs', 'generate_dept_reports'],
-  Faculty:   ['upload_docs', 'create_students', 'view_dept_docs', 'resubmit_docs', 'view_own_docs'],
+  Faculty:   ['upload_docs', 'create_students', 'verify_docs', 'view_dept_docs', 'resubmit_docs', 'view_own_docs'],
   Student:   ['upload_docs', 'view_own_docs', 'resubmit_docs'],
   IQAC:      ['final_approve', 'lock_docs', 'view_all_docs', 'generate_reports', 'return_to_dept', 'batch_lock'],
   Inspector: ['view_approved_docs', 'download_approved_docs', 'view_reports', 'view_audit_logs'],

@@ -15,7 +15,25 @@ export default function DocumentDetailModal({
 }) {
   if (!doc) return null;
 
-  const canVerify    = ['DeanHOD', 'IQAC', 'Admin'].includes(currentUser.role) && doc.status === 'Under Verification';
+  const isStudentDoc = doc.category === 'Student' || (doc.category && doc.category.toLowerCase().includes('student')) || doc.ownerType === 'Student' || doc.ownerType === 'student';
+
+  const canVerify = doc.status === 'Under Verification' && (() => {
+    if (currentUser.role === 'Student') return false;
+    if (currentUser.role === 'Faculty') {
+      if (!isStudentDoc) return false;
+      if (currentUser.department && doc.department && currentUser.department.toLowerCase() !== doc.department.toLowerCase()) return false;
+      return true;
+    }
+    if (currentUser.role === 'DeanHOD') {
+      const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(s=>s.toLowerCase());
+      if (allowed.length > 0 && doc.department && !allowed.includes(doc.department.toLowerCase())) return false;
+      return true;
+    }
+    if (currentUser.role === 'IQAC') return doc.currentStage === 'IQAC';
+    if (currentUser.role === 'Admin') return true;
+    return false;
+  })();
+
   const canResubmit  = ['Faculty', 'Student', 'DeanHOD', 'Admin'].includes(currentUser.role) && doc.status === 'Returned';
   const isLocked     = doc.status === 'Approved';
 
@@ -153,14 +171,20 @@ export default function DocumentDetailModal({
                     onClick={() => onReturn(doc)}
                     style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ef4444', background: '#fee2e2', color: '#dc2626', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                   >
-                    {currentUser.role === 'IQAC' ? 'Return to Department' : 'Return for Clarification'}
+                    {currentUser.role === 'IQAC' ? 'Return to Department' : currentUser.role === 'Faculty' ? 'Return to Student for Correction' : 'Return for Clarification'}
                   </button>
                   <button
                     type="button"
                     onClick={() => onApprove(doc)}
                     style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                   >
-                    {currentUser.role === 'IQAC' ? 'Approve & Lock SSR' : 'Endorse & Forward to IQAC'}
+                    {currentUser.role === 'IQAC'
+                      ? 'Approve & Lock SSR'
+                      : currentUser.role === 'Faculty'
+                      ? 'Verify Student Document'
+                      : isStudentDoc
+                      ? 'Confirm & Forward to IQAC'
+                      : 'Endorse & Forward to IQAC'}
                   </button>
                 </>
               )}

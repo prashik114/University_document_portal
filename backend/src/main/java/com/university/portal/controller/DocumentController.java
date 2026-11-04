@@ -3,6 +3,7 @@ package com.university.portal.controller;
 import com.university.portal.dto.DocumentDTO;
 import com.university.portal.dto.ReviewActionDTO;
 import com.university.portal.entity.DocumentEntity;
+import com.university.portal.entity.UserEntity;
 import com.university.portal.repository.UserRepository;
 import com.university.portal.service.DocumentService;
 import com.university.portal.util.DocumentMapper;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * REST controller for all document lifecycle operations enforcing institutional RBAC:
@@ -193,6 +195,21 @@ public class DocumentController {
             }
         }
 
+        if ("Student".equalsIgnoreCase(callerRole)) {
+            doc.setOwnerType("Student");
+            if (doc.getCategory() == null || doc.getCategory().isBlank()) {
+                doc.setCategory("Student");
+            }
+        } else if ("Faculty".equalsIgnoreCase(callerRole)) {
+            if (doc.getOwnerType() == null || doc.getOwnerType().isBlank()) {
+                doc.setOwnerType("Faculty");
+            }
+        } else if ("DeanHOD".equalsIgnoreCase(callerRole)) {
+            if (doc.getOwnerType() == null || doc.getOwnerType().isBlank()) {
+                doc.setOwnerType("DeanHOD");
+            }
+        }
+
         DocumentEntity saved = documentService.createDocument(doc, actorName, callerRole.isBlank() ? "Faculty" : callerRole);
         return ResponseEntity.ok(DocumentMapper.toDTO(saved));
     }
@@ -315,7 +332,31 @@ public class DocumentController {
             return ResponseEntity.notFound().build();
         }
 
-        // Rule 5: Respective Department HOD verification check
+        // Rule: Student can ONLY upload documents (cannot verify)
+        if ("Student".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access Denied: Students are not authorized to verify documents. Students can only upload documents."));
+        }
+
+        // Rule: Faculty can verify Student documents only within their department (based on access provided)
+        if ("Faculty".equalsIgnoreCase(callerRole)) {
+            boolean isStudentDoc = isStudentDocument(existing);
+            if (!isStudentDoc) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only verify Student documents. Faculty cannot verify Faculty or HOD documents."));
+            }
+            if (callerDept != null && !callerDept.isBlank() && existing.getDepartment() != null
+                    && !existing.getDepartment().trim().equalsIgnoreCase(callerDept.trim())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only verify Student documents within their own department (" + callerDept + ")."));
+            }
+            if (!hasVerificationPermission(callerId, callerRole)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Verification access has not been granted to your account. Contact your HOD or Admin."));
+            }
+        }
+
+        // Rule: HOD can verify & confirm both Faculty documents and Student documents within allowed department scope
         if ("DeanHOD".equalsIgnoreCase(callerRole)) {
             if (!isDepartmentAllowedForHod(existing.getDepartment(), callerId, callerDept)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -363,6 +404,30 @@ public class DocumentController {
         DocumentEntity existing = documentService.getDocumentById(id).orElse(null);
         if (existing == null) {
             return ResponseEntity.notFound().build();
+        }
+
+        // Rule: Student cannot return documents
+        if ("Student".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access Denied: Students are not authorized to return documents."));
+        }
+
+        // Rule: Faculty can only return Student documents within their department
+        if ("Faculty".equalsIgnoreCase(callerRole)) {
+            boolean isStudentDoc = isStudentDocument(existing);
+            if (!isStudentDoc) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only return Student documents."));
+            }
+            if (callerDept != null && !callerDept.isBlank() && existing.getDepartment() != null
+                    && !existing.getDepartment().trim().equalsIgnoreCase(callerDept.trim())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only return Student documents within their own department."));
+            }
+            if (!hasVerificationPermission(callerId, callerRole)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Verification access has not been granted to your account."));
+            }
         }
 
         if ("DeanHOD".equalsIgnoreCase(callerRole)) {
@@ -485,5 +550,41 @@ public class DocumentController {
         List<String> allowed = resolveHodAllowedDepartments(actorId, fallbackDept);
         if (allowed.isEmpty()) return false;
         return allowed.stream().anyMatch(a -> a.equalsIgnoreCase(targetDept.trim()));
+    }
+
+    private boolean isStudentDocument(DocumentEntity doc) {
+        if (doc == null) return false;
+        if ("Student".equalsIgnoreCase(doc.getOwnerType())) return true;
+        if ("Student".equalsIgnoreCase(doc.getCategory())) return true;
+        if (doc.getCategory() != null && doc.getCategory().toLowerCase().contains("student")) return true;
+        if (doc.getSubCategory() != null && doc.getSubCategory().toLowerCase().contains("student")) return true;
+        if (doc.getOwnerId() != null && !doc.getOwnerId().isBlank()) {
+            Optional<UserEntity> owner = userRepository.findById(doc.getOwnerId())
+                    .or(() -> userRepository.findByEmployeeId(doc.getOwnerId()));
+            if (owner.isPresent() && "Student".equalsIgnoreCase(owner.get().getRole())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasVerificationPermission(String actorId, String actorRole) {
+        if ("DeanHOD".equalsIgnoreCase(actorRole) || "Admin".equalsIgnoreCase(actorRole) || "IQAC".equalsIgnoreCase(actorRole)) {
+            return true;
+        }
+        if ("Faculty".equalsIgnoreCase(actorRole)) {
+            if (actorId == null || actorId.isBlank()) return true;
+            Optional<UserEntity> user = userRepository.findById(actorId)
+                    .or(() -> userRepository.findByEmployeeId(actorId))
+                    .or(() -> userRepository.findByEmail(actorId));
+            if (user.isPresent()) {
+                List<String> perms = user.get().getPermissions();
+                if (perms != null && !perms.isEmpty()) {
+                    return perms.contains("verify_docs") || perms.contains("verify_student_docs");
+                }
+            }
+            return true;
+        }
+        return false;
     }
 }

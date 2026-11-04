@@ -62,6 +62,8 @@ public class DocumentService {
     private static final String ROLE_DEAN_HOD = "DeanHOD";
     private static final String ROLE_IQAC     = "IQAC";
     private static final String ROLE_ADMIN    = "Admin";
+    private static final String ROLE_FACULTY  = "Faculty";
+    private static final String ROLE_STUDENT  = "Student";
 
     // ── Dependencies ──────────────────────────────────────────────────────────
     private final DocumentRepository       documentRepository;
@@ -106,11 +108,24 @@ public class DocumentService {
         return kpis;
     }
 
+    // ── Student document detector ─────────────────────────────────────────────
+
+    public boolean isStudentDocument(DocumentEntity doc) {
+        if (doc == null) return false;
+        if ("Student".equalsIgnoreCase(doc.getOwnerType())) return true;
+        if ("Student".equalsIgnoreCase(doc.getCategory())) return true;
+        if (doc.getCategory() != null && doc.getCategory().toLowerCase().contains("student")) return true;
+        if (doc.getSubCategory() != null && doc.getSubCategory().toLowerCase().contains("student")) return true;
+        return false;
+    }
+
     // ── Stage 1: Evidence Submission ──────────────────────────────────────────
 
     /**
      * Creates a new document record.
-     * On submission (not draft): Status = "Under Verification", Stage = "Dean/HOD".
+     * On submission (not draft):
+     *  - If submitted by Student: Stage = "Faculty", Status = "Under Verification"
+     *  - If submitted by Faculty / Dean / Admin: Stage = "Dean/HOD", Status = "Under Verification"
      * On draft: Status = "Draft", Stage = "Faculty".
      */
     @Transactional
@@ -119,13 +134,20 @@ public class DocumentService {
         assignSubmittedDate(doc);
 
         boolean isDraft = STATUS_DRAFT.equalsIgnoreCase(doc.getStatus());
+        boolean isStudent = isStudentDocument(doc) || ROLE_STUDENT.equalsIgnoreCase(actorRole);
+
         if (isDraft) {
             doc.setStatus(STATUS_DRAFT);
             doc.setCurrentStage(STAGE_FACULTY);
         } else {
-            // Stage 1 → Stage 2: goes straight to Dean/HOD queue
             doc.setStatus(STATUS_UNDER_VERIFICATION);
-            doc.setCurrentStage(STAGE_DEAN_HOD);
+            if (isStudent) {
+                // Student submits -> forwarded to Faculty Verification Desk
+                doc.setCurrentStage(STAGE_FACULTY);
+            } else {
+                // Faculty / HOD submits self doc -> forwarded to Dean/HOD desk
+                doc.setCurrentStage(STAGE_DEAN_HOD);
+            }
         }
 
         initTimeline(doc, actorName, isDraft);
@@ -135,16 +157,17 @@ public class DocumentService {
 
         DocumentEntity saved = documentRepository.save(doc);
 
+        String stageLabel = isStudent ? "Faculty Verification Desk" : "Department Verification Desk (Dean/HOD)";
         recordAudit(IdGenerator.auditId(), actorName,
                 isDraft ? "DRAFT_SAVED" : "RECORD_SUBMITTED",
                 saved, null, saved.getStatus() + " (" + saved.getCurrentStage() + ")",
                 isDraft ? "Draft record saved by " + actorName
-                        : "Evidence submitted — forwarded to Department Verification Desk (Dean/HOD)");
+                        : "Evidence submitted — forwarded to " + stageLabel);
 
         recordActivity(isDraft ? "edit" : "upload", isDraft ? "blue" : "blue",
                 isDraft
                         ? actorName + " saved draft: \"" + saved.getTitle() + "\""
-                        : actorName + " submitted evidence: \"" + saved.getTitle() + "\" → Dean/HOD queue",
+                        : actorName + " submitted evidence: \"" + saved.getTitle() + "\" → " + (isStudent ? "Faculty Desk" : "Dean/HOD queue"),
                 actorRole);
 
         return saved;
@@ -152,8 +175,7 @@ public class DocumentService {
 
     /**
      * Re-submission of a returned document.
-     * Moves back to Dean/HOD queue (not skipping Stage 2).
-     * Called when a Faculty/Student re-submits after rectifying.
+     * Moves back to appropriate verification queue (Faculty for Student doc, Dean/HOD for Faculty doc).
      */
     @Transactional
     public DocumentEntity resubmitDocument(String id, String actorName, String actorRole) {
@@ -164,24 +186,27 @@ public class DocumentService {
             throw new IllegalStateException("Only returned documents can be re-submitted.");
         }
 
+        boolean isStudent = isStudentDocument(doc) || ROLE_STUDENT.equalsIgnoreCase(actorRole);
+
         String priorStatus = doc.getStatus() + " (" + doc.getCurrentStage() + ")";
         doc.setStatus(STATUS_UNDER_VERIFICATION);
-        doc.setCurrentStage(STAGE_DEAN_HOD);
+        doc.setCurrentStage(isStudent ? STAGE_FACULTY : STAGE_DEAN_HOD);
         doc.setIsLocked(false);
 
-        appendTimelineStep(doc, "Re-submitted for Department Verification",
+        String stageLabel = isStudent ? "Faculty Desk" : "Dean/HOD queue";
+        appendTimelineStep(doc, "Re-submitted for Verification",
                 actorName + " (" + actorRole + ")",
-                "Submitter rectified and re-submitted evidence to Dean/HOD queue");
+                "Submitter rectified and re-submitted evidence to " + stageLabel);
 
         DocumentEntity saved = documentRepository.save(doc);
 
         recordAudit(IdGenerator.auditId(), actorName,
                 "RECORD_RESUBMITTED", saved, priorStatus,
-                STATUS_UNDER_VERIFICATION + " (" + STAGE_DEAN_HOD + ")",
-                "Submitter rectified corrections and re-submitted");
+                STATUS_UNDER_VERIFICATION + " (" + saved.getCurrentStage() + ")",
+                "Submitter rectified corrections and re-submitted to " + stageLabel);
 
         recordActivity("cloud", "blue",
-                actorName + " re-submitted \"" + saved.getTitle() + "\" → Dean/HOD queue",
+                actorName + " re-submitted \"" + saved.getTitle() + "\" → " + stageLabel,
                 actorRole);
 
         return saved;
@@ -206,19 +231,25 @@ public class DocumentService {
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
 
         String priorStatus = doc.getStatus() + " (" + doc.getCurrentStage() + ")";
-        boolean isDeanAction = isDeanRole(reviewerRole) && isDeanStage(doc.getCurrentStage());
+        boolean isStudentDoc = isStudentDocument(doc);
+        boolean isFacultyAction = isFacultyRole(reviewerRole) && isStudentDoc;
+        boolean isDeanAction = isDeanRole(reviewerRole) && (isDeanStage(doc.getCurrentStage()) || isFacultyStage(doc.getCurrentStage()));
         boolean isIqacAction = isIqacRole(reviewerRole) && isIqacStage(doc.getCurrentStage());
 
         // Admin can act at any stage
         if (isAdminRole(reviewerRole)) {
-            isDeanAction = isDeanStage(doc.getCurrentStage());
-            isIqacAction = isIqacStage(doc.getCurrentStage());
+            if (isIqacStage(doc.getCurrentStage())) {
+                isIqacAction = true;
+            } else if (isFacultyStage(doc.getCurrentStage()) && isStudentDoc) {
+                isFacultyAction = true;
+            } else {
+                isDeanAction = true;
+            }
         }
 
-        if (!isDeanAction && !isIqacAction) {
+        if (!isFacultyAction && !isDeanAction && !isIqacAction) {
             throw new IllegalStateException(
-                    "Role '" + reviewerRole + "' cannot advance stage '" + doc.getCurrentStage() + "'. " +
-                    "Dean/HOD can only act on Dean/HOD-stage documents; IQAC can only act on IQAC-stage documents.");
+                    "Role '" + reviewerRole + "' cannot advance document '" + doc.getTitle() + "' at stage '" + doc.getCurrentStage() + "'.");
         }
 
         String newStage;
@@ -227,16 +258,25 @@ public class DocumentService {
         String activityMsg;
         String auditAction;
 
-        if (isDeanAction) {
-            // Stage 2 → Stage 3: Department endorsed → forward to IQAC
+        if (isFacultyAction) {
+            // Stage 1 (Faculty Desk) → Stage 2 (Dean/HOD): Faculty verifies Student document
+            newStage    = STAGE_DEAN_HOD;
+            newStatus   = STATUS_UNDER_VERIFICATION;
+            stepLabel   = "Faculty Verified & Endorsed to HOD Desk";
+            activityMsg = reviewerName + " (Faculty) verified student record \"" + doc.getTitle() + "\" → forwarded to HOD";
+            auditAction = "FACULTY_VERIFIED";
+            doc.setEvidenceVerified(true);
+        } else if (isDeanAction) {
+            // Stage 2 → Stage 3: HOD verifies both Faculty and Student documents → forwards to IQAC
             newStage    = STAGE_IQAC;
             newStatus   = STATUS_UNDER_VERIFICATION;
-            stepLabel   = "Department Verified & Forwarded to IQAC";
-            activityMsg = reviewerName + " (Dean/HOD) endorsed \"" + doc.getTitle() + "\" → IQAC queue";
-            auditAction = "DEPARTMENT_VERIFIED";
+            stepLabel   = isStudentDoc ? "Department HOD Verified & Confirmed Student Record → Forwarded to IQAC"
+                                       : "Department HOD Verified & Endorsed to IQAC";
+            activityMsg = reviewerName + " (Dean/HOD) verified & endorsed \"" + doc.getTitle() + "\" → IQAC queue";
+            auditAction = isStudentDoc ? "HOD_STUDENT_CONFIRMED" : "DEPARTMENT_VERIFIED";
             doc.setEvidenceVerified(true);
         } else {
-            // Stage 3: IQAC final approval → SSR locked evidence ledger
+            // Stage 3: Central IQAC final approval & cryptographic hash applied
             newStage    = STAGE_FINALIZED;
             newStatus   = STATUS_APPROVED;
             stepLabel   = "Central IQAC Approved & SSR Hash Applied";
@@ -251,9 +291,10 @@ public class DocumentService {
 
         appendTimelineStep(doc, stepLabel, reviewerName + " (" + reviewerRole + ")", comment);
         if (comment != null && !comment.isBlank()) {
-            appendReviewerComment(doc, reviewerName, reviewerRole,
-                    isDeanAction ? "Department Verification Desk" : "Central IQAC Quality Review",
-                    comment);
+            String desk = isFacultyAction ? "Faculty Verification Desk"
+                        : isDeanAction    ? "Department Verification Desk"
+                        : "Central IQAC Quality Review";
+            appendReviewerComment(doc, reviewerName, reviewerRole, desk, comment);
         }
 
         DocumentEntity saved = documentRepository.save(doc);
@@ -263,8 +304,8 @@ public class DocumentService {
                 newStatus + " (" + newStage + ")",
                 comment != null && !comment.isBlank() ? comment : stepLabel);
 
-        recordActivity(isDeanAction ? "forward" : "lock",
-                isDeanAction ? "amber" : "green",
+        recordActivity(isFacultyAction ? "check" : isDeanAction ? "forward" : "lock",
+                isFacultyAction ? "cyan" : isDeanAction ? "amber" : "green",
                 activityMsg, reviewerRole);
 
         return saved;
@@ -274,10 +315,9 @@ public class DocumentService {
      * Returns a document for correction.
      *
      * <ul>
-     *   <li>Dean/HOD returns → Stage: "Dean/HOD", Status: "Returned"
-     *       (submitter rectifies and re-submits back to Dean/HOD)</li>
-     *   <li>IQAC returns → Stage: "Dean/HOD", Status: "Returned"
-     *       (non-compliant — returned to Department, not directly to submitter)</li>
+     *   <li>Faculty returns → Student document returned to student submitter</li>
+     *   <li>Dean/HOD returns → Returned to submitter (Faculty or Student) for clarification</li>
+     *   <li>IQAC returns → Non-compliant — returned to Department (Dean/HOD)</li>
      * </ul>
      */
     @Transactional
@@ -300,6 +340,12 @@ public class DocumentService {
             returnedTo   = "Department (Dean/HOD)";
             stepLabel    = "Returned to Department — Non-compliant NAAC Criteria";
             auditComment = "IQAC: Non-compliant criteria. Returned to Department for correction. Reason: " + reason;
+        } else if (isFacultyRole(reviewerRole)) {
+            // Faculty return → returns to student submitter
+            doc.setCurrentStage(STAGE_FACULTY);
+            returnedTo   = "Student Submitter";
+            stepLabel    = "Returned to Student for Correction";
+            auditComment = "Faculty: Returned to student for clarification/rectification. Reason: " + reason;
         } else {
             // Dean/HOD return → return to submitter (Faculty / Student)
             doc.setCurrentStage(STAGE_DEAN_HOD);
@@ -485,13 +531,18 @@ public class DocumentService {
 
     // ── Role / stage classification ───────────────────────────────────────────
 
-    private static boolean isDeanRole(String role)  { return ROLE_DEAN_HOD.equalsIgnoreCase(role); }
-    private static boolean isIqacRole(String role)  { return ROLE_IQAC.equalsIgnoreCase(role); }
-    private static boolean isAdminRole(String role) { return ROLE_ADMIN.equalsIgnoreCase(role); }
+    private static boolean isDeanRole(String role)    { return ROLE_DEAN_HOD.equalsIgnoreCase(role); }
+    private static boolean isIqacRole(String role)    { return ROLE_IQAC.equalsIgnoreCase(role); }
+    private static boolean isAdminRole(String role)   { return ROLE_ADMIN.equalsIgnoreCase(role); }
+    private static boolean isFacultyRole(String role) { return ROLE_FACULTY.equalsIgnoreCase(role); }
+    private static boolean isStudentRole(String role) { return ROLE_STUDENT.equalsIgnoreCase(role); }
 
     private static boolean isDeanStage(String stage) {
-        return STAGE_DEAN_HOD.equalsIgnoreCase(stage)
-            || STAGE_FACULTY.equalsIgnoreCase(stage);       // Faculty draft → submitted
+        return STAGE_DEAN_HOD.equalsIgnoreCase(stage);
+    }
+
+    private static boolean isFacultyStage(String stage) {
+        return STAGE_FACULTY.equalsIgnoreCase(stage);
     }
 
     private static boolean isIqacStage(String stage) {

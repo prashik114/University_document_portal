@@ -208,10 +208,23 @@ export default function App() {
   };
 
   const handleBatchApprove = async () => {
-    const deanQueue = documents.filter(d => d.status === 'Under Verification' && d.currentStage === 'Dean/HOD').length;
+    const isStudentDoc = (d) => d.category === 'Student' || (d.category && d.category.toLowerCase().includes('student')) || d.ownerType === 'Student' || d.ownerType === 'student';
+    const studentQueue = documents.filter(d => d.status === 'Under Verification' && isStudentDoc(d) && (!currentUser.department || !d.department || d.department.toLowerCase() === currentUser.department.toLowerCase()));
+    const deanQueue = documents.filter(d => d.status === 'Under Verification' && (d.currentStage === 'Dean/HOD' || d.currentStage === 'Faculty')).length;
     const iqacQueue = documents.filter(d => d.status === 'Under Verification' && d.currentStage === 'IQAC').length;
 
-    if (currentUser.role === 'DeanHOD') {
+    if (currentUser.role === 'Faculty') {
+      if (studentQueue.length === 0) { showToast('No pending student records to verify.', 'info'); return; }
+      try {
+        let count = 0;
+        for (const doc of studentQueue) {
+          await api.verifyDocument(doc.id, currentUser.name, currentUser.role, 'Faculty verified & endorsed');
+          count++;
+        }
+        await refresh();
+        showToast(`Batch complete: ${count} student records verified and forwarded to HOD.`, 'success');
+      } catch (err) { showToast(err.message || 'Batch verification failed.', 'error'); }
+    } else if (currentUser.role === 'DeanHOD') {
       if (deanQueue === 0) { showToast('No records pending in Dean/HOD queue.', 'info'); return; }
       try {
         await batchForward(currentUser.name, currentUser.role);
@@ -249,7 +262,7 @@ export default function App() {
   const nav = [
     { id: 'dashboard',      label: currentUser.role === 'Student' ? 'Student Portal' : currentUser.role === 'Inspector' ? 'Inspection Dashboard' : 'Dashboard', roles: null },
     { id: 'documents',      label: currentUser.role === 'Student' ? 'My Certificates' : 'My Documents', roles: ['Faculty','Student','DeanHOD'] },
-    { id: 'queue',          label: 'Verification Queue', roles: ['DeanHOD','IQAC','Admin'] },
+    { id: 'queue',          label: currentUser.role === 'Faculty' ? 'Student Verification Desk' : 'Verification Queue', roles: ['Faculty','DeanHOD','IQAC','Admin'] },
     { id: 'repository',     label: 'Document Repository', roles: ['Faculty','DeanHOD','IQAC','Inspector','Admin'] },
     { id: 'reports',        label: 'Reports', roles: ['DeanHOD','IQAC','Inspector','Admin'] },
     { id: 'audit',          label: 'Audit Trail', roles: ['IQAC','Inspector','Admin'] },
@@ -639,16 +652,19 @@ export default function App() {
                 <div className="dashboard-header">
                   <div>
                     <h1 style={{ fontSize:24, fontWeight:800, color:'#0f172a', margin:0 }}>
-                      {currentUser.role === 'DeanHOD' ? 'Stage 2 — Department Verification Desk' :
+                      {currentUser.role === 'Faculty' ? 'Stage 1 — Faculty Verification Desk (Student Records)' :
+                       currentUser.role === 'DeanHOD' ? 'Stage 2 — Department Verification Desk' :
                        currentUser.role === 'IQAC'    ? 'Stage 3 — Central Quality Certification' :
                        'Verification Queue'}
                     </h1>
                     <p style={{ margin:'4px 0 0', color:'#64748b', fontSize:13 }}>
-                      {currentUser.role === 'DeanHOD'
-                        ? 'Endorse & forward verified evidence to IQAC, or return with clarification reason.'
+                      {currentUser.role === 'Faculty'
+                        ? `Verify student achievement certificates and documents submitted within ${currentUser.department || 'your department'}.`
+                        : currentUser.role === 'DeanHOD'
+                        ? 'Verify & endorse both Faculty and Student evidence across your assigned departments, or return for clarification.'
                         : currentUser.role === 'IQAC'
-                        ? 'Approve & apply hash to SSR Evidence Ledger, or return non-compliant records to Department.'
-                        : 'Review submitted evidence across all stages.'}
+                        ? 'Approve & apply cryptographic hash to SSR Evidence Ledger, or return non-compliant records to Department.'
+                        : 'Review submitted evidence across all workflow stages.'}
                     </p>
                   </div>
                   <div style={{ display:'flex', gap:10 }}>
@@ -659,7 +675,8 @@ export default function App() {
                     </button>
                     <button className="primary-btn" onClick={handleBatchApprove}>
                       <span>
-                        {currentUser.role === 'DeanHOD' ? 'Batch Endorse & Forward to IQAC' :
+                        {currentUser.role === 'Faculty' ? 'Batch Verify Student Documents' :
+                         currentUser.role === 'DeanHOD' ? 'Batch Endorse & Forward to IQAC' :
                          currentUser.role === 'IQAC'    ? 'Batch Approve & Lock SSR' :
                          'Batch Process Queue'}
                       </span>
@@ -670,6 +687,7 @@ export default function App() {
                 {/* Stage pipeline indicators */}
                 <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
                   {[
+                    { label:'Faculty Review (Students)', color:'#0891b2', bg:'#ecfeff', count: documents.filter(d=>d.status==='Under Verification'&&d.currentStage==='Faculty').length },
                     { label:'Dean/HOD Review',     color:'#2563eb', bg:'#eff6ff', count: documents.filter(d=>d.status==='Under Verification'&&d.currentStage==='Dean/HOD').length },
                     { label:'IQAC Quality Audit',  color:'#7c3aed', bg:'#f5f3ff', count: documents.filter(d=>d.status==='Under Verification'&&d.currentStage==='IQAC').length },
                     { label:'Returned',            color:'#dc2626', bg:'#fef2f2', count: documents.filter(d=>d.status==='Returned').length },
@@ -698,10 +716,20 @@ export default function App() {
                       </thead>
                       <tbody>
                         {(() => {
+                          const isStudentDoc = (d) => d.category === 'Student' || (d.category && d.category.toLowerCase().includes('student')) || d.ownerType === 'Student' || d.ownerType === 'student';
                           const queueDocs = documents.filter(d => {
                             if (d.status !== 'Under Verification') return false;
-                            if (currentUser.role === 'DeanHOD') return d.currentStage === 'Dean/HOD';
-                            if (currentUser.role === 'IQAC')    return d.currentStage === 'IQAC';
+                            if (currentUser.role === 'Faculty') {
+                              if (!isStudentDoc(d)) return false;
+                              if (currentUser.department && d.department && currentUser.department.toLowerCase() !== d.department.toLowerCase()) return false;
+                              return d.currentStage === 'Faculty' || d.currentStage === 'Dean/HOD';
+                            }
+                            if (currentUser.role === 'DeanHOD') {
+                              const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(s=>s.toLowerCase());
+                              if (allowed.length > 0 && d.department && !allowed.includes(d.department.toLowerCase())) return false;
+                              return d.currentStage === 'Dean/HOD' || d.currentStage === 'Faculty';
+                            }
+                            if (currentUser.role === 'IQAC') return d.currentStage === 'IQAC';
                             return true;
                           });
                           if (queueDocs.length === 0) return (
@@ -713,28 +741,38 @@ export default function App() {
                             </tr>
                           );
                           return queueDocs.map((doc, i) => {
+                            const isDocStudent = isStudentDoc(doc);
+                            const isFac = currentUser.role === 'Faculty';
                             const isDean = doc.currentStage === 'Dean/HOD';
+                            const isFacStage = doc.currentStage === 'Faculty';
                             return (
                               <tr key={doc.id} style={{ borderBottom:'1px solid #f1f5f9', fontSize:13 }}>
                                 <td style={{ padding:'12px 16px', color:'#64748b' }}>{i+1}</td>
                                 <td style={{ padding:'12px 16px', fontWeight:600, color:'#0f172a' }}>{doc.title}</td>
-                                <td style={{ padding:'12px 16px', color:'#475569' }}>{doc.ownerName}</td>
+                                <td style={{ padding:'12px 16px', color:'#475569' }}>
+                                  {doc.ownerName}
+                                  {isDocStudent && <span style={{ marginLeft:6, fontSize:10, padding:'2px 6px', borderRadius:4, background:'#ecfeff', color:'#0891b2', fontWeight:700 }}>Student</span>}
+                                </td>
                                 <td style={{ padding:'12px 16px', color:'#64748b', fontSize:12 }}>{doc.department}</td>
                                 <td style={{ padding:'12px 16px', color:'#475569', fontSize:12 }}>{doc.naacCriterion}</td>
                                 <td style={{ padding:'12px 16px' }}>
-                                  <span style={{ padding:'3px 10px', borderRadius:9999, fontSize:11, fontWeight:700, background: isDean ? '#eff6ff' : '#f5f3ff', color: isDean ? '#2563eb' : '#7c3aed' }}>
-                                    {isDean ? '▶ Dean/HOD Review' : '▶ IQAC Quality Audit'}
+                                  <span style={{
+                                    padding:'3px 10px', borderRadius:9999, fontSize:11, fontWeight:700,
+                                    background: isFacStage ? '#ecfeff' : isDean ? '#eff6ff' : '#f5f3ff',
+                                    color: isFacStage ? '#0891b2' : isDean ? '#2563eb' : '#7c3aed'
+                                  }}>
+                                    {isFacStage ? '▶ Faculty Review (Student Doc)' : isDean ? (isDocStudent ? '▶ HOD Review (Student Doc)' : '▶ Dean/HOD Review') : '▶ IQAC Quality Audit'}
                                   </span>
                                 </td>
                                 <td style={{ padding:'12px 16px', textAlign:'right' }}>
                                   <div style={{ display:'inline-flex', gap:6 }}>
                                     <button onClick={() => handleApprove(doc)}
                                       style={{ padding:'5px 10px', borderRadius:6, border:'none', background:'#16a34a', color:'#fff', fontSize:11.5, fontWeight:700, cursor:'pointer' }}>
-                                      {isDean ? 'Endorse & Forward' : 'Approve & Lock SSR'}
+                                      {isFac ? 'Verify Student Doc' : currentUser.role === 'DeanHOD' ? (isDocStudent ? 'Confirm & Forward to IQAC' : 'Endorse & Forward') : 'Approve & Lock SSR'}
                                     </button>
                                     <button onClick={() => handleReturn(doc)}
                                       style={{ padding:'5px 10px', borderRadius:6, border:'1px solid #ef4444', background:'#fee2e2', color:'#dc2626', fontSize:11.5, fontWeight:700, cursor:'pointer' }}>
-                                      {isDean ? 'Return for Clarification' : 'Return to Department'}
+                                      {isFac ? 'Return to Student' : currentUser.role === 'DeanHOD' ? 'Return for Clarification' : 'Return to Department'}
                                     </button>
                                     <button onClick={() => setDetailDoc(doc)}
                                       style={{ padding:'5px 10px', borderRadius:6, border:'1px solid #cbd5e1', background:'#fff', color:'#475569', fontSize:11.5, fontWeight:600, cursor:'pointer' }}>
