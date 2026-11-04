@@ -81,12 +81,23 @@ export default function DocumentDetailModal({
     >
       <div
         className="modal-dialog"
-        style={{ maxWidth: 640, width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}
+        style={{
+          maxWidth: 680,
+          width: '100%',
+          maxHeight: '90vh',
+          background: '#fff',
+          borderRadius: 12,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        }}
       >
         {/* Header */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '18px 24px', borderBottom: '1px solid #e2e8f0',
+          padding: '16px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc',
+          flexShrink: 0,
         }}>
           <div>
             <div id="detail-modal-title" style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>
@@ -104,8 +115,15 @@ export default function DocumentDetailModal({
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: '20px 24px' }}>
+        {/* Scrollable Body */}
+        <div style={{
+          padding: '20px 24px',
+          overflowY: 'auto',
+          flex: '1 1 auto',
+          minHeight: 0,
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0' }}>{doc.title}</h3>
@@ -227,68 +245,69 @@ export default function DocumentDetailModal({
               </ol>
             </div>
           )}
+        </div>
 
-          {/* Footer actions */}
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            marginTop: 20, paddingTop: 16, borderTop: '1px solid #e2e8f0',
-          }}>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Print Record
-            </button>
+        {/* Pinned Sticky Footer actions (Always visible & accessible) */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '14px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc',
+          flexShrink: 0, gap: 10, flexWrap: 'wrap',
+        }}>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Print Record
+          </button>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              {canVerify && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => onReturn(doc)}
-                    style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ef4444', background: '#fee2e2', color: '#dc2626', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                  >
-                    {currentUser.role === 'IQAC' ? 'Return to Department' : currentUser.role === 'Faculty' ? 'Return to Student for Correction' : 'Return for Clarification'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onApprove(doc)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-                  >
-                    ✓ {currentUser.role === 'IQAC'
-                      ? 'Approve & Lock SSR'
-                      : currentUser.role === 'Faculty'
-                      ? 'Verify Student Document & Forward to HOD'
-                      : isStudentDoc
-                      ? 'Confirm Student Document & Forward to IQAC'
-                      : 'Endorse & Forward to IQAC'}
-                  </button>
-                </>
-              )}
-              {canResubmit && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {canVerify && (
+              <>
                 <button
                   type="button"
-                  onClick={() => onResubmit(doc)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                  onClick={() => onReturn(doc)}
+                  style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #ef4444', background: '#fee2e2', color: '#dc2626', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span>Re-upload Document & Resubmit</span>
+                  {currentUser.role === 'IQAC' ? 'Return to Department' : currentUser.role === 'Faculty' ? 'Return to Student for Correction' : 'Return for Clarification'}
                 </button>
-              )}
-              {isLocked && (
-                <span style={{ padding: '8px 12px', borderRadius: 6, background: '#dcfce7', color: '#15803d', fontWeight: 700, fontSize: 12 }}>
-                  ✓ SSR Locked — Immutable
-                </span>
-              )}
+                <button
+                  type="button"
+                  onClick={() => onApprove(doc)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                >
+                  ✓ {currentUser.role === 'IQAC'
+                    ? 'Approve & Lock SSR'
+                    : currentUser.role === 'Faculty'
+                    ? 'Verify Student Document & Forward to HOD'
+                    : isStudentDoc
+                    ? 'Confirm Student Document & Forward to IQAC'
+                    : 'Endorse & Forward to IQAC'}
+                </button>
+              </>
+            )}
+            {canResubmit && (
               <button
                 type="button"
-                onClick={onClose}
-                style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                onClick={() => onResubmit(doc)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
               >
-                Close
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Re-upload Document & Resubmit</span>
               </button>
-            </div>
+            )}
+            {isLocked && (
+              <span style={{ padding: '8px 12px', borderRadius: 6, background: '#dcfce7', color: '#15803d', fontWeight: 700, fontSize: 12 }}>
+                ✓ SSR Locked — Immutable
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
