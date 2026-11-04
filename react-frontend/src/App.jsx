@@ -670,7 +670,15 @@ export default function App() {
                       </select>
                     </div>
                   </div>
-                  <DocumentTable docs={filteredDocs} onView={setDetailDoc} onResubmit={handleOpenResubmit} currentUser={currentUser} loading={loading} />
+                  <DocumentTable
+                    docs={filteredDocs}
+                    onView={setDetailDoc}
+                    onApprove={handleApprove}
+                    onReturn={handleReturn}
+                    onResubmit={handleOpenResubmit}
+                    currentUser={currentUser}
+                    loading={loading}
+                  />
                 </div>
               </div>
             )}
@@ -713,6 +721,8 @@ export default function App() {
                   <DocumentTable
                     docs={mySubmissions}
                     onView={setDetailDoc}
+                    onApprove={handleApprove}
+                    onReturn={handleReturn}
                     onResubmit={handleOpenResubmit}
                     currentUser={currentUser}
                     loading={loading}
@@ -1100,10 +1110,13 @@ export default function App() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function DocumentTable({ docs, onView, onResubmit, currentUser, loading }) {
+function DocumentTable({ docs, onView, onApprove, onReturn, onResubmit, currentUser, loading }) {
   if (loading) {
     return <div style={{ textAlign:'center', padding:40, color:'#64748b' }}>Loading records…</div>;
   }
+
+  const isStudentDoc = (d) => d.category === 'Student' || (d.category && d.category.toLowerCase().includes('student')) || d.ownerType === 'Student';
+
   return (
     <div className="table-responsive">
       <table className="data-table" style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -1131,33 +1144,100 @@ function DocumentTable({ docs, onView, onResubmit, currentUser, loading }) {
                 </div>
               </td>
             </tr>
-          ) : docs.map((doc, i) => (
-            <tr key={doc.id||i} style={{ borderBottom:'1px solid #f1f5f9', fontSize:13 }}>
-              <td style={{ padding:'12px 16px', color:'#64748b' }}>{doc.displayNum || i+1}</td>
-              <td style={{ padding:'12px 16px', fontWeight:600, color:'#0f172a' }}>{doc.title}</td>
-              <td style={{ padding:'12px 16px', color:'#475569' }}>{doc.category}</td>
-              <td style={{ padding:'12px 16px', color:'#475569' }}>{doc.ownerName}</td>
-              <td style={{ padding:'12px 16px', color:'#64748b' }}>{doc.submittedOn || '—'}</td>
-              <td style={{ padding:'12px 16px' }}><StatusBadge status={doc.status} /></td>
-              <td style={{ padding:'12px 16px', color:'#64748b' }}>{doc.currentStage}</td>
-              <td style={{ padding:'12px 16px', textAlign:'right' }}>
-                <div style={{ display:'inline-flex', gap:6 }}>
-                  <button onClick={() => onView(doc)}
-                    style={{ padding:'5px 12px', borderRadius:6, border:'1px solid #cbd5e1', background:'#fff', color:'#2563eb', fontWeight:600, fontSize:12, cursor:'pointer' }}>
-                    {currentUser.role === 'Inspector' ? 'Inspect' : 'View'}
-                  </button>
-                  {doc.status === 'Returned' && ['Faculty','Student'].includes(currentUser.role) && onResubmit && (
-                    <button onClick={() => onResubmit(doc)}
-                      title="Re-upload corrected document and restart verification workflow"
-                      style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:6, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                      <span>Re-upload & Resubmit</span>
+          ) : docs.map((doc, i) => {
+            const isDocStudent = isStudentDoc(doc);
+            const isUnderVerif = doc.status === 'Under Verification';
+            let canVerify = false;
+            let verifyLabel = 'Verify';
+
+            if (isUnderVerif && onApprove) {
+              if (currentUser.role === 'Faculty') {
+                if (isDocStudent && doc.currentStage === 'Faculty') {
+                  const facDept = normalizeDept(currentUser.department);
+                  const docDept = normalizeDept(doc.department);
+                  if (!facDept || !docDept || facDept === docDept) {
+                    canVerify = true;
+                    verifyLabel = 'Verify Student Doc';
+                  }
+                }
+              } else if (currentUser.role === 'DeanHOD') {
+                if (doc.currentStage === 'Dean/HOD') {
+                  const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(normalizeDept);
+                  if (allowed.length === 0 || !doc.department || allowed.includes(normalizeDept(doc.department))) {
+                    canVerify = true;
+                    verifyLabel = isDocStudent ? 'Confirm & Forward' : 'Endorse to IQAC';
+                  }
+                }
+              } else if (currentUser.role === 'IQAC') {
+                if (doc.currentStage === 'IQAC') {
+                  canVerify = true;
+                  verifyLabel = 'Approve & Lock SSR';
+                }
+              } else if (currentUser.role === 'Admin') {
+                canVerify = true;
+                verifyLabel = 'Verify & Advance';
+              }
+            }
+
+            return (
+              <tr key={doc.id||i} style={{ borderBottom:'1px solid #f1f5f9', fontSize:13 }}>
+                <td style={{ padding:'12px 16px', color:'#64748b' }}>{doc.displayNum || i+1}</td>
+                <td style={{ padding:'12px 16px', fontWeight:600, color:'#0f172a' }}>{doc.title}</td>
+                <td style={{ padding:'12px 16px', color:'#475569' }}>{doc.category}</td>
+                <td style={{ padding:'12px 16px', color:'#475569' }}>
+                  {doc.ownerName}
+                  {isDocStudent && <span style={{ marginLeft:6, fontSize:10, padding:'2px 6px', borderRadius:4, background:'#ecfeff', color:'#0891b2', fontWeight:700 }}>Student</span>}
+                </td>
+                <td style={{ padding:'12px 16px', color:'#64748b' }}>{doc.submittedOn || '—'}</td>
+                <td style={{ padding:'12px 16px' }}><StatusBadge status={doc.status} /></td>
+                <td style={{ padding:'12px 16px', color:'#64748b' }}>{doc.currentStage}</td>
+                <td style={{ padding:'12px 16px', textAlign:'right' }}>
+                  <div style={{ display:'inline-flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                    {canVerify && (
+                      <>
+                        <button
+                          onClick={() => onApprove(doc)}
+                          title="Verify document and advance to next accreditation stage"
+                          style={{
+                            display:'inline-flex', alignItems:'center', gap:4,
+                            padding:'5px 12px', borderRadius:6, border:'none',
+                            background:'#16a34a', color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer'
+                          }}
+                        >
+                          ✓ {verifyLabel}
+                        </button>
+                        {onReturn && (
+                          <button
+                            onClick={() => onReturn(doc)}
+                            title="Return document to submitter for correction"
+                            style={{
+                              display:'inline-flex', alignItems:'center', gap:4,
+                              padding:'5px 10px', borderRadius:6, border:'1px solid #ef4444',
+                              background:'#fee2e2', color:'#dc2626', fontWeight:600, fontSize:12, cursor:'pointer'
+                            }}
+                          >
+                            ↩ Return
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <button onClick={() => onView(doc)}
+                      style={{ padding:'5px 12px', borderRadius:6, border:'1px solid #cbd5e1', background:'#fff', color:'#2563eb', fontWeight:600, fontSize:12, cursor:'pointer' }}>
+                      {currentUser.role === 'Inspector' ? 'Inspect' : 'View'}
                     </button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
+                    {doc.status === 'Returned' && ['Faculty','Student'].includes(currentUser.role) && onResubmit && (
+                      <button onClick={() => onResubmit(doc)}
+                        title="Re-upload corrected document and restart verification workflow"
+                        style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:6, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span>Re-upload & Resubmit</span>
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

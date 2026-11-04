@@ -1,5 +1,7 @@
 import StatusBadge from './StatusBadge';
 
+const normalizeDept = (dept) => (dept || '').replace(/&/g, 'and').replace(/\s+/g, ' ').trim().toLowerCase();
+
 /**
  * Read-only document detail inspection modal.
  * Approve / Return actions for Dean/HOD and IQAC per the workflow diagram.
@@ -21,12 +23,16 @@ export default function DocumentDetailModal({
     if (currentUser.role === 'Student') return false;
     if (currentUser.role === 'Faculty') {
       if (!isStudentDoc) return false;
-      if (currentUser.department && doc.department && currentUser.department.toLowerCase() !== doc.department.toLowerCase()) return false;
+      if (doc.currentStage !== 'Faculty') return false;
+      const facDept = normalizeDept(currentUser.department);
+      const docDept = normalizeDept(doc.department);
+      if (facDept && docDept && facDept !== docDept) return false;
       return true;
     }
     if (currentUser.role === 'DeanHOD') {
-      const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(s=>s.toLowerCase());
-      if (allowed.length > 0 && doc.department && !allowed.includes(doc.department.toLowerCase())) return false;
+      if (doc.currentStage !== 'Dean/HOD') return false;
+      const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(normalizeDept);
+      if (allowed.length > 0 && doc.department && !allowed.includes(normalizeDept(doc.department))) return false;
       return true;
     }
     if (currentUser.role === 'IQAC') return doc.currentStage === 'IQAC';
@@ -220,14 +226,14 @@ export default function DocumentDetailModal({
                   <button
                     type="button"
                     onClick={() => onApprove(doc)}
-                    style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                   >
-                    {currentUser.role === 'IQAC'
+                    ✓ {currentUser.role === 'IQAC'
                       ? 'Approve & Lock SSR'
                       : currentUser.role === 'Faculty'
-                      ? 'Verify Student Document'
+                      ? 'Verify Student Document & Forward to HOD'
                       : isStudentDoc
-                      ? 'Confirm & Forward to IQAC'
+                      ? 'Confirm Student Document & Forward to IQAC'
                       : 'Endorse & Forward to IQAC'}
                   </button>
                 </>

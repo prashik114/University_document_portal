@@ -179,18 +179,18 @@ public class DocumentService {
 
         boolean isStudent = isStudentDocument(doc) || ROLE_STUDENT.equalsIgnoreCase(actorRole);
 
-        if (updates != null) {
-            if (updates.getTitle() != null && !updates.getTitle().isBlank()) {
-                doc.setTitle(updates.getTitle().trim());
-            }
-            if (updates.getEvidenceFile() != null && !updates.getEvidenceFile().isBlank()) {
-                doc.setEvidenceFile(updates.getEvidenceFile());
-                if (updates.getFileType() != null) doc.setFileType(updates.getFileType());
-                if (updates.getFileSize() != null) doc.setFileSize(updates.getFileSize());
-            }
-            if (updates.getEventDetailsJson() != null && !updates.getEventDetailsJson().isBlank()) {
-                doc.setEventDetailsJson(updates.getEventDetailsJson());
-            }
+        if (updates == null || updates.getEvidenceFile() == null || updates.getEvidenceFile().trim().isEmpty()) {
+            throw new IllegalArgumentException("Mandatory: Re-submission requires re-uploading a corrected evidence file. Direct re-submission without re-upload is prohibited.");
+        }
+
+        if (updates.getTitle() != null && !updates.getTitle().isBlank()) {
+            doc.setTitle(updates.getTitle().trim());
+        }
+        doc.setEvidenceFile(updates.getEvidenceFile().trim());
+        if (updates.getFileType() != null) doc.setFileType(updates.getFileType());
+        if (updates.getFileSize() != null) doc.setFileSize(updates.getFileSize());
+        if (updates.getEventDetailsJson() != null && !updates.getEventDetailsJson().isBlank()) {
+            doc.setEventDetailsJson(updates.getEventDetailsJson());
         }
 
         String priorStatus = doc.getStatus() + " (" + doc.getCurrentStage() + ")";
