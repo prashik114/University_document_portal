@@ -35,6 +35,8 @@ function exportCSV(records, filename = 'Records_Export.csv') {
   document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
+const normalizeDept = (dept) => (dept || '').replace(/&/g, 'and').replace(/\s+/g, ' ').trim().toLowerCase();
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -86,11 +88,22 @@ export default function App() {
   // ── Document ownership check (survives user rename & employee ID updates) ──
   const isDocOwnedByUser = (doc, user) => {
     if (!doc || !user) return false;
-    const matchId = Boolean(user.id && doc.ownerId && doc.ownerId.toLowerCase() === user.id.toLowerCase());
-    const matchEmp = Boolean(user.employeeId && doc.ownerId && doc.ownerId.toLowerCase() === user.employeeId.toLowerCase());
-    const matchName = Boolean(user.name && doc.ownerName && doc.ownerName.trim().toLowerCase() === user.name.trim().toLowerCase());
-    const matchFaculty = Boolean(user.name && doc.recordedByFaculty && doc.recordedByFaculty.trim().toLowerCase() === user.name.trim().toLowerCase());
-    return matchId || matchEmp || matchName || matchFaculty;
+    const uid = (user.id || '').trim().toLowerCase();
+    const emp = (user.employeeId || '').trim().toLowerCase();
+    const docOwnerId = (doc.ownerId || '').trim().toLowerCase();
+    const docOwnerName = (doc.ownerName || '').trim().toLowerCase();
+    const docRecordedBy = (doc.recordedByFaculty || '').trim().toLowerCase();
+    const userName = (user.name || '').trim().toLowerCase();
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const docEmail = (doc.ownerEmail || '').trim().toLowerCase();
+
+    const matchId = Boolean(uid && docOwnerId && (docOwnerId === uid || docOwnerId === emp));
+    const matchEmp = Boolean(emp && docOwnerId && (docOwnerId === emp || docOwnerId === uid));
+    const matchName = Boolean(userName && docOwnerName && docOwnerName === userName);
+    const matchFaculty = Boolean(userName && docRecordedBy && docRecordedBy === userName);
+    const matchEmail = Boolean(userEmail && docEmail && docEmail === userEmail);
+
+    return matchId || matchEmp || matchName || matchFaculty || matchEmail;
   };
 
   // ── Derived values ────────────────────────────────────────────────────────
@@ -178,6 +191,24 @@ export default function App() {
       localStorage.setItem('portal_current_user', serialized);
     }
   }, [currentUser, isAuthenticated]);
+
+  // Keep currentUser in sync with live user records if renamed or edited elsewhere
+  useEffect(() => {
+    if (currentUser && users && users.length > 0) {
+      const fresh = users.find(u =>
+        (u.id && currentUser.id && u.id.toLowerCase() === currentUser.id.toLowerCase()) ||
+        (u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase())
+      );
+      if (fresh) {
+        if (fresh.name !== currentUser.name ||
+            fresh.employeeId !== currentUser.employeeId ||
+            fresh.department !== currentUser.department ||
+            fresh.role !== currentUser.role) {
+          setCurrentUser(prev => ({ ...prev, ...fresh }));
+        }
+      }
+    }
+  }, [users]);
 
   // ── Document action handlers ───────────────────────────────────────────────
   const handleSubmitDocument = async (docPayload, isDraft) => {
@@ -765,12 +796,12 @@ export default function App() {
                             if (d.status !== 'Under Verification') return false;
                             if (currentUser.role === 'Faculty') {
                               if (!isStudentDoc(d)) return false;
-                              if (currentUser.department && d.department && currentUser.department.toLowerCase() !== d.department.toLowerCase()) return false;
+                              if (currentUser.department && d.department && normalizeDept(currentUser.department) !== normalizeDept(d.department)) return false;
                               return d.currentStage === 'Faculty';
                             }
                             if (currentUser.role === 'DeanHOD') {
-                              const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(s=>s.toLowerCase());
-                              if (allowed.length > 0 && d.department && !allowed.includes(d.department.toLowerCase())) return false;
+                              const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(normalizeDept);
+                              if (allowed.length > 0 && d.department && !allowed.includes(normalizeDept(d.department))) return false;
                               return d.currentStage === 'Dean/HOD';
                             }
                             if (currentUser.role === 'IQAC') return d.currentStage === 'IQAC';
