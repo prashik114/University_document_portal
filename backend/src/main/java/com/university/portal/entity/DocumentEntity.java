@@ -1,9 +1,14 @@
 package com.university.portal.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
+import java.util.Map;
 
 @Entity
 @Table(name = "documents")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DocumentEntity {
 
     @Id
@@ -109,6 +114,30 @@ public class DocumentEntity {
 
     public String getEventDetailsJson() { return eventDetailsJson; }
     public void setEventDetailsJson(String eventDetailsJson) { this.eventDetailsJson = eventDetailsJson; }
+
+    @JsonProperty("eventDetails")
+    public void setEventDetails(Map<String, Object> map) {
+        if (map == null || map.isEmpty()) {
+            return;
+        }
+        try {
+            this.eventDetailsJson = new ObjectMapper().writeValueAsString(map);
+        } catch (Exception e) {
+            // fallback
+        }
+    }
+
+    @JsonProperty("eventDetails")
+    public Map<String, Object> getEventDetails() {
+        if (this.eventDetailsJson == null || this.eventDetailsJson.isBlank()) {
+            return null;
+        }
+        try {
+            return new ObjectMapper().readValue(this.eventDetailsJson, Map.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     public String getTimelineJson() { return timelineJson; }
     public void setTimelineJson(String timelineJson) { this.timelineJson = timelineJson; }

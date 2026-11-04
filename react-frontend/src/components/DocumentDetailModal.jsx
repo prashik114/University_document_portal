@@ -100,6 +100,50 @@ export default function DocumentDetailModal({
             ))}
           </div>
 
+          {/* Structured Event / Record Details (Sections 5.2, 5.3, 6.2, 6.3) */}
+          {(() => {
+            const ev = doc.eventDetails || (() => {
+              try { return doc.eventDetailsJson ? JSON.parse(doc.eventDetailsJson) : null; } catch { return null; }
+            })();
+            if (!ev || Object.keys(ev).length === 0) return null;
+
+            const fields = [
+              ev.eventType && ['Event Type', ev.eventType],
+              ev.activityType && ['Activity Type', ev.activityType],
+              ev.awardNature && ['Nature of Achievement', ev.awardNature],
+              ev.level && ['Level', ev.level],
+              ev.natureOfEvent && ['Scope / Nature', ev.natureOfEvent],
+              ev.participatedAs && ['Role / Designation', ev.participatedAs],
+              ev.positionSecured && ['Position Secured', ev.positionSecured],
+              (ev.startDate || ev.endDate) && ['Duration', `${ev.startDate || '—'} to ${ev.endDate || '—'}`],
+              ev.achievementDate && ['Award Date', ev.achievementDate],
+              ev.organisingBody && ['Organiser / Institution', ev.organisingBody],
+              ev.awardingBody && ['Awarding Body', `${ev.awardingBody} (${ev.bodyType || 'General'})`],
+              ev.hasFinancialSupport === 'Yes' && ['Financial Support', `₹${ev.financialAmount || 0} (${ev.financialNature || 'Granted'})`],
+            ].filter(Boolean);
+
+            if (fields.length === 0) return null;
+
+            return (
+              <div style={{
+                background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8,
+                padding: 14, fontSize: 12.5, marginBottom: 16,
+              }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                  Accreditation & Event Reference Details
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {fields.map(([label, val]) => (
+                    <div key={label}>
+                      <span style={{ color: '#15803d' }}>{label}:</span>
+                      <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 1 }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Evidence file */}
           {doc.evidenceFile && (
             <div style={{
