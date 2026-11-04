@@ -56,6 +56,13 @@ public class DocumentController {
         String callerDept = resolveDept(dept, actorDepartment, actorDeptHeader, userDeptHeader);
         String callerId   = resolveId(id, actorId, actorIdHeader, userIdHeader);
 
+        final String callerName = !callerId.isBlank()
+                ? userRepository.findById(callerId)
+                    .or(() -> userRepository.findByEmployeeId(callerId))
+                    .map(UserEntity::getName)
+                    .orElse("")
+                : "";
+
         List<DocumentDTO> docs = documentService.getAllDocuments(category, status, search)
                 .stream()
                 .map(DocumentMapper::toDTO)
@@ -88,7 +95,8 @@ public class DocumentController {
             if (callerDept.isBlank() && callerId.isBlank()) return docs;
             return docs.stream()
                     .filter(d -> (!callerDept.isBlank() && d.getDepartment() != null && d.getDepartment().trim().equalsIgnoreCase(callerDept.trim())) ||
-                                 (!callerId.isBlank() && callerId.equalsIgnoreCase(d.getOwnerId())))
+                                 (!callerId.isBlank() && callerId.equalsIgnoreCase(d.getOwnerId())) ||
+                                 (!callerName.isBlank() && callerName.equalsIgnoreCase(d.getOwnerName())))
                     .toList();
         }
 
@@ -96,6 +104,7 @@ public class DocumentController {
         if ("Student".equalsIgnoreCase(callerRole)) {
             return docs.stream()
                     .filter(d -> (!callerId.isBlank() && callerId.equalsIgnoreCase(d.getOwnerId())) ||
+                                 (!callerName.isBlank() && callerName.equalsIgnoreCase(d.getOwnerName())) ||
                                  "Student".equalsIgnoreCase(d.getCategory()))
                     .toList();
         }
@@ -274,6 +283,7 @@ public class DocumentController {
     @PostMapping("/{id}/resubmit")
     public ResponseEntity<?> resubmit(
             @PathVariable String id,
+            @RequestBody(required = false) DocumentEntity updates,
             @RequestParam(defaultValue = "Faculty") String actorName,
             @RequestParam(defaultValue = "Faculty") String actorRole,
             @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
@@ -286,7 +296,7 @@ public class DocumentController {
         }
 
         return ResponseEntity.ok(DocumentMapper.toDTO(
-                documentService.resubmitDocument(id, actorName, callerRole)));
+                documentService.resubmitDocument(id, actorName, callerRole, updates)));
     }
 
     /**

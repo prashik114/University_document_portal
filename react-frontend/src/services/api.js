@@ -110,10 +110,10 @@ export const api = {
   deleteDocument: (id) =>
     request(`/documents/${encodeURIComponent(id)}`, { method: 'DELETE', headers: {} }),
 
-  resubmitDocument: (id, actorName, actorRole) =>
+  resubmitDocument: (id, actorName, actorRole, updates = {}) =>
     request(
       `/documents/${encodeURIComponent(id)}/resubmit?actorName=${encodeURIComponent(actorName)}&actorRole=${encodeURIComponent(actorRole)}`,
-      { method: 'POST', headers: {} }
+      { method: 'POST', body: JSON.stringify(updates) }
     ),
 
   verifyDocument: (id, reviewerName, reviewerRole, comment) =>

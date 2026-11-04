@@ -51,8 +51,8 @@ export function usePortalData() {
     return saved;
   }, []);
 
-  const resubmitDocument = useCallback(async (docId, actorName, actorRole) => {
-    const updated = await api.resubmitDocument(docId, actorName, actorRole);
+  const resubmitDocument = useCallback(async (docId, actorName, actorRole, updates = {}) => {
+    const updated = await api.resubmitDocument(docId, actorName, actorRole, updates);
     setDocuments(prev => prev.map(d => d.id === updated.id ? updated : d));
     return updated;
   }, []);
@@ -98,6 +98,10 @@ export function usePortalData() {
   const updateUser = useCallback(async (id, data, actor) => {
     const updated = await api.updateUser(id, data, actor);
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    try {
+      const refreshedDocs = await api.getDocuments();
+      setDocuments(refreshedDocs);
+    } catch (_) {}
     return updated;
   }, []);
 

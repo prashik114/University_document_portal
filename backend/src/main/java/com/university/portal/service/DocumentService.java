@@ -151,6 +151,11 @@ public class DocumentService {
      */
     @Transactional
     public DocumentEntity resubmitDocument(String id, String actorName, String actorRole) {
+        return resubmitDocument(id, actorName, actorRole, null);
+    }
+
+    @Transactional
+    public DocumentEntity resubmitDocument(String id, String actorName, String actorRole, DocumentEntity updates) {
         DocumentEntity doc = documentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
 
@@ -160,22 +165,40 @@ public class DocumentService {
 
         boolean isStudent = isStudentDocument(doc) || ROLE_STUDENT.equalsIgnoreCase(actorRole);
 
+        if (updates != null) {
+            if (updates.getTitle() != null && !updates.getTitle().isBlank()) {
+                doc.setTitle(updates.getTitle().trim());
+            }
+            if (updates.getEvidenceFile() != null && !updates.getEvidenceFile().isBlank()) {
+                doc.setEvidenceFile(updates.getEvidenceFile());
+                if (updates.getFileType() != null) doc.setFileType(updates.getFileType());
+                if (updates.getFileSize() != null) doc.setFileSize(updates.getFileSize());
+            }
+            if (updates.getEventDetailsJson() != null && !updates.getEventDetailsJson().isBlank()) {
+                doc.setEventDetailsJson(updates.getEventDetailsJson());
+            }
+        }
+
         String priorStatus = doc.getStatus() + " (" + doc.getCurrentStage() + ")";
         doc.setStatus(STATUS_UNDER_VERIFICATION);
+        // Reset strictly to the initial stage of the verification workflow:
+        // Student records restart at Stage 1 (Faculty Verification Desk)
+        // Faculty records restart at Stage 2 (Department HOD Desk)
         doc.setCurrentStage(isStudent ? STAGE_FACULTY : STAGE_DEAN_HOD);
         doc.setIsLocked(false);
+        doc.setEvidenceVerified(false);
 
-        String stageLabel = isStudent ? "Faculty Desk" : "Dean/HOD queue";
+        String stageLabel = isStudent ? "Stage 1 (Faculty Verification Desk)" : "Stage 2 (Department HOD Desk)";
         appendTimelineStep(doc, "Re-submitted for Verification",
                 actorName + " (" + actorRole + ")",
-                "Submitter rectified and re-submitted evidence to " + stageLabel);
+                "Submitter rectified corrections. Full multi-tier verification restarted from " + stageLabel);
 
         DocumentEntity saved = documentRepository.save(doc);
 
         recordAudit(IdGenerator.auditId(), actorName,
                 "RECORD_RESUBMITTED", saved, priorStatus,
                 STATUS_UNDER_VERIFICATION + " (" + saved.getCurrentStage() + ")",
-                "Submitter rectified corrections and re-submitted to " + stageLabel);
+                "Submitter rectified corrections. Multi-tier verification restarted from " + stageLabel);
 
         recordActivity("cloud", "blue",
                 actorName + " re-submitted \"" + saved.getTitle() + "\" → " + stageLabel,
@@ -204,8 +227,8 @@ public class DocumentService {
 
         String priorStatus = doc.getStatus() + " (" + doc.getCurrentStage() + ")";
         boolean isStudentDoc = isStudentDocument(doc);
-        boolean isFacultyAction = isFacultyRole(reviewerRole) && isStudentDoc;
-        boolean isDeanAction = isDeanRole(reviewerRole) && (isDeanStage(doc.getCurrentStage()) || isFacultyStage(doc.getCurrentStage()));
+        boolean isFacultyAction = isFacultyRole(reviewerRole) && isStudentDoc && isFacultyStage(doc.getCurrentStage());
+        boolean isDeanAction = isDeanRole(reviewerRole) && isDeanStage(doc.getCurrentStage());
         boolean isIqacAction = isIqacRole(reviewerRole) && isIqacStage(doc.getCurrentStage());
 
         // Admin can act at any stage

@@ -2,10 +2,12 @@ package com.university.portal.controller;
 
 import com.university.portal.entity.AuditLogEntity;
 import com.university.portal.entity.DepartmentEntity;
+import com.university.portal.entity.DocumentEntity;
 import com.university.portal.entity.RecentActivityEntity;
 import com.university.portal.entity.UserEntity;
 import com.university.portal.repository.AuditLogRepository;
 import com.university.portal.repository.DepartmentRepository;
+import com.university.portal.repository.DocumentRepository;
 import com.university.portal.repository.RecentActivityRepository;
 import com.university.portal.repository.UserRepository;
 import com.university.portal.util.IdGenerator;
@@ -40,15 +42,18 @@ public class UserController {
     private final AuditLogRepository auditLogRepository;
     private final RecentActivityRepository activityRepository;
     private final DepartmentRepository departmentRepository;
+    private final DocumentRepository documentRepository;
 
     public UserController(UserRepository userRepository,
                           AuditLogRepository auditLogRepository,
                           RecentActivityRepository activityRepository,
-                          DepartmentRepository departmentRepository) {
+                          DepartmentRepository departmentRepository,
+                          DocumentRepository documentRepository) {
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.activityRepository = activityRepository;
         this.departmentRepository = departmentRepository;
+        this.documentRepository = documentRepository;
     }
 
     @GetMapping
@@ -369,6 +374,8 @@ public class UserController {
 
         String oldRole = user.getRole();
         String oldDept = user.getDepartment();
+        String oldName = user.getName();
+        String oldEmployeeId = user.getEmployeeId();
 
         String targetRole = updated.getRole() != null && !updated.getRole().isBlank() ? updated.getRole().trim() : user.getRole();
         String targetDept = updated.getDepartment() != null ? updated.getDepartment().trim() : user.getDepartment();
@@ -441,6 +448,44 @@ public class UserController {
         }
 
         UserEntity saved = userRepository.save(user);
+
+        // Cascade rename and affiliation updates to all documents associated with this user
+        String newName = saved.getName();
+        String newEmpId = saved.getEmployeeId();
+        String newDept = saved.getDepartment();
+        String uid = saved.getId();
+
+        boolean nameChanged = oldName != null && newName != null && !oldName.equalsIgnoreCase(newName);
+        boolean empIdChanged = oldEmployeeId != null && newEmpId != null && !oldEmployeeId.equalsIgnoreCase(newEmpId);
+        boolean deptChanged = oldDept != null && newDept != null && !oldDept.equalsIgnoreCase(newDept);
+
+        if (nameChanged || empIdChanged || deptChanged) {
+            List<DocumentEntity> userDocs = documentRepository.findAll().stream()
+                    .filter(d -> (d.getOwnerId() != null && (d.getOwnerId().equalsIgnoreCase(uid) || (oldEmployeeId != null && d.getOwnerId().equalsIgnoreCase(oldEmployeeId))))
+                              || (oldName != null && d.getOwnerName() != null && d.getOwnerName().trim().equalsIgnoreCase(oldName.trim()))
+                              || (oldName != null && d.getRecordedByFaculty() != null && d.getRecordedByFaculty().trim().equalsIgnoreCase(oldName.trim())))
+                    .toList();
+
+            for (DocumentEntity d : userDocs) {
+                if (nameChanged) {
+                    d.setOwnerName(newName);
+                    if (oldName != null && d.getRecordedByFaculty() != null && oldName.trim().equalsIgnoreCase(d.getRecordedByFaculty().trim())) {
+                        d.setRecordedByFaculty(newName);
+                    }
+                }
+                if (newEmpId != null && !newEmpId.isBlank()) {
+                    d.setOwnerId(newEmpId);
+                } else {
+                    d.setOwnerId(uid);
+                }
+                if (deptChanged && newDept != null && !newDept.isBlank()) {
+                    if (oldDept != null && d.getDepartment() != null && oldDept.trim().equalsIgnoreCase(d.getDepartment().trim())) {
+                        d.setDepartment(newDept);
+                    }
+                }
+                documentRepository.save(d);
+            }
+        }
 
         // Sync department HOD info
         if ("DeanHOD".equalsIgnoreCase(saved.getRole())) {

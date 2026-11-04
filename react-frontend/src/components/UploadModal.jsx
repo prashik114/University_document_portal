@@ -186,7 +186,7 @@ export default function UploadModal({ currentUser, onSubmit, onClose, showToast 
         subCategory: category,
         ownerType: isStudent ? 'Student' : (currentUser.role === 'DeanHOD' ? 'DeanHOD' : 'Faculty Member'),
         ownerName: currentUser.name,
-        ownerId: currentUser.employeeId,
+        ownerId: currentUser.employeeId || currentUser.id,
         recordedByFaculty: currentUser.name,
         department: currentUser.department,
         school: currentUser.school || 'University',

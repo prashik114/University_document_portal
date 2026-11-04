@@ -7,6 +7,7 @@ import Toast               from './components/Toast';
 import UploadModal         from './components/UploadModal';
 import DocumentDetailModal from './components/DocumentDetailModal';
 import ReturnReasonModal   from './components/ReturnReasonModal';
+import ResubmitModal       from './components/ResubmitModal';
 import StatusBadge         from './components/StatusBadge';
 import UserAccessControl   from './components/UserAccessControl';
 import AccountSettings     from './components/AccountSettings';
@@ -80,6 +81,17 @@ export default function App() {
   const [showUploadModal,      setShowUploadModal]    = useState(false);
   const [detailDoc,            setDetailDoc]          = useState(null);
   const [returnDoc,            setReturnDoc]          = useState(null);
+  const [resubmitDoc,          setResubmitDoc]        = useState(null);
+
+  // ── Document ownership check (survives user rename & employee ID updates) ──
+  const isDocOwnedByUser = (doc, user) => {
+    if (!doc || !user) return false;
+    const matchId = Boolean(user.id && doc.ownerId && doc.ownerId.toLowerCase() === user.id.toLowerCase());
+    const matchEmp = Boolean(user.employeeId && doc.ownerId && doc.ownerId.toLowerCase() === user.employeeId.toLowerCase());
+    const matchName = Boolean(user.name && doc.ownerName && doc.ownerName.trim().toLowerCase() === user.name.trim().toLowerCase());
+    const matchFaculty = Boolean(user.name && doc.recordedByFaculty && doc.recordedByFaculty.trim().toLowerCase() === user.name.trim().toLowerCase());
+    return matchId || matchEmp || matchName || matchFaculty;
+  };
 
   // ── Derived values ────────────────────────────────────────────────────────
   const roleColor    = ROLE_COLORS[currentUser?.role]    || '#2563eb';
@@ -89,8 +101,7 @@ export default function App() {
     if (!isAuthenticated || !currentUser) return [];
     return documents.filter(doc => {
       if (currentUser.role === 'Student') {
-        const isOwner = doc.ownerId === currentUser.employeeId || doc.ownerName === currentUser.name;
-        if (!isOwner) return false;
+        if (!isDocOwnedByUser(doc, currentUser)) return false;
       }
       if (selectedCategory !== 'ALL' && doc.category !== selectedCategory) return false;
       if (selectedStatus   !== 'ALL' && doc.status   !== selectedStatus)   return false;
@@ -105,6 +116,24 @@ export default function App() {
       return true;
     });
   }, [documents, currentUser, isAuthenticated, selectedCategory, selectedStatus, searchQuery]);
+
+  // Personal submissions for the "My Documents" / "My Certificates" view
+  const mySubmissions = useMemo(() => {
+    if (!isAuthenticated || !currentUser) return [];
+    return documents.filter(doc => {
+      if (!isDocOwnedByUser(doc, currentUser)) return false;
+      if (selectedCategory !== 'ALL' && doc.category !== selectedCategory) return false;
+      if (myDocsSubTab !== 'ALL' && doc.status !== myDocsSubTab) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          doc.title?.toLowerCase().includes(q) ||
+          doc.department?.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [documents, currentUser, isAuthenticated, myDocsSubTab, selectedCategory, searchQuery]);
 
   const dashboardKpis = useMemo(() => ({
     total:             filteredDocs.length,
@@ -187,10 +216,16 @@ export default function App() {
     setReturnDoc(doc);
   };
 
-  const handleResubmit = async (doc) => {
+  const handleOpenResubmit = (doc) => {
+    setDetailDoc(null);
+    setResubmitDoc(doc);
+  };
+
+  const handleConfirmResubmit = async (docId, updates) => {
     try {
-      await resubmitDocument(doc.id, currentUser.name, currentUser.role);
-      showToast(`"${doc.title}" re-submitted to Dean/HOD verification queue.`, 'success');
+      await resubmitDocument(docId, currentUser.name, currentUser.role, updates);
+      showToast('Document re-submitted. Verification process restarted from Stage 1.', 'success');
+      setResubmitDoc(null);
     } catch (err) {
       showToast(err.message || 'Re-submission failed.', 'error');
     }
@@ -210,7 +245,7 @@ export default function App() {
   const handleBatchApprove = async () => {
     const isStudentDoc = (d) => d.category === 'Student' || (d.category && d.category.toLowerCase().includes('student')) || d.ownerType === 'Student' || d.ownerType === 'student';
     const studentQueue = documents.filter(d => d.status === 'Under Verification' && isStudentDoc(d) && (!currentUser.department || !d.department || d.department.toLowerCase() === currentUser.department.toLowerCase()));
-    const deanQueue = documents.filter(d => d.status === 'Under Verification' && (d.currentStage === 'Dean/HOD' || d.currentStage === 'Faculty')).length;
+    const deanQueue = documents.filter(d => d.status === 'Under Verification' && d.currentStage === 'Dean/HOD').length;
     const iqacQueue = documents.filter(d => d.status === 'Under Verification' && d.currentStage === 'IQAC').length;
 
     if (currentUser.role === 'Faculty') {
@@ -288,7 +323,7 @@ export default function App() {
           currentUser={currentUser}
           onApprove={handleApprove}
           onReturn={handleReturn}
-          onResubmit={(doc) => { setDetailDoc(null); handleResubmit(doc); }}
+          onResubmit={(doc) => handleOpenResubmit(doc)}
           onClose={() => setDetailDoc(null)}
         />
       )}
@@ -297,6 +332,15 @@ export default function App() {
           docTitle={returnDoc.title}
           onConfirm={handleReturnConfirm}
           onCancel={() => setReturnDoc(null)}
+        />
+      )}
+      {resubmitDoc && (
+        <ResubmitModal
+          doc={resubmitDoc}
+          currentUser={currentUser}
+          onConfirm={handleConfirmResubmit}
+          onClose={() => setResubmitDoc(null)}
+          showToast={showToast}
         />
       )}
 
@@ -595,7 +639,7 @@ export default function App() {
                       </select>
                     </div>
                   </div>
-                  <DocumentTable docs={filteredDocs} onView={setDetailDoc} onResubmit={handleResubmit} currentUser={currentUser} loading={loading} />
+                  <DocumentTable docs={filteredDocs} onView={setDetailDoc} onResubmit={handleOpenResubmit} currentUser={currentUser} loading={loading} />
                 </div>
               </div>
             )}
@@ -630,15 +674,15 @@ export default function App() {
                         </button>
                       ))}
                     </div>
-                    <button onClick={() => exportCSV(filteredDocs,'My_Submissions.csv')}
+                    <button onClick={() => exportCSV(mySubmissions,'My_Submissions.csv')}
                       style={{ padding:'6px 12px', borderRadius:6, border:'1px solid #cbd5e1', background:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
                       Export CSV
                     </button>
                   </div>
                   <DocumentTable
-                    docs={filteredDocs.filter(d => myDocsSubTab === 'ALL' || d.status === myDocsSubTab)}
+                    docs={mySubmissions}
                     onView={setDetailDoc}
-                    onResubmit={handleResubmit}
+                    onResubmit={handleOpenResubmit}
                     currentUser={currentUser}
                     loading={loading}
                   />
@@ -722,12 +766,12 @@ export default function App() {
                             if (currentUser.role === 'Faculty') {
                               if (!isStudentDoc(d)) return false;
                               if (currentUser.department && d.department && currentUser.department.toLowerCase() !== d.department.toLowerCase()) return false;
-                              return d.currentStage === 'Faculty' || d.currentStage === 'Dean/HOD';
+                              return d.currentStage === 'Faculty';
                             }
                             if (currentUser.role === 'DeanHOD') {
                               const allowed = [currentUser.department, ...(currentUser.allowedDepartments || []), ...(currentUser.additionalDepartments ? currentUser.additionalDepartments.split(',').map(s=>s.trim()) : [])].filter(Boolean).map(s=>s.toLowerCase());
                               if (allowed.length > 0 && d.department && !allowed.includes(d.department.toLowerCase())) return false;
-                              return d.currentStage === 'Dean/HOD' || d.currentStage === 'Faculty';
+                              return d.currentStage === 'Dean/HOD';
                             }
                             if (currentUser.role === 'IQAC') return d.currentStage === 'IQAC';
                             return true;
