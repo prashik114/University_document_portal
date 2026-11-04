@@ -472,7 +472,7 @@ export default function AccountSettings({ currentUser, onUpdateProfile, showToas
                   )}
                 </div>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                  Configured exclusively under Rule 3 by Central IT Administrator.
+                  Configured exclusively by Central IT Administrator.
                 </div>
               </div>
 
@@ -829,23 +829,23 @@ export default function AccountSettings({ currentUser, onUpdateProfile, showToas
               </div>
 
               <div style={ruleBoxStyle}>
-                <div style={ruleTitleStyle}>Rule 1: Single HOD per Department</div>
+                <div style={ruleTitleStyle}>Department Leadership: Single HOD per Department</div>
                 <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>
-                  Each department is strictly restricted to at most one active Head of Department (HOD). Duplicate assignments are rejected by backend constraints.
+                  Each department is restricted to at most one active Head of Department (HOD). Duplicate assignments are rejected by system constraints.
                 </div>
               </div>
 
               <div style={ruleBoxStyle}>
-                <div style={ruleTitleStyle}>Rule 2: Central Role Isolation</div>
+                <div style={ruleTitleStyle}>Central Role Governance</div>
                 <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>
-                  Roles of <strong>Admin</strong>, <strong>IQAC Officer</strong>, and <strong>NAAC Inspector</strong> operate with institutional-wide scope and cannot be bound to individual academic departments.
+                  Roles of <strong>Admin</strong>, <strong>IQAC Officer</strong>, and <strong>NAAC Inspector</strong> operate with institutional-wide scope and are independent of individual academic departments.
                 </div>
               </div>
 
               <div style={ruleBoxStyle}>
-                <div style={ruleTitleStyle}>Rule 3: Multi-Department HOD Scope</div>
+                <div style={ruleTitleStyle}>Cross-Department Review Scope</div>
                 <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>
-                  Additional department review authorities can only be configured by Central Admin through dropdown selection in User Access Control.
+                  Additional department review authorities can be configured by Central Admin through dropdown selection in User Access Control.
                 </div>
               </div>
             </div>

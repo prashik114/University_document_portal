@@ -13,36 +13,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * Core business-logic service implementing the 4-stage document lifecycle
- * defined in the institutional accreditation workflow:
- *
- * <pre>
- * ┌─ Stage 1: Evidence Submission ──────────────────────────────────────────┐
- * │  Student / Faculty Member submits evidence                              │
- * │  → Status: "Under Verification"  Stage: "Dean/HOD"                     │
- * └─────────────────────────────────────────────────────────────────────────┘
- *            ↓
- * ┌─ Stage 2: Department Governance ────────────────────────────────────────┐
- * │  Dean / HoD reviews                                                     │
- * │  ├─ Endorsed & Verified  → Status: "Under Verification" Stage: "IQAC"  │
- * │  └─ Missing voucher      → Status: "Returned"  Stage: "Dean/HOD"       │
- * │       ↑ Submitter rectifies & re-submits → back to Dean/HOD queue      │
- * └─────────────────────────────────────────────────────────────────────────┘
- *            ↓
- * ┌─ Stage 3: Central Quality Certification ────────────────────────────────┐
- * │  Central IQAC reviews                                                   │
- * │  ├─ Approve & Apply Hash → Status: "Approved"  Stage: "Finalized"      │
- * │  │                          isLocked = true                             │
- * │  └─ Non-compliant        → Status: "Returned"  Stage: "Dean/HOD"       │
- * │       (returns to Department, not to submitter directly)                │
- * └─────────────────────────────────────────────────────────────────────────┘
- *            ↓
- * ┌─ Stage 4: External Assessment & Audit ─────────────────────────────────┐
- * │  Inspector: read-only accreditation dossier                             │
- * │  Audit Ledger: tamper-evident hashed log of all events                 │
- * │  Admin Console: cycle governance & post-approval revisions              │
- * └─────────────────────────────────────────────────────────────────────────┘
- * </pre>
+ * Service managing document lifecycle transitions, verification queues,
+ * audit trail logging, and institutional evidence archival.
  */
 @Service
 public class DocumentService {

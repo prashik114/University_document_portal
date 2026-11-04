@@ -217,7 +217,7 @@ public class UserController {
             user.setSchool("Central Administration");
         }
 
-        // Rule: Each department can have at most ONE active Head of Department (HOD)
+        // Ensure departmental uniqueness: at most one active HOD per department
         if ("DeanHOD".equalsIgnoreCase(user.getRole())) {
             if (user.getDepartment() == null || user.getDepartment().isBlank()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Primary department is required for Head of Department (HOD)."));
@@ -373,7 +373,7 @@ public class UserController {
         String targetRole = updated.getRole() != null && !updated.getRole().isBlank() ? updated.getRole().trim() : user.getRole();
         String targetDept = updated.getDepartment() != null ? updated.getDepartment().trim() : user.getDepartment();
 
-        // Rule: Each department can have at most ONE active Head of Department (HOD)
+        // Ensure departmental uniqueness: at most one active HOD per department
         if ("DeanHOD".equalsIgnoreCase(targetRole)) {
             if (targetDept == null || targetDept.isBlank()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Primary department is required for Head of Department (HOD)."));
@@ -578,8 +578,8 @@ public class UserController {
     }
 
     /**
-     * Rule 3: IT Admin can optionally grant an HOD access to additional departments
-     * without changing their primary department. Additional department permissions are configurable.
+     * Updates departmental permissions and authorization scope.
+     * Configures additional departmental coverage for leadership roles.
      */
     @PutMapping("/{id}/permissions")
     public ResponseEntity<?> updateDepartmentPermissions(

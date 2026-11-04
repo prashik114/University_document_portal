@@ -1,9 +1,6 @@
 /**
  * User Access Control Module
- * Role-aware management of users based on institutional hierarchy:
- *  - Admin: Can create, view, and edit HOD, Faculty, Students (and institutional roles)
- *  - HOD: Can create, view, and edit Faculty and Students only within assigned departments
- *  - Faculty: Can create, view, and edit Students only within their assigned department
+ * Institutional user administration and permission provisioning interface.
  */
 
 import { useState, useMemo } from 'react';
@@ -822,7 +819,7 @@ function UserFormModal({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <label style={{ ...labelStyle, marginBottom: 0 }}>Primary Department *</label>
                 {form.role === 'DeanHOD' && (
-                  <span style={{ fontSize: 11, color: '#0284c7', fontWeight: 600 }}>Rule: Single HOD per department</span>
+                  <span style={{ fontSize: 11, color: '#0284c7', fontWeight: 600 }}>Policy: Single HOD per department</span>
                 )}
               </div>
               <select

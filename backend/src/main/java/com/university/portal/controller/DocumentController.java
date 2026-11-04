@@ -17,16 +17,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * REST controller for all document lifecycle operations enforcing institutional RBAC:
- *
- * Rules:
- * 1. IT Admin creates all user accounts and assigns primary and additional departments.
- * 2. Each HOD can create, view, and manage documents belonging only to their assigned department by default.
- * 3. IT Admin can optionally grant an HOD access to additional departments without changing their primary department.
- * 4. Teachers and Students can upload their certificates, research papers, and academic documents.
- * 5. Respective Department HOD reviews documents, approves them, and forwards them to IQAC.
- * 6. IQAC performs final verification and locks approved documents permanently against direct modification.
- * 7. NAAC Inspectors receive read-only access to authorised documents and can view and download reports.
+ * Controller managing document submission, multi-stage verification workflows,
+ * departmental access control, and evidence archiving.
  */
 @RestController
 @RequestMapping("/api/documents")
@@ -69,19 +61,19 @@ public class DocumentController {
                 .map(DocumentMapper::toDTO)
                 .toList();
 
-        // 1. Central IT Admin & IQAC: View all institutional records
+        // Central administration and quality assurance: full institutional visibility
         if ("Admin".equalsIgnoreCase(callerRole) || "IQAC".equalsIgnoreCase(callerRole)) {
             return docs;
         }
 
-        // Rule 7: NAAC Inspector receives read-only access to authorised (approved) documents only
+        // External assessors: view accredited documents only
         if ("Inspector".equalsIgnoreCase(callerRole)) {
             return docs.stream()
                     .filter(d -> "Approved".equalsIgnoreCase(d.getStatus()))
                     .toList();
         }
 
-        // Rule 2 & 3: HOD access (primary assigned department + any additional granted departments)
+        // Department leadership: scope limited to primary and assigned additional departments
         if ("DeanHOD".equalsIgnoreCase(callerRole)) {
             List<String> allowedDepts = resolveHodAllowedDepartments(callerId, callerDept);
             if (allowedDepts.isEmpty()) return docs;
@@ -91,7 +83,7 @@ public class DocumentController {
                     .toList();
         }
 
-        // Rule 4: Faculty views assigned department records and own submissions
+        // Faculty members: access departmental records and personal uploads
         if ("Faculty".equalsIgnoreCase(callerRole)) {
             if (callerDept.isBlank() && callerId.isBlank()) return docs;
             return docs.stream()
@@ -100,7 +92,7 @@ public class DocumentController {
                     .toList();
         }
 
-        // Rule 4: Student views own certificates and submissions
+        // Student access: restricted to individual submissions
         if ("Student".equalsIgnoreCase(callerRole)) {
             return docs.stream()
                     .filter(d -> (!callerId.isBlank() && callerId.equalsIgnoreCase(d.getOwnerId())) ||
@@ -136,7 +128,7 @@ public class DocumentController {
             return ResponseEntity.notFound().build();
         }
 
-        // Rule 7: Inspector read-only access to authorized documents only
+        // External assessors can only view finalized approved records
         if ("Inspector".equalsIgnoreCase(callerRole)) {
             if (!"Approved".equalsIgnoreCase(doc.getStatus())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -144,7 +136,7 @@ public class DocumentController {
             }
         }
 
-        // Rule 2 & 3: HOD department authorization check
+        // Verify department jurisdiction for departmental leadership
         if ("DeanHOD".equalsIgnoreCase(callerRole)) {
             if (!isDepartmentAllowedForHod(doc.getDepartment(), callerId, callerDept)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -163,7 +155,7 @@ public class DocumentController {
     // ── Mutations ─────────────────────────────────────────────────────────────
 
     /**
-     * Rule 4: Teachers and Students upload certificates, research papers, and academic documents.
+     * Submits a new evidence or academic document into the verification lifecycle.
      */
     @PostMapping
     public ResponseEntity<?> create(
@@ -181,7 +173,7 @@ public class DocumentController {
         String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
         String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
 
-        // Rule 7: Inspector is strictly read-only
+        // Assessors have read-only permissions
         if ("Inspector".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Access Denied: External NAAC Inspectors have read-only access and cannot create documents."));
@@ -215,7 +207,7 @@ public class DocumentController {
     }
 
     /**
-     * Rule 6: Locks approved documents permanently against direct modification.
+     * Updates document metadata; prevents modifications once finalized and locked.
      */
     @PutMapping("/{id}")
     public ResponseEntity<?> update(
@@ -298,7 +290,7 @@ public class DocumentController {
     }
 
     /**
-     * Rule 5: Respective Department HOD reviews documents, approves them, and forwards them to IQAC.
+     * Review and stage advancement endpoint for departmental leadership and quality officers.
      */
     @PostMapping("/{id}/verify")
     public ResponseEntity<?> verify(
@@ -332,13 +324,13 @@ public class DocumentController {
             return ResponseEntity.notFound().build();
         }
 
-        // Rule: Student can ONLY upload documents (cannot verify)
+        // Students do not have document verification authority
         if ("Student".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Access Denied: Students are not authorized to verify documents. Students can only upload documents."));
         }
 
-        // Rule: Faculty can verify Student documents only within their department (based on access provided)
+        // Faculty verification is restricted to student documents within their department
         if ("Faculty".equalsIgnoreCase(callerRole)) {
             boolean isStudentDoc = isStudentDocument(existing);
             if (!isStudentDoc) {
@@ -356,7 +348,7 @@ public class DocumentController {
             }
         }
 
-        // Rule: HOD can verify & confirm both Faculty documents and Student documents within allowed department scope
+        // Department head verification across assigned departmental scope
         if ("DeanHOD".equalsIgnoreCase(callerRole)) {
             if (!isDepartmentAllowedForHod(existing.getDepartment(), callerId, callerDept)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -372,7 +364,7 @@ public class DocumentController {
     }
 
     /**
-     * HOD returns document with clarification reason to submitter.
+     * Returns a document with feedback to the submitter for rectification.
      */
     @PostMapping("/{id}/return")
     public ResponseEntity<?> returnRecord(
@@ -406,13 +398,13 @@ public class DocumentController {
             return ResponseEntity.notFound().build();
         }
 
-        // Rule: Student cannot return documents
+        // Rejection/return actions cannot be initiated by students
         if ("Student".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Access Denied: Students are not authorized to return documents."));
         }
 
-        // Rule: Faculty can only return Student documents within their department
+        // Faculty members may return student records for departmental rectification
         if ("Faculty".equalsIgnoreCase(callerRole)) {
             boolean isStudentDoc = isStudentDocument(existing);
             if (!isStudentDoc) {
@@ -443,7 +435,7 @@ public class DocumentController {
     }
 
     /**
-     * Rule 6: IQAC performs final verification and locks approved documents permanently against direct modification.
+     * Applies final cryptographic sealing to verified records for institutional reporting.
      */
     @PostMapping("/{id}/lock")
     public ResponseEntity<?> lock(
@@ -457,7 +449,7 @@ public class DocumentController {
             callerRole = body.getReviewerRole();
         }
 
-        // Rule 6: Only IQAC (or Admin) can lock approved records
+        // Central quality assurance locking enforcement
         if (!"IQAC".equalsIgnoreCase(callerRole) && !"Admin".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Access Denied: Only Central IQAC can perform final verification and lock approved documents."));
