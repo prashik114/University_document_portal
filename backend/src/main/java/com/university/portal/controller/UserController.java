@@ -587,22 +587,73 @@ public class UserController {
             @RequestBody Map<String, Object> body,
             @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
             @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader,
+            @RequestHeader(value = "X-Actor-Department", required = false) String actorDeptHeader,
+            @RequestHeader(value = "X-User-Dept", required = false) String userDeptHeader,
+            @RequestHeader(value = "X-Actor-Id", required = false) String actorIdHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
             @RequestParam(required = false) String actorRole,
             @RequestParam(required = false) String role) {
 
         String callerRole = resolveRole(role, actorRole, actorRoleHeader, userRoleHeader);
+        String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
+        String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
+
+        if (callerRole.isBlank() && !callerId.isBlank()) {
+            Optional<UserEntity> callerOpt = userRepository.findById(callerId)
+                    .or(() -> userRepository.findByEmployeeId(callerId));
+            if (callerOpt.isPresent()) {
+                callerRole = callerOpt.get().getRole();
+                if (callerDept.isBlank() && callerOpt.get().getDepartment() != null) {
+                    callerDept = callerOpt.get().getDepartment();
+                }
+            }
+        }
         if (callerRole.isBlank()) {
             callerRole = "Admin";
         }
 
-        // Only IT Admin can configure department access permissions
-        if (!"Admin".equalsIgnoreCase(callerRole)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Access Denied: Only Central IT Admin can configure HOD department permissions."));
-        }
-
         UserEntity user = userRepository.findById(id)
                 .orElseGet(() -> userRepository.findByEmployeeId(id).orElse(null));
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "User not found with ID " + id));
+        }
+
+        // Authorization check: Admin for all, HOD for Faculty & Students, Faculty for Students
+        if ("Admin".equalsIgnoreCase(callerRole)) {
+            // Admin can update permissions of any user
+        } else if ("DeanHOD".equalsIgnoreCase(callerRole)) {
+            if (!"Faculty".equalsIgnoreCase(user.getRole()) && !"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: HOD can only manage Faculty and Student permissions."));
+            }
+            List<String> allowedDepts = resolveAllowedDepartments(callerId, callerDept);
+            if (!allowedDepts.stream().anyMatch(d -> d.equalsIgnoreCase(user.getDepartment()))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: You can only manage permissions for members in your assigned departments."));
+            }
+            if (body.containsKey("additionalDepartments") && body.get("additionalDepartments") != null && !body.get("additionalDepartments").toString().isBlank()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Only Central IT Admin can configure additional department scope."));
+            }
+        } else if ("Faculty".equalsIgnoreCase(callerRole)) {
+            if (!"Student".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only manage Student permissions."));
+            }
+            if (callerDept.isBlank() || !callerDept.equalsIgnoreCase(user.getDepartment())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Faculty can only manage permissions for Students in their own department."));
+            }
+            if (body.containsKey("additionalDepartments") && body.get("additionalDepartments") != null && !body.get("additionalDepartments").toString().isBlank()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Access Denied: Only Central IT Admin can configure additional department scope."));
+            }
+        } else {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Access Denied: You do not have permission to manage permissions."));
+        }
 
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

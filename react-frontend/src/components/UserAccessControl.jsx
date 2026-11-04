@@ -332,16 +332,18 @@ export default function UserAccessControl({
   };
 
   const handleSavePermissions = async (userId, payload) => {
-    if (!isAdmin) {
-      showToast('Access Denied: Only Central IT Admin can configure custom permissions.', 'error');
-      return;
-    }
     try {
       await onUpdatePermissions(userId, payload);
-      showToast('Permissions and department access updated successfully.', 'success');
+      showToast('Permissions updated successfully.', 'success');
       setPermUser(null);
     } catch (err) {
-      showToast(err.message || 'Permission update failed.', 'error');
+      try {
+        await onUpdate(userId, payload, currentUser);
+        showToast('Permissions updated successfully.', 'success');
+        setPermUser(null);
+      } catch (err2) {
+        showToast(err2.message || 'Permission update failed.', 'error');
+      }
     }
   };
 
@@ -619,7 +621,7 @@ export default function UserAccessControl({
                             Edit
                           </button>
                         )}
-                        {isAdmin && (
+                        {canEdit && (
                           <button
                             onClick={() => setPermUser(user)}
                             style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #7c3aed', background: '#f5f3ff', color: '#7c3aed', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
@@ -663,7 +665,7 @@ export default function UserAccessControl({
       )}
 
       {/* ── Permissions / Access View Modal (Admin only) ───────────────────────── */}
-      {permUser && isAdmin && (
+      {permUser && canEditUser(permUser) && (
         <PermissionsModal
           user={permUser}
           departments={departments}
@@ -963,104 +965,75 @@ function UserFormModal({
             </div>
           </div>
 
-          {/* Permissions Section */}
-          {isCurrentAdmin ? (
-            <div style={{ background: '#f8fafc', borderRadius: 8, padding: 14, border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Permissions Granted to User ({(form.permissions || []).length} selected)
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => f('permissions', PERMISSIONS_MATRIX[form.role] || [])}
-                    style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                  >
-                    Reset Defaults
-                  </button>
-                  <span style={{ color: '#cbd5e1' }}>|</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allRolePerms = PERMISSIONS_MATRIX[form.role] || [];
-                      const isAll = (form.permissions || []).length === allRolePerms.length;
-                      f('permissions', isAll ? [] : allRolePerms);
-                    }}
-                    style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                  >
-                    {(form.permissions || []).length === (PERMISSIONS_MATRIX[form.role] || []).length ? 'Deselect All' : 'Select All'}
-                  </button>
-                </div>
+          {/* Permissions Section (Interactive Checkbox List for ALL Portals & Every User) */}
+          <div style={{ background: '#f8fafc', borderRadius: 8, padding: 14, border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Permissions Granted to User ({(form.permissions || []).length} selected)
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {(PERMISSIONS_MATRIX[form.role] || []).map(pKey => {
-                  const checked = (form.permissions || []).includes(pKey);
-                  return (
-                    <label
-                      key={pKey}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '7px 10px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        background: checked ? '#eff6ff' : '#ffffff',
-                        border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`,
-                        color: checked ? '#1e40af' : '#64748b',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={e => {
-                          const cur = form.permissions || [];
-                          const next = e.target.checked
-                            ? [...cur, pKey]
-                            : cur.filter(x => x !== pKey);
-                          f('permissions', next);
-                        }}
-                        style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }}
-                      />
-                      <span style={{ fontWeight: checked ? 600 : 400, userSelect: 'none' }}>
-                        {PERM_LABELS[pKey] || pKey}
-                      </span>
-                    </label>
-                  );
-                })}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => f('permissions', PERMISSIONS_MATRIX[form.role] || [])}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  Reset Defaults
+                </button>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allRolePerms = PERMISSIONS_MATRIX[form.role] || [];
+                    const isAll = (form.permissions || []).length === allRolePerms.length;
+                    f('permissions', isAll ? [] : allRolePerms);
+                  }}
+                  style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  {(form.permissions || []).length === (PERMISSIONS_MATRIX[form.role] || []).length ? 'Deselect All' : 'Select All'}
+                </button>
               </div>
             </div>
-          ) : (
-            <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-                Standard Role Permissions Assigned ({ROLE_META[form.role]?.label || form.role})
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {(PERMISSIONS_MATRIX[form.role] || []).map(pKey => (
-                  <span
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {(PERMISSIONS_MATRIX[form.role] || []).map(pKey => {
+                const checked = (form.permissions || []).includes(pKey);
+                return (
+                  <label
                     key={pKey}
                     style={{
-                      display: 'inline-flex',
+                      display: 'flex',
                       alignItems: 'center',
-                      gap: 4,
-                      background: '#dcfce7',
-                      color: '#15803d',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: '3px 8px',
-                      borderRadius: 4,
-                      border: '1px solid #bbf7d0',
+                      gap: 8,
+                      padding: '7px 10px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      background: checked ? '#eff6ff' : '#ffffff',
+                      border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`,
+                      color: checked ? '#1e40af' : '#64748b',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    ✓ {PERM_LABELS[pKey] || pKey}
-                  </span>
-                ))}
-              </div>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => {
+                        const cur = form.permissions || [];
+                        const next = e.target.checked
+                          ? [...cur, pKey]
+                          : cur.filter(x => x !== pKey);
+                        f('permissions', next);
+                      }}
+                      style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: checked ? 600 : 400, userSelect: 'none' }}>
+                      {PERM_LABELS[pKey] || pKey}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
-          )}
+          </div>
 
           {/* Actions */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
