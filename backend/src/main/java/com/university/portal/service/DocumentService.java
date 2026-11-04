@@ -41,6 +41,7 @@ public class DocumentService {
     private final DocumentRepository       documentRepository;
     private final AuditLogRepository       auditLogRepository;
     private final RecentActivityRepository activityRepository;
+    private final UserRepository           userRepository;
     private final ObjectMapper             objectMapper = new ObjectMapper();
 
     private static final DateTimeFormatter FMT      = DateTimeFormatter.ofPattern("dd MMM yyyy");
@@ -49,10 +50,12 @@ public class DocumentService {
 
     public DocumentService(DocumentRepository documentRepository,
                            AuditLogRepository auditLogRepository,
-                           RecentActivityRepository activityRepository) {
+                           RecentActivityRepository activityRepository,
+                           UserRepository userRepository) {
         this.documentRepository = documentRepository;
         this.auditLogRepository = auditLogRepository;
         this.activityRepository = activityRepository;
+        this.userRepository     = userRepository;
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -88,6 +91,17 @@ public class DocumentService {
         if ("Student".equalsIgnoreCase(doc.getCategory())) return true;
         if (doc.getCategory() != null && doc.getCategory().toLowerCase().contains("student")) return true;
         if (doc.getSubCategory() != null && doc.getSubCategory().toLowerCase().contains("student")) return true;
+        if (userRepository != null) {
+            if (doc.getOwnerId() != null && !doc.getOwnerId().isBlank()) {
+                Optional<UserEntity> u = userRepository.findById(doc.getOwnerId())
+                        .or(() -> userRepository.findByEmployeeId(doc.getOwnerId()));
+                if (u.isPresent() && "Student".equalsIgnoreCase(u.get().getRole())) return true;
+            }
+            if (doc.getOwnerName() != null && !doc.getOwnerName().isBlank()) {
+                Optional<UserEntity> u = userRepository.findByName(doc.getOwnerName().trim());
+                if (u.isPresent() && "Student".equalsIgnoreCase(u.get().getRole())) return true;
+            }
+        }
         return false;
     }
 
@@ -189,16 +203,16 @@ public class DocumentService {
         doc.setEvidenceVerified(false);
 
         String stageLabel = isStudent ? "Stage 1 (Faculty Verification Desk)" : "Stage 2 (Department HOD Desk)";
-        appendTimelineStep(doc, "Re-submitted for Verification",
+        appendTimelineStep(doc, "Re-uploaded & Re-submitted for Verification",
                 actorName + " (" + actorRole + ")",
-                "Submitter rectified corrections. Full multi-tier verification restarted from " + stageLabel);
+                "Submitter re-uploaded corrected evidence file (" + (doc.getEvidenceFile() != null ? doc.getEvidenceFile() : "updated evidence") + "). Full multi-tier verification restarted from " + stageLabel);
 
         DocumentEntity saved = documentRepository.save(doc);
 
         recordAudit(IdGenerator.auditId(), actorName,
                 "RECORD_RESUBMITTED", saved, priorStatus,
                 STATUS_UNDER_VERIFICATION + " (" + saved.getCurrentStage() + ")",
-                "Submitter rectified corrections. Multi-tier verification restarted from " + stageLabel);
+                "Submitter re-uploaded corrected evidence file (" + (doc.getEvidenceFile() != null ? doc.getEvidenceFile() : "updated evidence") + "). Multi-tier verification restarted from " + stageLabel);
 
         recordActivity("cloud", "blue",
                 actorName + " re-submitted \"" + saved.getTitle() + "\" → " + stageLabel,
@@ -329,24 +343,25 @@ public class DocumentService {
         String stepLabel;
         String auditComment;
 
+        boolean isStudentDoc = isStudentDocument(doc);
         if (isIqacRole(reviewerRole) || STAGE_IQAC.equalsIgnoreCase(doc.getCurrentStage())) {
-            // IQAC non-compliant → return to Department (Dean/HOD) for re-verification
-            doc.setCurrentStage(STAGE_DEAN_HOD);
-            returnedTo   = "Department (Dean/HOD)";
-            stepLabel    = "Returned to Department — Non-compliant NAAC Criteria";
-            auditComment = "IQAC: Non-compliant criteria. Returned to Department for correction. Reason: " + reason;
+            // IQAC non-compliant → returned for full restart from initial stage
+            doc.setCurrentStage(isStudentDoc ? STAGE_FACULTY : STAGE_DEAN_HOD);
+            returnedTo   = isStudentDoc ? "Student Submitter (Stage 1 Faculty Verification Desk)" : "Department (Dean/HOD)";
+            stepLabel    = "Returned to Submitter — Non-compliant NAAC Criteria";
+            auditComment = "IQAC: Non-compliant criteria. Returned for full re-verification. Reason: " + reason;
         } else if (isFacultyRole(reviewerRole)) {
-            // Faculty return → returns to student submitter
+            // Faculty return → returns to student submitter at Stage 1
             doc.setCurrentStage(STAGE_FACULTY);
             returnedTo   = "Student Submitter";
             stepLabel    = "Returned to Student for Correction";
             auditComment = "Faculty: Returned to student for clarification/rectification. Reason: " + reason;
         } else {
-            // Dean/HOD return → return to submitter (Faculty / Student)
-            doc.setCurrentStage(STAGE_DEAN_HOD);
-            returnedTo   = "Submitter";
+            // Dean/HOD return → returns to submitter at Stage 1 for student, Stage 2 for faculty
+            doc.setCurrentStage(isStudentDoc ? STAGE_FACULTY : STAGE_DEAN_HOD);
+            returnedTo   = isStudentDoc ? "Student Submitter (Stage 1 Faculty Verification Desk)" : "Faculty Submitter (Stage 2 HOD Desk)";
             stepLabel    = "Returned for Clarification — Missing / Invalid Evidence";
-            auditComment = "Dean/HOD: Missing voucher or invalid evidence. Reason: " + reason;
+            auditComment = "Dean/HOD: Returned for rectification. Reason: " + reason;
         }
 
         appendReviewerComment(doc, reviewerName, reviewerRole,

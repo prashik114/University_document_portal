@@ -338,6 +338,54 @@
         </div>
     </div>
 
+
+    <!-- RE-UPLOAD & RESUBMIT MODAL -->
+    <div class="modal-backdrop" id="reupload-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 540px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); overflow: hidden; margin: 20px;">
+            <div style="padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Re-upload Corrected Certificate & Resubmit</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;" id="reupload-modal-docid">ID: DOC-ID</p>
+                </div>
+                <button onclick="closeStudentReuploadModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <form id="student-reupload-form" onsubmit="handleStudentReuploadSubmit(event)" style="padding: 24px;">
+                <input type="hidden" id="reupload-doc-id">
+                
+                <div id="reupload-reason-box" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #991b1b;">
+                    <div style="font-weight: 700; margin-bottom: 3px;">⚠️ Reviewer Correction Feedback:</div>
+                    <div id="reupload-reason-text" style="font-style: italic;">Revision requested.</div>
+                </div>
+
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: #1e40af;">
+                    <div style="font-weight: 700; margin-bottom: 3px;">🔄 Multi-Tier Verification Restart Flow:</div>
+                    <div>Direct approval is prohibited. Upon re-submitting with your re-uploaded evidence file, verification restarts strictly from the beginning:</div>
+                    <div style="margin-top: 5px; font-weight: 600; font-family: monospace;">Stage 1: Faculty Verification Desk ➔ Stage 2: HOD ➔ Stage 3: IQAC</div>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Certificate Title *</label>
+                    <input type="text" id="reupload-title" required style="width: 100%; height: 38px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                </div>
+
+                <div style="margin-bottom: 20px; background: #f8fafc; border: 1.5px dashed #3b82f6; border-radius: 8px; padding: 14px;">
+                    <label style="display: block; font-size: 12.5px; font-weight: 700; color: #1e40af; margin-bottom: 6px;">
+                        📁 Re-upload Corrected Evidence Document * (Required)
+                    </label>
+                    <input type="file" id="reupload-file-input" required accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; font-size: 12px;">
+                    <div style="font-size: 11px; color: #dc2626; margin-top: 6px; font-weight: 600;">
+                        * Re-uploading a corrected file is mandatory. Direct resubmission without a new file is not permitted.
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-secondary" onclick="closeStudentReuploadModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="reupload-submit-btn" style="background: #2563eb;">Re-upload File & Submit for Verification</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script src="js/portal-client.js"></script>
     <script>
@@ -464,7 +512,9 @@
                         <div style="display: flex; justify-content: flex-end; gap: 6px;">
                             <button class="btn-secondary" onclick="openDocDetailModal('${d.id}')" style="padding: 3px 8px; font-size: 11px; color: #0284c7; border-color: #bae6fd;">View</button>
                             ${d.status === 'Returned' ? `
-                                <button class="btn-primary" onclick="handleResubmit('${d.id}')" style="padding: 3px 8px; font-size: 11px; background: #d97706;">Resubmit</button>
+                                <button class="btn-primary" onclick="openStudentReuploadModal('${d.id}')" style="padding: 3px 10px; font-size: 11px; background: #2563eb; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span>&#8679; Re-upload & Resubmit</span>
+                                </button>
                             ` : ''}
                         </div>
                     </td>
@@ -561,13 +611,68 @@
             document.getElementById('doc-detail-modal').style.display = 'none';
         }
 
-        async function handleResubmit(docId) {
-            if (!confirm("Resubmit this certificate to your Department HOD for verification?")) return;
-            try {
-                await PortalClient.resubmitDocument(docId);
-                await loadStudentData();
-            } catch (err) {}
+        
+        function openStudentReuploadModal(docId) {
+            const d = myStuDocs.find(x => x.id === docId);
+            if (!d) return;
+            document.getElementById('reupload-doc-id').value = d.id;
+            document.getElementById('reupload-modal-docid').textContent = 'ID: ' + d.id + ' • ' + (d.ownerName || 'Student');
+            document.getElementById('reupload-title').value = d.title || '';
+            document.getElementById('reupload-file-input').value = '';
+            
+            // Extract return reason
+            let reason = 'Reviewer requested correction.';
+            if (d.reviewerComments && Array.isArray(d.reviewerComments) && d.reviewerComments.length > 0) {
+                const last = d.reviewerComments[d.reviewerComments.length - 1];
+                reason = last.comment || last.feedback || reason;
+            } else if (d.timeline && Array.isArray(d.timeline)) {
+                const ret = [...d.timeline].reverse().find(s => s.stage && s.stage.toLowerCase().includes('return'));
+                if (ret && ret.comment) reason = ret.comment;
+            }
+            document.getElementById('reupload-reason-text').textContent = '"' + reason + '"';
+            document.getElementById('reupload-modal').style.display = 'flex';
         }
+
+        function closeStudentReuploadModal() {
+            document.getElementById('reupload-modal').style.display = 'none';
+        }
+
+        async function handleStudentReuploadSubmit(e) {
+            e.preventDefault();
+            const docId = document.getElementById('reupload-doc-id').value;
+            const newTitle = document.getElementById('reupload-title').value.trim();
+            const fileInput = document.getElementById('reupload-file-input');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select and re-upload the corrected certificate/evidence file.');
+                return;
+            }
+
+            const btn = document.getElementById('reupload-submit-btn');
+            btn.disabled = true;
+            btn.textContent = 'Uploading & Submitting...';
+
+            try {
+                const upRes = await PortalClient.uploadFile(file);
+                const updates = {
+                    title: newTitle,
+                    evidenceFile: upRes.fileName,
+                    fileType: file.name.split('.').pop().toLowerCase(),
+                    fileSize: (file.size / 1048576).toFixed(1) + ' MB'
+                };
+                await PortalClient.resubmitDocument(docId, updates);
+                closeStudentReuploadModal();
+                await loadStudentData();
+                alert('Corrected certificate successfully re-uploaded! Multi-tier verification has restarted from Stage 1 (Faculty Verification Desk).');
+            } catch (err) {
+                alert('Re-submission failed: ' + (err.message || err));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Re-upload File & Submit for Verification';
+            }
+        }
+
 
         async function handleChangePassword(e) {
             e.preventDefault();

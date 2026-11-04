@@ -1148,8 +1148,10 @@ function DocumentTable({ docs, onView, onResubmit, currentUser, loading }) {
                   </button>
                   {doc.status === 'Returned' && ['Faculty','Student'].includes(currentUser.role) && onResubmit && (
                     <button onClick={() => onResubmit(doc)}
-                      style={{ padding:'5px 12px', borderRadius:6, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer' }}>
-                      Re-submit
+                      title="Re-upload corrected document and restart verification workflow"
+                      style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:6, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      <span>Re-upload & Resubmit</span>
                     </button>
                   )}
                 </div>

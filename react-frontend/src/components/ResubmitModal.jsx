@@ -33,19 +33,17 @@ export default function ResubmitModal({ doc, currentUser, onConfirm, onClose, sh
       showToast('Please provide a document title.', 'warning');
       return;
     }
+    if (!file) {
+      showToast('Mandatory: Please select and re-upload the corrected document file before submitting.', 'warning');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      let evidenceFile = doc.evidenceFile;
-      let fileType = doc.fileType;
-      let fileSize = doc.fileSize;
-
-      if (file) {
-        const uploaded = await api.uploadFile(file);
-        evidenceFile = uploaded.fileName;
-        fileType = file.name.split('.').pop().toLowerCase();
-        fileSize = `${(file.size / 1048576).toFixed(1)} MB`;
-      }
+      const uploaded = await api.uploadFile(file);
+      const evidenceFile = uploaded.fileName;
+      const fileType = file.name.split('.').pop().toLowerCase();
+      const fileSize = `${(file.size / 1048576).toFixed(1)} MB`;
 
       const updates = {
         title: title.trim(),
@@ -63,7 +61,7 @@ export default function ResubmitModal({ doc, currentUser, onConfirm, onClose, sh
     }
   };
 
-  const initialStageName = isStudent ? 'Stage 1 — Faculty Verification Desk' : 'Stage 2 — Department HOD Queue';
+  const initialStageName = isStudent ? 'Stage 1: Faculty Verification Desk' : 'Stage 2: Department Head of Department (HOD)';
 
   return (
     <div
@@ -75,19 +73,19 @@ export default function ResubmitModal({ doc, currentUser, onConfirm, onClose, sh
     >
       <div
         className="modal-dialog"
-        style={{ maxWidth: 580, width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}
+        style={{ maxWidth: 600, width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}
       >
         {/* Header */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '16px 22px', borderBottom: '1px solid #e2e8f0',
+          padding: '16px 22px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc',
         }}>
           <div>
             <div id="resubmit-modal-title" style={{ fontSize: 16.5, fontWeight: 700, color: '#0f172a' }}>
-              Re-submit Returned Document
+              Re-upload Corrected Document & Resubmit
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              ID: {doc.id} &bull; Submitter: {doc.ownerName}
+              ID: {doc.id} &bull; Category: {doc.category} &bull; Submitter: {doc.ownerName}
             </div>
           </div>
           <button
@@ -101,26 +99,36 @@ export default function ResubmitModal({ doc, currentUser, onConfirm, onClose, sh
         </div>
 
         {/* Body Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleSubmit} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '75vh', overflowY: 'auto' }}>
           {/* Reason for Return Notice */}
           <div style={{
             background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
             padding: '12px 14px', fontSize: 12.5, color: '#991b1b', lineHeight: 1.5,
           }}>
             <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span>⚠️ Reviewer Correction Request:</span>
+              <span>⚠️ Reviewer Correction Feedback:</span>
             </div>
             <div style={{ fontStyle: 'italic', color: '#7f1d1d' }}>
               "{returnReason}"
             </div>
           </div>
 
-          {/* Workflow Notice */}
+          {/* Workflow Pipeline Notice */}
           <div style={{
-            background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8,
-            padding: '10px 14px', fontSize: 12, color: '#166534', lineHeight: 1.5,
+            background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8,
+            padding: '12px 14px', fontSize: 12, color: '#1e40af', lineHeight: 1.5,
           }}>
-            ℹ️ <strong>Workflow Pipeline Notice:</strong> Upon re-submission, this record will NOT be approved directly. It will be routed through the complete verification pipeline from the start: <strong>{initialStageName}</strong>.
+            <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🔄 Multi-Tier Verification Restart Flow:</span>
+            </div>
+            <div>
+              Direct approval is strictly prohibited. Upon re-submitting with your re-uploaded evidence file, this record starts verification from the beginning:
+            </div>
+            <div style={{ marginTop: 6, padding: '6px 10px', background: '#fff', borderRadius: 6, border: '1px solid #dbeafe', fontFamily: 'monospace', fontSize: 11.5, color: '#1e3a8a' }}>
+              {isStudent
+                ? '1. Faculty Verification Desk (Stage 1) ➔ 2. Head of Department (HOD) ➔ 3. Central IQAC'
+                : '1. Department HOD Queue (Stage 2) ➔ 2. Central IQAC Review (Stage 3)'}
+            </div>
           </div>
 
           {/* Document Title */}
@@ -141,27 +149,33 @@ export default function ResubmitModal({ doc, currentUser, onConfirm, onClose, sh
           </div>
 
           {/* Existing Evidence File */}
-          <div style={{ fontSize: 12, color: '#475569' }}>
-            <span style={{ fontWeight: 600 }}>Current Evidence File:</span> {doc.evidenceFile || 'None attached'}
+          <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#475569' }}>
+            <span style={{ fontWeight: 600, color: '#334155' }}>Previously Returned File:</span> {doc.evidenceFile || 'No file recorded'}
           </div>
 
-          {/* Replacement File Upload */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: '#334155', marginBottom: 5 }}>
-              Attach Corrected / Updated Evidence File (Optional)
+          {/* Mandatory Replacement File Upload */}
+          <div style={{ background: '#f8fafc', border: '1.5px dashed #3b82f6', borderRadius: 8, padding: '14px' }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1e40af', marginBottom: 6 }}>
+              📁 Re-upload Corrected Evidence Document * (Required)
             </label>
             <input
               type="file"
+              required
               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
               onChange={(e) => setFile(e.target.files[0] || null)}
               style={{
-                width: '100%', padding: '9px 12px', borderRadius: 6,
-                border: '1.5px dashed #cbd5e1', background: '#f8fafc', fontSize: 12,
+                width: '100%', padding: '8px', borderRadius: 6,
+                border: '1px solid #cbd5e1', background: '#fff', fontSize: 12.5,
               }}
             />
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-              Leave blank to retain current evidence file, or choose a new file to replace it.
+            <div style={{ fontSize: 11.5, color: '#dc2626', marginTop: 6, fontWeight: 600 }}>
+              * Re-uploading the corrected file is mandatory. Direct resubmission without a new file is not permitted.
             </div>
+            {file && (
+              <div style={{ marginTop: 8, fontSize: 12, color: '#15803d', fontWeight: 600 }}>
+                ✓ Selected replacement: {file.name} ({(file.size / 1024).toFixed(0)} KB)
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -176,10 +190,16 @@ export default function ResubmitModal({ doc, currentUser, onConfirm, onClose, sh
             </button>
             <button
               type="submit"
-              disabled={submitting}
-              style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 12.5 }}
+              disabled={submitting || !file}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '9px 20px', borderRadius: 6, border: 'none',
+                background: !file ? '#94a3b8' : '#2563eb', color: '#fff',
+                cursor: !file ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13,
+              }}
             >
-              {submitting ? 'Re-submitting…' : 'Submit Rectified Document'}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>{submitting ? 'Uploading & Submitting…' : 'Re-upload File & Submit for Verification'}</span>
             </button>
           </div>
         </form>
