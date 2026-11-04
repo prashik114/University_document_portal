@@ -76,33 +76,36 @@ public class UserController {
         List<UserEntity> all = userRepository.findAll();
 
         // Default or Admin/IQAC: Institutional view across all users
-        if (callerRole.isBlank() || "Admin".equalsIgnoreCase(callerRole) || "IQAC".equalsIgnoreCase(callerRole)) {
+        if (callerRole.isBlank() || "Admin".equalsIgnoreCase(callerRole) || "IQAC".equalsIgnoreCase(callerRole) || "Inspector".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.ok(all);
         }
 
-        // HOD: Views users in their primary department + any additional granted departments
+        // HOD: Views Faculty and Students only in their primary department + any additional granted departments
         if ("DeanHOD".equalsIgnoreCase(callerRole)) {
             List<String> allowedDepts = resolveAllowedDepartments(callerId, callerDept);
-            if (allowedDepts.isEmpty()) {
-                return ResponseEntity.ok(all);
-            }
             List<UserEntity> filtered = all.stream()
-                    .filter(u -> u.getDepartment() != null &&
-                            allowedDepts.stream().anyMatch(ad -> ad.equalsIgnoreCase(u.getDepartment().trim())))
+                    .filter(u -> "Faculty".equalsIgnoreCase(u.getRole()) || "Student".equalsIgnoreCase(u.getRole()))
+                    .filter(u -> allowedDepts.isEmpty() || (u.getDepartment() != null &&
+                            allowedDepts.stream().anyMatch(ad -> ad.equalsIgnoreCase(u.getDepartment().trim()))))
                     .toList();
             return ResponseEntity.ok(filtered);
         }
 
-        // Faculty: Views colleagues in their assigned department
+        // Faculty: Views Students only in their assigned department
         if ("Faculty".equalsIgnoreCase(callerRole)) {
-            if (callerDept.isBlank()) return ResponseEntity.ok(all);
-            List<UserEntity> deptUsers = all.stream()
-                    .filter(u -> u.getDepartment() != null && u.getDepartment().trim().equalsIgnoreCase(callerDept.trim()))
+            final String fDept = callerDept;
+            List<UserEntity> deptStudents = all.stream()
+                    .filter(u -> "Student".equalsIgnoreCase(u.getRole()))
+                    .filter(u -> fDept.isBlank() || (u.getDepartment() != null && u.getDepartment().trim().equalsIgnoreCase(fDept.trim())))
                     .toList();
-            return ResponseEntity.ok(deptUsers);
+            return ResponseEntity.ok(deptStudents);
         }
 
-        // Student & Inspector: Minimal directory view
+        // Student: Directory of students
+        if ("Student".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.ok(all.stream().filter(u -> "Student".equalsIgnoreCase(u.getRole())).toList());
+        }
+
         return ResponseEntity.ok(all);
     }
 
@@ -133,24 +136,21 @@ public class UserController {
             @RequestParam(required = false) String role) {
 
         String callerRole = resolveRole(role, actorRole, actorRoleHeader, userRoleHeader);
-        if (callerRole.isBlank()) {
-            callerRole = "Admin";
-        }
         String callerDept = resolveDept(null, null, actorDeptHeader, userDeptHeader);
         String callerId   = resolveId(null, null, actorIdHeader, userIdHeader);
 
-        // Fallback for UI requests: If callerRole not specified via header, default to Admin
-        if (callerRole.isBlank()) {
-            if (!callerId.isBlank()) {
-                Optional<UserEntity> callerOpt = userRepository.findById(callerId)
-                        .or(() -> userRepository.findByEmployeeId(callerId));
-                if (callerOpt.isPresent()) {
-                    callerRole = callerOpt.get().getRole();
+        if (callerRole.isBlank() && !callerId.isBlank()) {
+            Optional<UserEntity> callerOpt = userRepository.findById(callerId)
+                    .or(() -> userRepository.findByEmployeeId(callerId));
+            if (callerOpt.isPresent()) {
+                callerRole = callerOpt.get().getRole();
+                if (callerDept.isBlank() && callerOpt.get().getDepartment() != null) {
+                    callerDept = callerOpt.get().getDepartment();
                 }
             }
-            if (callerRole == null || callerRole.isBlank()) {
-                callerRole = "Admin";
-            }
+        }
+        if (callerRole == null || callerRole.isBlank()) {
+            callerRole = "Admin";
         }
 
         // Account hierarchy enforcement

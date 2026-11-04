@@ -1,13 +1,9 @@
 /**
  * User Access Control Module
- * Admin-only tab for managing all portal users:
- *  - View all users with role/dept/status filters & search
- *  - Provision new users (all 6 roles)
- *  - Edit user details and designation
- *  - Activate / Deactivate accounts
- *  - Configure HOD department permissions (primary + additional)
- *  - Reset passwords
- *  - Delete accounts (with confirmation)
+ * Role-aware management of users based on institutional hierarchy:
+ *  - Admin: Can create, view, and edit HOD, Faculty, Students (and institutional roles)
+ *  - HOD: Can create, view, and edit Faculty and Students only within assigned departments
+ *  - Faculty: Can create, view, and edit Students only within their assigned department
  */
 
 import { useState, useMemo } from 'react';
@@ -82,6 +78,54 @@ export default function UserAccessControl({
   onDelete,
   showToast,
 }) {
+  const isAdmin = currentUser?.role === 'Admin';
+  const isHOD = currentUser?.role === 'DeanHOD';
+  const isFaculty = currentUser?.role === 'Faculty';
+
+  // Allowed departments for HOD
+  const hodAllowedDepts = useMemo(() => {
+    if (!isHOD) return [];
+    const depts = [];
+    if (currentUser?.department && currentUser.department.trim()) {
+      depts.push(currentUser.department.trim());
+    }
+    if (currentUser?.additionalDepartments) {
+      currentUser.additionalDepartments.split(',').forEach(d => {
+        const trimmed = d.trim();
+        if (trimmed && !depts.some(x => x.toLowerCase() === trimmed.toLowerCase())) {
+          depts.push(trimmed);
+        }
+      });
+    }
+    return depts;
+  }, [isHOD, currentUser]);
+
+  // Scoped users visible to current role:
+  // - Admin: All users (HOD, Faculty, Students, Admin, IQAC, Inspector)
+  // - HOD: Faculty and Students only in their assigned departments
+  // - Faculty: Students only in their assigned department
+  const scopedUsers = useMemo(() => {
+    if (isAdmin) {
+      return users;
+    }
+    if (isHOD) {
+      return users.filter(u => {
+        const isTarget = u.role === 'Faculty' || u.role === 'Student';
+        if (!isTarget) return false;
+        if (hodAllowedDepts.length === 0) return true;
+        return u.department && hodAllowedDepts.some(ad => ad.toLowerCase() === u.department.trim().toLowerCase());
+      });
+    }
+    if (isFaculty) {
+      return users.filter(u => {
+        if (u.role !== 'Student') return false;
+        if (!currentUser?.department) return true;
+        return u.department && u.department.trim().toLowerCase() === currentUser.department.trim().toLowerCase();
+      });
+    }
+    return [];
+  }, [isAdmin, isHOD, isFaculty, users, hodAllowedDepts, currentUser]);
+
   // ── Filters & search ──────────────────────────────────────────────────────
   const [filterRole,   setFilterRole]   = useState('ALL');
   const [filterDept,   setFilterDept]   = useState('ALL');
@@ -96,14 +140,19 @@ export default function UserAccessControl({
   const [form,             setForm]             = useState(EMPTY_FORM);
   const [formBusy,         setFormBusy]         = useState(false);
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const deptNames = useMemo(() =>
-    ['ALL', ...new Set(departments.map(d => d.name).filter(Boolean))],
-    [departments]
-  );
+  // Department filter options based on caller
+  const deptFilterOptions = useMemo(() => {
+    if (isAdmin) {
+      return ['ALL', ...new Set(departments.map(d => d.name).filter(Boolean))];
+    }
+    if (isHOD) {
+      return ['ALL', ...hodAllowedDepts];
+    }
+    return ['ALL', currentUser?.department].filter(Boolean);
+  }, [isAdmin, isHOD, departments, hodAllowedDepts, currentUser]);
 
   const filteredUsers = useMemo(() => {
-    return users.filter(u => {
+    return scopedUsers.filter(u => {
       if (filterRole   !== 'ALL' && u.role       !== filterRole)   return false;
       if (filterDept   !== 'ALL' && u.department !== filterDept)   return false;
       if (filterStatus !== 'ALL' && u.status     !== filterStatus) return false;
@@ -118,27 +167,56 @@ export default function UserAccessControl({
       }
       return true;
     });
-  }, [users, filterRole, filterDept, filterStatus, searchQuery]);
+  }, [scopedUsers, filterRole, filterDept, filterStatus, searchQuery]);
 
+  // Role Counts for Summary Cards
   const roleCounts = useMemo(() => {
     const counts = {};
-    ALL_ROLES.forEach(r => { counts[r] = users.filter(u => u.role === r).length; });
+    ALL_ROLES.forEach(r => { counts[r] = scopedUsers.filter(u => u.role === r).length; });
     return counts;
-  }, [users]);
+  }, [scopedUsers]);
+
+  // Check if current user can edit a target user
+  const canEditUser = (targetUser) => {
+    if (isAdmin) return true;
+    if (isHOD) {
+      if (targetUser.role !== 'Faculty' && targetUser.role !== 'Student') return false;
+      if (hodAllowedDepts.length === 0) return true;
+      return targetUser.department && hodAllowedDepts.some(ad => ad.toLowerCase() === targetUser.department.trim().toLowerCase());
+    }
+    if (isFaculty) {
+      if (targetUser.role !== 'Student') return false;
+      if (!currentUser?.department) return true;
+      return targetUser.department && targetUser.department.trim().toLowerCase() === currentUser.department.trim().toLowerCase();
+    }
+    return false;
+  };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const openCreate = () => {
+    const defaultRole = isAdmin ? 'DeanHOD' : isHOD ? 'Faculty' : 'Student';
+    const defaultDept = isFaculty ? (currentUser?.department || '')
+                      : isHOD ? (currentUser?.department || (hodAllowedDepts[0] || ''))
+                      : '';
+
     setForm({
       ...EMPTY_FORM,
+      role: defaultRole,
+      department: defaultDept,
       password: 'Password@123',
-      permissions: [...(PERMISSIONS_MATRIX['Faculty'] || [])],
+      permissions: [...(PERMISSIONS_MATRIX[defaultRole] || [])],
     });
     setEditUser(null);
     setShowCreateModal(true);
   };
 
   const openEdit = (user) => {
+    if (!canEditUser(user)) {
+      showToast('Access Denied: You cannot edit this user account.', 'error');
+      return;
+    }
+
     let perms = [];
     if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
       perms = [...user.permissions];
@@ -151,7 +229,7 @@ export default function UserAccessControl({
     setForm({
       name:                  user.name || '',
       email:                 user.email || '',
-      role:                  user.role || 'Faculty',
+      role:                  user.role || (isFaculty ? 'Student' : 'Faculty'),
       designation:           user.designation || '',
       department:            user.department || '',
       employeeId:            user.employeeId || '',
@@ -170,6 +248,27 @@ export default function UserAccessControl({
       showToast('Name and email are required.', 'warning');
       return;
     }
+
+    // Role boundary validation
+    if (isHOD && form.role !== 'Faculty' && form.role !== 'Student') {
+      showToast('Access Denied: HOD can only provision/edit Faculty and Student accounts.', 'error');
+      return;
+    }
+    if (isFaculty && form.role !== 'Student') {
+      showToast('Access Denied: Faculty can only provision/edit Student accounts.', 'error');
+      return;
+    }
+
+    // Department boundary validation
+    if (isHOD && form.department && !hodAllowedDepts.some(d => d.toLowerCase() === form.department.trim().toLowerCase())) {
+      showToast(`Access Denied: Department must be within your assigned departments (${hodAllowedDepts.join(', ')}).`, 'error');
+      return;
+    }
+    if (isFaculty && form.department && currentUser?.department && form.department.trim().toLowerCase() !== currentUser.department.trim().toLowerCase()) {
+      showToast(`Access Denied: You can only provision/edit Students in your department (${currentUser.department}).`, 'error');
+      return;
+    }
+
     setFormBusy(true);
     try {
       const isInstitutional = ['Admin', 'IQAC', 'Inspector'].includes(form.role);
@@ -187,15 +286,17 @@ export default function UserAccessControl({
         ? form.permissions
         : (PERMISSIONS_MATRIX[form.role] || []);
 
+      const assignedDept = isInstitutional ? '' : (isFaculty ? (currentUser?.department || form.department.trim()) : form.department.trim());
+
       const payload = {
         name:        form.name.trim(),
         email:       form.email.trim().toLowerCase(),
         role:        form.role,
         designation: form.designation.trim(),
-        department:  isInstitutional ? '' : form.department.trim(),
+        department:  assignedDept,
         employeeId:  form.employeeId.trim(),
         status:      form.status,
-        additionalDepartments: (!isInstitutional && form.role === 'DeanHOD') ? form.additionalDepartments.trim() : '',
+        additionalDepartments: (!isInstitutional && form.role === 'DeanHOD' && isAdmin) ? form.additionalDepartments.trim() : '',
         permissions: activePerms,
         customPermissions: activePerms.join(','),
         passwordHash: form.password && form.password.trim() ? form.password.trim() : 'Password@123',
@@ -217,6 +318,10 @@ export default function UserAccessControl({
   };
 
   const handleToggleStatus = async (user) => {
+    if (!canEditUser(user)) {
+      showToast('Access Denied: You cannot change status for this account.', 'error');
+      return;
+    }
     const newStatus = user.status === 'Active' ? 'Inactive' : 'Active';
     try {
       await onUpdateStatus(user.id, newStatus);
@@ -227,6 +332,10 @@ export default function UserAccessControl({
   };
 
   const handleSavePermissions = async (userId, payload) => {
+    if (!isAdmin) {
+      showToast('Access Denied: Only Central IT Admin can configure custom permissions.', 'error');
+      return;
+    }
     try {
       await onUpdatePermissions(userId, payload);
       showToast('Permissions and department access updated successfully.', 'success');
@@ -237,7 +346,7 @@ export default function UserAccessControl({
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) return;
+    if (!isAdmin || !confirmDelete) return;
     try {
       await onDelete(confirmDelete.id);
       showToast(`${confirmDelete.name}'s account has been deleted.`, 'info');
@@ -254,41 +363,105 @@ export default function UserAccessControl({
       <div className="dashboard-header">
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-            User Access Control
+            {isAdmin ? 'User Access Control' : isHOD ? 'Department User Management' : 'Student Account Management'}
           </h1>
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>
-            Manage institutional user accounts, roles, department assignments, and access permissions.
+            {isAdmin && 'Manage institutional user accounts, roles (HOD, Faculty, Students), department assignments, and permissions.'}
+            {isHOD && `Provision, view, and edit Faculty and Student accounts for ${currentUser?.department || 'your department'}${hodAllowedDepts.length > 1 ? ` & additional scope (${hodAllowedDepts.slice(1).join(', ')})` : ''}.`}
+            {isFaculty && `Provision, view, and edit Student accounts belonging to ${currentUser?.department || 'your department'}.`}
           </p>
         </div>
         <button className="primary-btn" onClick={openCreate}>
-          + Provision New User
+          {isAdmin ? '+ Provision New User' : isHOD ? '+ Provision Faculty / Student' : '+ Provision New Student'}
         </button>
       </div>
 
-      {/* ── Role Summary Cards ─────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 24 }}>
-        {ALL_ROLES.map(role => {
-          const meta = ROLE_META[role];
-          return (
-            <button
-              key={role}
-              onClick={() => setFilterRole(filterRole === role ? 'ALL' : role)}
-              style={{
-                padding: '14px 12px',
-                borderRadius: 10,
-                border: `2px solid ${filterRole === role ? meta.color : '#e2e8f0'}`,
-                background: filterRole === role ? meta.bg : '#fff',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all .15s ease',
-              }}
-            >
-              <div style={{ fontSize: 22, fontWeight: 800, color: meta.color }}>{roleCounts[role] || 0}</div>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#475569', marginTop: 3 }}>{meta.label}</div>
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Role Summary KPI Cards ─────────────────────────────────────────── */}
+      {isAdmin ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 24 }}>
+          {ALL_ROLES.map(role => {
+            const meta = ROLE_META[role];
+            return (
+              <button
+                key={role}
+                onClick={() => setFilterRole(filterRole === role ? 'ALL' : role)}
+                style={{
+                  padding: '14px 12px',
+                  borderRadius: 10,
+                  border: `2px solid ${filterRole === role ? meta.color : '#e2e8f0'}`,
+                  background: filterRole === role ? meta.bg : '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all .15s ease',
+                }}
+              >
+                <div style={{ fontSize: 22, fontWeight: 800, color: meta.color }}>{roleCounts[role] || 0}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#475569', marginTop: 3 }}>{meta.label}</div>
+              </button>
+            );
+          })}
+        </div>
+      ) : isHOD ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+          <div style={{ background: '#fff', padding: '14px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>{scopedUsers.length}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', marginTop: 3 }}>Total Department Members</div>
+          </div>
+          <button
+            onClick={() => setFilterRole(filterRole === 'Faculty' ? 'ALL' : 'Faculty')}
+            style={{
+              background: filterRole === 'Faculty' ? '#eff6ff' : '#fff',
+              padding: '14px 16px', borderRadius: 10,
+              border: `2px solid ${filterRole === 'Faculty' ? '#2563eb' : '#e2e8f0'}`,
+              textAlign: 'left', cursor: 'pointer'
+            }}
+          >
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#2563eb' }}>
+              {scopedUsers.filter(u => u.role === 'Faculty').length}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#475569', marginTop: 3 }}>Faculty Accounts</div>
+          </button>
+          <button
+            onClick={() => setFilterRole(filterRole === 'Student' ? 'ALL' : 'Student')}
+            style={{
+              background: filterRole === 'Student' ? '#ecfeff' : '#fff',
+              padding: '14px 16px', borderRadius: 10,
+              border: `2px solid ${filterRole === 'Student' ? '#0891b2' : '#e2e8f0'}`,
+              textAlign: 'left', cursor: 'pointer'
+            }}
+          >
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#0891b2' }}>
+              {scopedUsers.filter(u => u.role === 'Student').length}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#475569', marginTop: 3 }}>Student Accounts</div>
+          </button>
+          <div style={{ background: '#fff', padding: '14px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a' }}>
+              {scopedUsers.filter(u => u.status === 'Active').length}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', marginTop: 3 }}>Active Accounts</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+          <div style={{ background: '#fff', padding: '14px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#0891b2' }}>{scopedUsers.length}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', marginTop: 3 }}>Total Students ({currentUser?.department})</div>
+          </div>
+          <div style={{ background: '#fff', padding: '14px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#16a34a' }}>
+              {scopedUsers.filter(u => u.status === 'Active').length}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', marginTop: 3 }}>Active Students</div>
+          </div>
+          <div style={{ background: '#fff', padding: '14px 16px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626' }}>
+              {scopedUsers.filter(u => u.status !== 'Active').length}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#64748b', marginTop: 3 }}>Inactive Students</div>
+          </div>
+        </div>
+      )}
 
       {/* ── Filters ──────────────────────────────────────────────────────────── */}
       <div className="table-card">
@@ -304,13 +477,28 @@ export default function UserAccessControl({
                 style={{ paddingLeft: 30, height: 34, border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 13, outline: 'none', width: 230, fontFamily: 'inherit' }}
               />
             </div>
-            <select className="select-filter" value={filterRole}   onChange={e => setFilterRole(e.target.value)}>
-              <option value="ALL">All Roles</option>
-              {ALL_ROLES.map(r => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
-            </select>
-            <select className="select-filter" value={filterDept}   onChange={e => setFilterDept(e.target.value)}>
-              {deptNames.map(d => <option key={d} value={d}>{d === 'ALL' ? 'All Departments' : d}</option>)}
-            </select>
+
+            {/* Role Filter */}
+            {isAdmin ? (
+              <select className="select-filter" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
+                <option value="ALL">All Roles</option>
+                {ALL_ROLES.map(r => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
+              </select>
+            ) : isHOD ? (
+              <select className="select-filter" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
+                <option value="ALL">All Roles (Faculty & Students)</option>
+                <option value="Faculty">Faculty Only</option>
+                <option value="Student">Student Only</option>
+              </select>
+            ) : null}
+
+            {/* Department Filter */}
+            {(isAdmin || (isHOD && hodAllowedDepts.length > 1)) && (
+              <select className="select-filter" value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+                {deptFilterOptions.map(d => <option key={d} value={d}>{d === 'ALL' ? (isHOD ? 'All Assigned Departments' : 'All Departments') : d}</option>)}
+              </select>
+            )}
+
             <select className="select-filter" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="ALL">All Statuses</option>
               <option value="Active">Active</option>
@@ -318,7 +506,7 @@ export default function UserAccessControl({
             </select>
           </div>
           <div style={{ fontSize: 12.5, color: '#64748b', whiteSpace: 'nowrap', alignSelf: 'center' }}>
-            {filteredUsers.length} of {users.length} users
+            {filteredUsers.length} of {scopedUsers.length} users
           </div>
         </div>
 
@@ -340,12 +528,16 @@ export default function UserAccessControl({
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '48px 16px', color: '#64748b' }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>No users found</div>
-                    <div style={{ fontSize: 12, marginTop: 4 }}>Try changing filters or search query.</div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      {isHOD ? 'No Faculty or Student accounts match your search or department filters.' : isFaculty ? 'No Student accounts found in your department.' : 'Try changing filters or search query.'}
+                    </div>
                   </td>
                 </tr>
               ) : filteredUsers.map(user => {
                 const meta = ROLE_META[user.role] || { color: '#475569', bg: '#f1f5f9', label: user.role };
                 const isActive = user.status === 'Active';
+                const canEdit = canEditUser(user);
+
                 return (
                   <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
                     {/* User cell */}
@@ -393,35 +585,49 @@ export default function UserAccessControl({
                     </td>
                     {/* Status toggle */}
                     <td style={{ padding: '12px 16px' }}>
-                      <button
-                        onClick={() => handleToggleStatus(user)}
-                        style={{
-                          padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                          border: 'none',
+                      {canEdit ? (
+                        <button
+                          onClick={() => handleToggleStatus(user)}
+                          style={{
+                            padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                            border: 'none',
+                            background: isActive ? '#dcfce7' : '#fee2e2',
+                            color:      isActive ? '#15803d' : '#b91c1c',
+                          }}
+                          title={`Click to ${isActive ? 'deactivate' : 'activate'}`}
+                        >
+                          {isActive ? '● Active' : '○ Inactive'}
+                        </button>
+                      ) : (
+                        <span style={{
+                          padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700,
                           background: isActive ? '#dcfce7' : '#fee2e2',
                           color:      isActive ? '#15803d' : '#b91c1c',
-                        }}
-                        title={`Click to ${isActive ? 'deactivate' : 'activate'}`}
-                      >
-                        {isActive ? '● Active' : '○ Inactive'}
-                      </button>
+                        }}>
+                          {isActive ? '● Active' : '○ Inactive'}
+                        </span>
+                      )}
                     </td>
                     {/* Actions */}
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: 6 }}>
-                        <button
-                          onClick={() => openEdit(user)}
-                          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setPermUser(user)}
-                          style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #7c3aed', background: '#f5f3ff', color: '#7c3aed', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          Permissions
-                        </button>
-                        {user.id !== currentUser.id && (
+                        {canEdit && (
+                          <button
+                            onClick={() => openEdit(user)}
+                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', color: '#2563eb', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            onClick={() => setPermUser(user)}
+                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #7c3aed', background: '#f5f3ff', color: '#7c3aed', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            Permissions
+                          </button>
+                        )}
+                        {isAdmin && user.id !== currentUser.id && (
                           <button
                             onClick={() => setConfirmDelete(user)}
                             style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fee2e2', color: '#dc2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
@@ -448,14 +654,16 @@ export default function UserAccessControl({
           editUserId={editUser?.id}
           departments={departments}
           users={users}
+          currentUser={currentUser}
+          hodAllowedDepts={hodAllowedDepts}
           onSubmit={handleFormSubmit}
           onClose={() => setShowCreateModal(false)}
           busy={formBusy}
         />
       )}
 
-      {/* ── Permissions / Access View Modal ────────────────────────────────────── */}
-      {permUser && (
+      {/* ── Permissions / Access View Modal (Admin only) ───────────────────────── */}
+      {permUser && isAdmin && (
         <PermissionsModal
           user={permUser}
           departments={departments}
@@ -464,8 +672,8 @@ export default function UserAccessControl({
         />
       )}
 
-      {/* ── Delete Confirmation ─────────────────────────────────────────────── */}
-      {confirmDelete && (
+      {/* ── Delete Confirmation (Admin only) ─────────────────────────────────── */}
+      {confirmDelete && isAdmin && (
         <ConfirmDeleteModal
           user={confirmDelete}
           onConfirm={handleDelete}
@@ -478,9 +686,52 @@ export default function UserAccessControl({
 
 // ── UserFormModal ──────────────────────────────────────────────────────────────
 
-function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, onSubmit, onClose, busy }) {
+function UserFormModal({
+  form,
+  setForm,
+  isEdit,
+  editUserId,
+  departments,
+  users,
+  currentUser,
+  hodAllowedDepts,
+  onSubmit,
+  onClose,
+  busy,
+}) {
+  const isCurrentAdmin = currentUser?.role === 'Admin';
+  const isCurrentHOD = currentUser?.role === 'DeanHOD';
+  const isCurrentFaculty = currentUser?.role === 'Faculty';
+
   const f = (field, val) => setForm(prev => ({ ...prev, [field]: val }));
-  const deptOptions = departments.map(d => d.name).filter(Boolean);
+
+  // Determine which roles this user can select when creating or editing:
+  // - Admin: All roles (HOD, Faculty, Student, Admin, IQAC, Inspector)
+  // - HOD: Faculty and Student only
+  // - Faculty: Student only
+  const selectableRoles = useMemo(() => {
+    if (isCurrentAdmin) return ALL_ROLES;
+    if (isCurrentHOD) return ['Faculty', 'Student'];
+    if (isCurrentFaculty) return ['Student'];
+    return [];
+  }, [isCurrentAdmin, isCurrentHOD, isCurrentFaculty]);
+
+  // Determine which departments this user can select:
+  // - Admin: All university departments
+  // - HOD: Only primary + additional departments assigned to this HOD
+  // - Faculty: Locked to currentUser.department
+  const availableDeptOptions = useMemo(() => {
+    if (isCurrentAdmin) {
+      return departments.map(d => d.name).filter(Boolean);
+    }
+    if (isCurrentHOD) {
+      return hodAllowedDepts;
+    }
+    if (isCurrentFaculty) {
+      return [currentUser?.department].filter(Boolean);
+    }
+    return [];
+  }, [isCurrentAdmin, isCurrentHOD, isCurrentFaculty, departments, hodAllowedDepts, currentUser]);
 
   return (
     <div className="modal-overlay active" role="dialog" aria-modal="true"
@@ -493,7 +744,7 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
               {isEdit ? 'Edit User Account' : 'Provision New User'}
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              {isEdit ? 'Update account details and assignments.' : 'Create a new institutional account and assign role.'}
+              {isEdit ? 'Update account details and role profile.' : 'Create a new account with institutional credentials.'}
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#64748b' }}>&times;</button>
@@ -512,19 +763,28 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label style={labelStyle}>Role *</label>
-              <select
-                value={form.role}
-                onChange={e => {
-                  const newRole = e.target.value;
-                  f('role', newRole);
-                  f('permissions', PERMISSIONS_MATRIX[newRole] || []);
-                }}
-                style={selectStyle}
-                required
-              >
-                {ALL_ROLES.map(r => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
-              </select>
+              {selectableRoles.length > 1 ? (
+                <select
+                  value={form.role}
+                  onChange={e => {
+                    const newRole = e.target.value;
+                    f('role', newRole);
+                    f('permissions', PERMISSIONS_MATRIX[newRole] || []);
+                  }}
+                  style={selectStyle}
+                  required
+                >
+                  {selectableRoles.map(r => (
+                    <option key={r} value={r}>{ROLE_META[r]?.label || r}</option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ ...inputStyle, background: '#f8fafc', color: '#0f172a', fontWeight: 600, display: 'flex', alignItems: 'center' }}>
+                  {ROLE_META[selectableRoles[0]]?.label || selectableRoles[0]}
+                </div>
+              )}
             </div>
+
             <div>
               <label style={labelStyle}>Account Status</label>
               <select value={form.status} onChange={e => f('status', e.target.value)} style={selectStyle}>
@@ -536,14 +796,24 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
 
           {/* Designation + Employee ID */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <Field label="Designation" value={form.designation} onChange={v => f('designation', v)} placeholder="e.g. Associate Professor" />
-            <Field label="Employee / Roll ID" value={form.employeeId} onChange={v => f('employeeId', v)} placeholder="e.g. FAC-CSE-0123" />
+            <Field label="Designation" value={form.designation} onChange={v => f('designation', v)} placeholder={form.role === 'Student' ? 'e.g. B.Tech Scholar' : 'e.g. Assistant Professor'} />
+            <Field label="Employee / Roll ID" value={form.employeeId} onChange={v => f('employeeId', v)} placeholder={form.role === 'Student' ? 'e.g. STU-2026-089' : 'e.g. FAC-CSE-0123'} />
           </div>
 
-          {/* Primary Department (Excluded for Admin, IQAC, Inspector) */}
+          {/* Primary Department */}
           {['Admin', 'IQAC', 'Inspector'].includes(form.role) ? (
             <div style={{ padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12, color: '#166534' }}>
               <strong>Institutional Governance / External Role:</strong> This account operates at the central university or external accreditation level and does not belong to any institute department.
+            </div>
+          ) : isCurrentFaculty ? (
+            <div>
+              <label style={labelStyle}>Assigned Department *</label>
+              <div style={{ ...inputStyle, background: '#f8fafc', color: '#0f172a', fontWeight: 600, display: 'flex', alignItems: 'center' }}>
+                {currentUser?.department || 'Department Bound'}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                Locked to your assigned department ({currentUser?.department}).
+              </div>
             </div>
           ) : (
             <div>
@@ -558,7 +828,6 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
                 onChange={e => {
                   const newDept = e.target.value;
                   f('department', newDept);
-                  // Remove from additional departments if it was there
                   if (form.additionalDepartments) {
                     const filtered = form.additionalDepartments.split(',').map(d => d.trim()).filter(d => d && d.toLowerCase() !== newDept.toLowerCase());
                     f('additionalDepartments', filtered.join(', '));
@@ -568,7 +837,7 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
                 required
               >
                 <option value="">— Select Department —</option>
-                {deptOptions.map(d => {
+                {availableDeptOptions.map(d => {
                   const existingHod = (form.role === 'DeanHOD' && users)
                     ? users.find(u => u.role === 'DeanHOD' && (u.status || 'Active') === 'Active' && (!isEdit || u.id !== editUserId) && u.department && u.department.trim().toLowerCase() === d.trim().toLowerCase())
                     : null;
@@ -587,12 +856,12 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
             </div>
           )}
 
-          {/* Additional Departments Dropdown (HOD only) */}
-          {form.role === 'DeanHOD' && (() => {
+          {/* Additional Departments Dropdown (Admin configuring HOD only) */}
+          {isCurrentAdmin && form.role === 'DeanHOD' && (() => {
             const currentSelected = form.additionalDepartments
               ? form.additionalDepartments.split(',').map(d => d.trim()).filter(Boolean)
               : [];
-            const availableDepts = deptOptions.filter(d => 
+            const availableDepts = availableDeptOptions.filter(d => 
               d.toLowerCase() !== (form.department || '').toLowerCase() && !currentSelected.some(s => s.toLowerCase() === d.toLowerCase())
             );
 
@@ -603,7 +872,6 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
                   <span style={{ fontSize: 11, color: '#64748b' }}>{currentSelected.length} granted</span>
                 </div>
                 
-                {/* Dropdown list to add department */}
                 <select
                   value=""
                   onChange={e => {
@@ -620,7 +888,6 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
                   ))}
                 </select>
 
-                {/* Display selected badges with remove action */}
                 {currentSelected.length > 0 ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
                     {currentSelected.map(dName => (
@@ -696,75 +963,104 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
             </div>
           </div>
 
-          {/* Permissions Granted (Interactive Checkbox List) */}
-          <div style={{ background: '#f8fafc', borderRadius: 8, padding: 14, border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Permissions Granted to User ({(form.permissions || []).length} selected)
+          {/* Permissions Section */}
+          {isCurrentAdmin ? (
+            <div style={{ background: '#f8fafc', borderRadius: 8, padding: 14, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Permissions Granted to User ({(form.permissions || []).length} selected)
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => f('permissions', PERMISSIONS_MATRIX[form.role] || [])}
+                    style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    Reset Defaults
+                  </button>
+                  <span style={{ color: '#cbd5e1' }}>|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allRolePerms = PERMISSIONS_MATRIX[form.role] || [];
+                      const isAll = (form.permissions || []).length === allRolePerms.length;
+                      f('permissions', isAll ? [] : allRolePerms);
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    {(form.permissions || []).length === (PERMISSIONS_MATRIX[form.role] || []).length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => f('permissions', PERMISSIONS_MATRIX[form.role] || [])}
-                  style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                >
-                  Reset Defaults
-                </button>
-                <span style={{ color: '#cbd5e1' }}>|</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const allRolePerms = PERMISSIONS_MATRIX[form.role] || [];
-                    const isAll = (form.permissions || []).length === allRolePerms.length;
-                    f('permissions', isAll ? [] : allRolePerms);
-                  }}
-                  style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                >
-                  {(form.permissions || []).length === (PERMISSIONS_MATRIX[form.role] || []).length ? 'Deselect All' : 'Select All'}
-                </button>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {(PERMISSIONS_MATRIX[form.role] || []).map(pKey => {
+                  const checked = (form.permissions || []).includes(pKey);
+                  return (
+                    <label
+                      key={pKey}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '7px 10px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        background: checked ? '#eff6ff' : '#ffffff',
+                        border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`,
+                        color: checked ? '#1e40af' : '#64748b',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={e => {
+                          const cur = form.permissions || [];
+                          const next = e.target.checked
+                            ? [...cur, pKey]
+                            : cur.filter(x => x !== pKey);
+                          f('permissions', next);
+                        }}
+                        style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }}
+                      />
+                      <span style={{ fontWeight: checked ? 600 : 400, userSelect: 'none' }}>
+                        {PERM_LABELS[pKey] || pKey}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {(PERMISSIONS_MATRIX[form.role] || []).map(pKey => {
-                const checked = (form.permissions || []).includes(pKey);
-                return (
-                  <label
+          ) : (
+            <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                Standard Role Permissions Assigned ({ROLE_META[form.role]?.label || form.role})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(PERMISSIONS_MATRIX[form.role] || []).map(pKey => (
+                  <span
                     key={pKey}
                     style={{
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 8,
-                      padding: '7px 10px',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      background: checked ? '#eff6ff' : '#ffffff',
-                      border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`,
-                      color: checked ? '#1e40af' : '#64748b',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      gap: 4,
+                      background: '#dcfce7',
+                      color: '#15803d',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      border: '1px solid #bbf7d0',
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={e => {
-                        const cur = form.permissions || [];
-                        const next = e.target.checked
-                          ? [...cur, pKey]
-                          : cur.filter(x => x !== pKey);
-                        f('permissions', next);
-                      }}
-                      style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }}
-                    />
-                    <span style={{ fontWeight: checked ? 600 : 400, userSelect: 'none' }}>
-                      {PERM_LABELS[pKey] || pKey}
-                    </span>
-                  </label>
-                );
-              })}
+                    ✓ {PERM_LABELS[pKey] || pKey}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Actions */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
@@ -783,14 +1079,13 @@ function UserFormModal({ form, setForm, isEdit, editUserId, departments, users, 
   );
 }
 
-// ── PermissionsModal ───────────────────────────────────────────────────────────
+// ── PermissionsModal (Admin Only) ─────────────────────────────────────────────
 
 function PermissionsModal({ user, departments, onSave, onClose }) {
   const meta = ROLE_META[user.role] || { color: '#475569', bg: '#f1f5f9', label: user.role };
   const rolePerms = PERMISSIONS_MATRIX[user.role] || [];
   const deptOptions = departments.map(d => d.name).filter(Boolean);
 
-  // Initialize permissions
   const initialPerms = useMemo(() => {
     if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
       return [...user.permissions];
@@ -832,7 +1127,6 @@ function PermissionsModal({ user, departments, onSave, onClose }) {
     <div className="modal-overlay active" role="dialog" aria-modal="true"
       style={{ display: 'flex', zIndex: 99999 }}>
       <div className="modal-dialog" style={{ maxWidth: 580, width: '100%', background: '#fff', borderRadius: 12, overflow: 'hidden' }}>
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #e2e8f0' }}>
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Access & Permissions</div>
@@ -842,43 +1136,57 @@ function PermissionsModal({ user, departments, onSave, onClose }) {
         </div>
 
         <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto', maxHeight: '70vh' }}>
-          {/* User info strip */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, background: meta.bg, borderRadius: 8, border: `1px solid ${meta.color}22` }}>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: meta.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
               {user.avatar || user.name?.charAt(0)}
             </div>
             <div>
-              <div style={{ fontWeight: 700, color: '#0f172a' }}>{user.name}</div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>{user.email} · {user.employeeId || 'No ID'}</div>
+              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>{user.name}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{user.designation} · {user.department || 'Institutional'}</div>
             </div>
-            <span style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700, background: meta.bg, color: meta.color, border: `1px solid ${meta.color}44` }}>
-              {meta.label}
-            </span>
           </div>
 
-          {/* Interactive Checkbox List for Permissions */}
-          <div style={{ background: '#f8fafc', borderRadius: 8, padding: 14, border: '1px solid #e2e8f0' }}>
+          {user.role === 'DeanHOD' && (
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Additional Department Scope</label>
+                <span style={{ fontSize: 11, color: '#64748b' }}>{currentSelectedDepts.length} granted</span>
+              </div>
+              <select
+                value=""
+                onChange={e => {
+                  const toAdd = e.target.value;
+                  if (!toAdd) return;
+                  setAdditionalDepts([...currentSelectedDepts, toAdd].join(', '));
+                }}
+                style={selectStyle}
+              >
+                <option value="">+ Add Department Scope from dropdown...</option>
+                {availableDepts.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+
+              {currentSelectedDepts.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                  {currentSelectedDepts.map(dName => (
+                    <span key={dName} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: '1px solid #bae6fd' }}>
+                      <span>{dName}</span>
+                      <button type="button" onClick={() => setAdditionalDepts(currentSelectedDepts.filter(x => x.toLowerCase() !== dName.toLowerCase()).join(', '))} style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', padding: 0, fontSize: 14, fontWeight: 700 }}>&times;</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: .5 }}>
-                Permissions Granted ({selectedPerms.length} of {rolePerms.length} selected)
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>
+                Operational Permissions Matrix ({selectedPerms.length} Active)
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPerms([...rolePerms])}
-                  style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                >
-                  Reset Defaults
-                </button>
+                <button type="button" onClick={() => setSelectedPerms([...rolePerms])} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Reset Role Defaults</button>
                 <span style={{ color: '#cbd5e1' }}>|</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const isAll = selectedPerms.length === rolePerms.length;
-                    setSelectedPerms(isAll ? [] : [...rolePerms]);
-                  }}
-                  style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                >
+                <button type="button" onClick={() => setSelectedPerms(selectedPerms.length === rolePerms.length ? [] : [...rolePerms])} style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
                   {selectedPerms.length === rolePerms.length ? 'Deselect All' : 'Select All'}
                 </button>
               </div>
@@ -888,146 +1196,18 @@ function PermissionsModal({ user, departments, onSave, onClose }) {
               {rolePerms.map(pKey => {
                 const checked = selectedPerms.includes(pKey);
                 return (
-                  <label
-                    key={pKey}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '7px 10px',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      background: checked ? '#eff6ff' : '#ffffff',
-                      border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`,
-                      color: checked ? '#1e40af' : '#64748b',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={e => {
-                        setSelectedPerms(prev =>
-                          e.target.checked ? [...prev, pKey] : prev.filter(x => x !== pKey)
-                        );
-                      }}
-                      style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }}
-                    />
-                    <span style={{ fontWeight: checked ? 600 : 400, userSelect: 'none' }}>
-                      {PERM_LABELS[pKey] || pKey}
-                    </span>
+                  <label key={pKey} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 6, fontSize: 12, background: checked ? '#eff6ff' : '#fff', border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}`, color: checked ? '#1e40af' : '#64748b', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={checked} onChange={e => setSelectedPerms(e.target.checked ? [...selectedPerms, pKey] : selectedPerms.filter(x => x !== pKey))} style={{ accentColor: '#2563eb', width: 15, height: 15, cursor: 'pointer' }} />
+                    <span style={{ fontWeight: checked ? 600 : 400 }}>{PERM_LABELS[pKey] || pKey}</span>
                   </label>
                 );
               })}
             </div>
           </div>
 
-          {/* HOD: Additional department scope (Dropdown list + Removable tags) */}
-          {user.role === 'DeanHOD' && (
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label style={{ ...labelStyle, marginBottom: 0 }}>Additional Department Access (HOD Scope)</label>
-                <span style={{ fontSize: 11, color: '#64748b' }}>{currentSelectedDepts.length} granted</span>
-              </div>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                Primary department: <strong style={{ color: '#0f172a' }}>{user.department || '—'}</strong>
-              </div>
-
-              {/* Dropdown list to add department */}
-              <select
-                value=""
-                onChange={e => {
-                  const toAdd = e.target.value;
-                  if (!toAdd) return;
-                  const next = [...currentSelectedDepts, toAdd];
-                  setAdditionalDepts(next.join(', '));
-                }}
-                style={selectStyle}
-              >
-                <option value="">+ Select Additional Department from dropdown...</option>
-                {availableDepts.map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-
-              {/* Display selected badges with remove action */}
-              {currentSelectedDepts.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                  {currentSelectedDepts.map(dName => (
-                    <span
-                      key={dName}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        background: '#e0f2fe',
-                        color: '#0369a1',
-                        padding: '4px 10px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        border: '1px solid #bae6fd'
-                      }}
-                    >
-                      <span>{dName}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = currentSelectedDepts.filter(x => x.toLowerCase() !== dName.toLowerCase());
-                          setAdditionalDepts(next.join(', '));
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#0284c7',
-                          cursor: 'pointer',
-                          padding: 0,
-                          fontSize: 14,
-                          lineHeight: 1,
-                          fontWeight: 700
-                        }}
-                        title="Remove clearance"
-                      >
-                        &times;
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic', marginTop: 6 }}>
-                  No additional departments selected. Choose departments from the dropdown above to grant multi-department verification access.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Restrictions (read-only display) */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .5 }}>
-              Access Restrictions
-            </div>
-            <RestrictionsList role={user.role} />
-          </div>
-
-          {/* Action buttons */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 6 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              style={{ padding: '8px 20px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}
-            >
-              {saving ? 'Saving…' : 'Save Permissions'}
-            </button>
+            <button type="button" onClick={onClose} disabled={saving} style={{ padding: '9px 18px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+            <button type="button" onClick={handleSave} disabled={saving} style={{ padding: '9px 20px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving…' : 'Save Changes'}</button>
           </div>
         </div>
       </div>
@@ -1035,64 +1215,29 @@ function PermissionsModal({ user, departments, onSave, onClose }) {
   );
 }
 
-// ── ConfirmDeleteModal ─────────────────────────────────────────────────────────
+// ── ConfirmDeleteModal (Admin Only) ───────────────────────────────────────────
 
 function ConfirmDeleteModal({ user, onConfirm, onCancel }) {
   return (
-    <div className="modal-overlay active" role="dialog" aria-modal="true"
-      style={{ display: 'flex', zIndex: 100000 }}>
-      <div style={{ maxWidth: 420, width: '100%', background: '#fff', borderRadius: 12, padding: '28px 28px 24px', margin: '20px' }}>
-        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 20 }}>
-          <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-          </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Delete User Account</div>
-            <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.5, margin: 0 }}>
-              You are about to permanently delete <strong>{user.name}</strong>'s account ({user.role} · {user.department || 'No dept'}). This action cannot be undone.
-            </p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <button onClick={onCancel} style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
-          <button onClick={onConfirm} style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Delete Account</button>
+    <div className="modal-overlay active" role="dialog" aria-modal="true" style={{ display: 'flex', zIndex: 99999 }}>
+      <div className="modal-dialog" style={{ maxWidth: 440, width: '100%', background: '#fff', borderRadius: 12, padding: 24, textAlign: 'center' }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, margin: '0 auto 16px' }}>⚠️</div>
+        <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 700, color: '#0f172a' }}>Delete User Account</h3>
+        <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+          Are you sure you want to permanently delete <strong>{user.name}</strong> ({user.email})? This action cannot be undone.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+          <button onClick={onCancel} style={{ padding: '9px 18px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onConfirm} style={{ padding: '9px 20px', borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Yes, Delete</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── RestrictionsList ───────────────────────────────────────────────────────────
+// ── Shared Field component ─────────────────────────────────────────────────────
 
-function RestrictionsList({ role }) {
-  const RESTRICTIONS = {
-    Admin:     ['No role can override the Central IT Admin.'],
-    DeanHOD:   ['Cannot create HOD, Admin, IQAC, or Inspector accounts.', 'Cannot access departments not assigned by IT Admin.', 'Cannot approve documents on behalf of IQAC.', 'Cannot unlock IQAC-locked documents.'],
-    Faculty:   ['Cannot access other departments.', 'Cannot approve documents as HOD or IQAC.', 'Cannot modify IQAC-locked documents.'],
-    Student:   ['Cannot view or modify another student\'s account or documents.', 'Cannot approve documents.', 'Cannot modify approved and locked documents.'],
-    IQAC:      ['Approved documents must not be directly editable.', 'Corrections must use a controlled correction process.'],
-    Inspector: ['Cannot create, edit, delete, approve, reject, or modify any record.', 'Cannot access records outside assigned audit scope.', 'All downloads are logged in the audit trail.'],
-  };
-  const list = RESTRICTIONS[role] || ['No additional restrictions defined.'];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {list.map((r, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '6px 10px', borderRadius: 6, background: '#fef2f2', border: '1px solid #fecaca' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" style={{ flexShrink: 0, marginTop: 2 }}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          <span style={{ fontSize: 12, color: '#991b1b', lineHeight: 1.4 }}>{r}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Shared form helpers ────────────────────────────────────────────────────────
-
-const labelStyle = { display: 'block', fontSize: 12.5, fontWeight: 600, color: '#334155', marginBottom: 5 };
-const inputStyle  = { width: '100%', height: 38, padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
-const selectStyle = { ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 28, background: '#fff url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2364748b\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'/%3E%3C/svg%3E") no-repeat right 8px center / 13px' };
-
-function Field({ label, value, onChange, type = 'text', placeholder, disabled }) {
+function Field({ label, value, onChange, placeholder, type = 'text', disabled = false }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -1102,8 +1247,13 @@ function Field({ label, value, onChange, type = 'text', placeholder, disabled })
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        style={{ ...inputStyle, ...(disabled ? { background: '#f8fafc', color: '#94a3b8' } : {}) }}
+        style={{ ...inputStyle, background: disabled ? '#f8fafc' : '#ffffff', color: disabled ? '#94a3b8' : '#0f172a' }}
       />
     </div>
   );
 }
+
+// ── Shared Styles ──────────────────────────────────────────────────────────────
+const labelStyle  = { display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 5 };
+const inputStyle  = { width: '100%', height: 36, padding: '0 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' };
+const selectStyle = { width: '100%', height: 36, padding: '0 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 13, outline: 'none', background: '#fff', boxSizing: 'border-box' };

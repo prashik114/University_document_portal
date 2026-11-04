@@ -2,6 +2,7 @@ package com.university.portal.controller;
 
 import com.university.portal.dto.DocumentDTO;
 import com.university.portal.entity.SystemSettingsEntity;
+import com.university.portal.entity.UserEntity;
 import com.university.portal.repository.*;
 import com.university.portal.service.DocumentService;
 import com.university.portal.util.DocumentMapper;
@@ -17,8 +18,11 @@ import java.util.*;
  * ({@code GET /api/state}). Used by the frontend on initial load to avoid
  * multiple round-trips.
  *
- * <p>Also exposes a protected reset endpoint ({@code POST /api/state/reset})
- * that requires an admin token header to prevent accidental data wipes.</p>
+ * <p>Enforces role-based user directory visibility:
+ * - Admin / IQAC: All users.
+ * - HOD: Faculty & Students only in assigned departments.
+ * - Faculty: Students only in assigned department.
+ * - Student: Students only.</p>
  */
 @RestController
 @RequestMapping("/api/state")
@@ -56,16 +60,84 @@ public class StateController {
     // ── Full application state ────────────────────────────────────────────────
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getFullState() {
+    public ResponseEntity<Map<String, Object>> getFullState(
+            @RequestHeader(value = "X-Actor-Role", required = false) String actorRoleHeader,
+            @RequestHeader(value = "X-User-Role", required = false) String userRoleHeader,
+            @RequestHeader(value = "X-Actor-Department", required = false) String actorDeptHeader,
+            @RequestHeader(value = "X-User-Dept", required = false) String userDeptHeader,
+            @RequestHeader(value = "X-Actor-Id", required = false) String actorIdHeader,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @RequestParam(required = false) String actorRole,
+            @RequestParam(required = false) String role) {
+
+        String callerRole = actorRole != null && !actorRole.isBlank() ? actorRole
+                : role != null && !role.isBlank() ? role
+                : actorRoleHeader != null && !actorRoleHeader.isBlank() ? actorRoleHeader
+                : userRoleHeader != null && !userRoleHeader.isBlank() ? userRoleHeader
+                : "";
+        String callerDept = actorDeptHeader != null && !actorDeptHeader.isBlank() ? actorDeptHeader
+                : userDeptHeader != null && !userDeptHeader.isBlank() ? userDeptHeader
+                : "";
+        String callerId = actorIdHeader != null && !actorIdHeader.isBlank() ? actorIdHeader
+                : userIdHeader != null && !userIdHeader.isBlank() ? userIdHeader
+                : "";
+
+        if (callerRole.isBlank() && !callerId.isBlank()) {
+            Optional<UserEntity> callerOpt = userRepository.findById(callerId)
+                    .or(() -> userRepository.findByEmployeeId(callerId));
+            if (callerOpt.isPresent()) {
+                callerRole = callerOpt.get().getRole();
+                if (callerDept.isBlank() && callerOpt.get().getDepartment() != null) {
+                    callerDept = callerOpt.get().getDepartment();
+                }
+            }
+        }
+
         List<DocumentDTO> documents = documentRepository
                 .findAllByOrderByDisplayNumAsc()
                 .stream()
                 .map(DocumentMapper::toDTO)
                 .toList();
 
+        List<UserEntity> allUsers = userRepository.findAll();
+        List<UserEntity> visibleUsers;
+
+        if ("DeanHOD".equalsIgnoreCase(callerRole)) {
+            // HOD can view Faculty and Students only within assigned departments
+            List<String> allowedDepts = new ArrayList<>();
+            if (!callerId.isBlank()) {
+                userRepository.findById(callerId).ifPresent(u -> allowedDepts.addAll(u.getAllowedDepartments()));
+                if (allowedDepts.isEmpty()) {
+                    userRepository.findByEmployeeId(callerId).ifPresent(u -> allowedDepts.addAll(u.getAllowedDepartments()));
+                }
+            }
+            if (allowedDepts.isEmpty() && !callerDept.isBlank()) {
+                allowedDepts.add(callerDept.trim());
+            }
+            visibleUsers = allUsers.stream()
+                    .filter(u -> "Faculty".equalsIgnoreCase(u.getRole()) || "Student".equalsIgnoreCase(u.getRole()))
+                    .filter(u -> allowedDepts.isEmpty() || (u.getDepartment() != null &&
+                            allowedDepts.stream().anyMatch(ad -> ad.equalsIgnoreCase(u.getDepartment().trim()))))
+                    .toList();
+        } else if ("Faculty".equalsIgnoreCase(callerRole)) {
+            // Faculty can view Students only within assigned department
+            final String fDept = callerDept;
+            visibleUsers = allUsers.stream()
+                    .filter(u -> "Student".equalsIgnoreCase(u.getRole()))
+                    .filter(u -> fDept.isBlank() || (u.getDepartment() != null && u.getDepartment().trim().equalsIgnoreCase(fDept.trim())))
+                    .toList();
+        } else if ("Student".equalsIgnoreCase(callerRole)) {
+            visibleUsers = allUsers.stream()
+                    .filter(u -> "Student".equalsIgnoreCase(u.getRole()))
+                    .toList();
+        } else {
+            // Admin, IQAC, Inspector or default: full view
+            visibleUsers = allUsers;
+        }
+
         Map<String, Object> state = new LinkedHashMap<>();
         state.put("documents",        documents);
-        state.put("users",            userRepository.findAll());
+        state.put("users",            visibleUsers);
         state.put("recentActivities", activityRepository.findTop20ByOrderByIdDesc());
         state.put("auditLogs",        auditLogRepository.findAllByOrderByIdDesc());
         state.put("revisionRequests", revisionRepository.findAllByOrderByIdDesc());
@@ -98,72 +170,22 @@ public class StateController {
 
     // ── Admin reset (protected) ───────────────────────────────────────────────
 
-    /**
-     * Deletes all transactional data (documents, audit logs, activities,
-     * revision requests). When purgeUsers=true, resets all department
-     * HOD assignments to unassigned and deletes all users except:
-     * - 1 Main Admin (admin@university.edu)
-     * - 1 IQAC Officer (sunita.rao@university.edu)
-     * - 1 NAAC Inspector (naac.evaluator@naac.gov.in)
-     */
     @PostMapping("/reset")
     @Transactional
-    public ResponseEntity<Map<String, Object>> resetData(
-            @RequestHeader(value = "X-Admin-Token", required = false) String token,
-            @RequestParam(value = "purgeUsers", defaultValue = "false") boolean purgeUsers) {
+    public ResponseEntity<?> resetAll(
+            @RequestHeader(value = "X-Admin-Token", required = false) String token) {
 
         if (!ADMIN_RESET_TOKEN.equals(token)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Invalid or missing admin token. Reset denied."));
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Invalid or missing admin token. Reset rejected."));
         }
 
-        documentRepository.deleteAllInBatch();
-        auditLogRepository.deleteAllInBatch();
-        activityRepository.deleteAllInBatch();
-        revisionRepository.deleteAllInBatch();
+        revisionRepository.deleteAll();
+        activityRepository.deleteAll();
+        auditLogRepository.deleteAll();
+        documentRepository.deleteAll();
 
-        int deletedUsersCount = 0;
-        if (purgeUsers) {
-            // Unassign HODs from all departments
-            List<com.university.portal.entity.DepartmentEntity> depts = departmentRepository.findAll();
-            for (com.university.portal.entity.DepartmentEntity d : depts) {
-                d.setHodId(null);
-                d.setHodName("Unassigned");
-            }
-            departmentRepository.saveAll(depts);
-
-            // Keep strictly 1 Admin, 1 IQAC officer, 1 Inspector
-            List<com.university.portal.entity.UserEntity> allUsers = userRepository.findAll();
-            for (com.university.portal.entity.UserEntity u : allUsers) {
-                boolean keep = "admin@university.edu".equalsIgnoreCase(u.getEmail())
-                        || "sunita.rao@university.edu".equalsIgnoreCase(u.getEmail())
-                        || "naac.evaluator@naac.gov.in".equalsIgnoreCase(u.getEmail())
-                        || "USR-004".equals(u.getId())
-                        || "USR-003".equals(u.getId())
-                        || "USR-005".equals(u.getId());
-                if (!keep) {
-                    userRepository.delete(u);
-                    deletedUsersCount++;
-                } else {
-                    u.setStatus("Active");
-                    u.setDepartment(null);
-                    u.setAdditionalDepartments(null);
-                    if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) {
-                        u.setPasswordHash(com.university.portal.service.DataSeederService.DEMO_PASSWORD_HASH);
-                    }
-                    userRepository.save(u);
-                }
-            }
-        }
-
-        Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("message", purgeUsers 
-                ? "Full database purge complete. Kept 1 Admin, 1 IQAC Officer, and 1 NAAC Inspector; cleared all other users and documents."
-                : "Database reset to clean state. Users and settings preserved.");
-        resp.put("documentsCount", documentRepository.count());
-        resp.put("usersRemaining", userRepository.count());
-        resp.put("usersDeleted", deletedUsersCount);
-
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(Map.of("message", "All documents, logs, and activities have been cleared."));
     }
 }

@@ -253,7 +253,7 @@ export default function App() {
     { id: 'repository',     label: 'Document Repository', roles: ['Faculty','DeanHOD','IQAC','Inspector','Admin'] },
     { id: 'reports',        label: 'Reports', roles: ['DeanHOD','IQAC','Inspector','Admin'] },
     { id: 'audit',          label: 'Audit Trail', roles: ['IQAC','Inspector','Admin'] },
-    { id: 'access-control', label: 'User Access Control', roles: ['Admin'] },
+    { id: 'access-control', label: currentUser.role === 'Faculty' ? 'Student Directory' : currentUser.role === 'DeanHOD' ? 'Department Users' : 'User Access Control', roles: ['Admin', 'DeanHOD', 'Faculty'] },
   ];
 
   return (
@@ -951,7 +951,7 @@ export default function App() {
             )}
 
             {/* ═══ USER ACCESS CONTROL ═════════════════════════════════════════ */}
-            {activeTab === 'access-control' && currentUser.role === 'Admin' && (
+            {activeTab === 'access-control' && ['Admin', 'DeanHOD', 'Faculty'].includes(currentUser.role) && (
               <UserAccessControl
                 currentUser={currentUser}
                 users={users}
